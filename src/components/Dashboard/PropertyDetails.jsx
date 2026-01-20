@@ -213,9 +213,9 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                                     {payment.amount_paid > 0 && (
                                         <>
                                             <button
-                                                onClick={() => handleDownloadReceipt(payment)}
+                                                onClick={() => window.open(`/receipt/${payment.id}`, '_blank')}
                                                 className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-blue-600 transition"
-                                                title="Descargar Recibo"
+                                                title="Ver Recibo"
                                             >
                                                 📄
                                             </button>

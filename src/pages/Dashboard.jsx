@@ -4,22 +4,30 @@ import SummaryCards from '../components/Dashboard/SummaryCards'
 import MetricsPanel from '../components/Dashboard/MetricsPanel'
 import PropertyGrid from '../components/Dashboard/PropertyCarousel'
 import PropertyDetails from '../components/Dashboard/PropertyDetails'
+import KPICard from '../components/Dashboard/KPICard'
+import FloatingNotificationButton from '../components/Dashboard/FloatingNotificationButton'
+import QuickActions from '../components/Dashboard/QuickActions'
 import RegisterPropertyModal from '../components/Modals/RegisterPropertyModal'
 import AssignTenantModal from '../components/Modals/AssignTenantModal'
 import RegisterPaymentModal from '../components/Modals/RegisterPaymentModal'
 import RegisterGasModal from '../components/Modals/RegisterGasModal'
+import Footer from '../components/Common/Footer'
 import Toast from '../components/Common/Toast'
 import { useToast } from '../components/Common/Toast'
 import { useProperties } from '../hooks/useProperties'
 import { useTenants } from '../hooks/useTenants'
 import { usePayments } from '../hooks/usePayments'
 import { useGasReadings } from '../hooks/useGasReadings'
+import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
 
 export default function Dashboard() {
     const { properties, loading: loadingProps, refresh: refreshProperties } = useProperties()
     const { tenants, refresh: refreshTenants } = useTenants()
     const { payments, refresh: refreshPayments } = usePayments()
     const { gasReadings, refresh: refreshGas } = useGasReadings()
+
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+    const metrics = useDashboardMetrics(selectedYear)
 
     const [selectedProperty, setSelectedProperty] = useState(null)
     const [isRegisterPropertyOpen, setIsRegisterPropertyOpen] = useState(false)
@@ -58,12 +66,11 @@ export default function Dashboard() {
         setIsAssignTenantOpen(true)
     }
 
-    // New: Calculate active tenant for selected property to pass down
     const activeTenantForSelected = tenants.find(t =>
         selectedProperty && t.property_id === selectedProperty.id && t.end_date === null
     )
 
-    if (loadingProps) {
+    if (loadingProps || metrics.loading) {
         return (
             <div className="min-h-screen bg-slate-900 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
@@ -75,34 +82,23 @@ export default function Dashboard() {
         <div className="min-h-screen bg-slate-900">
             <Header />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <SummaryCards properties={properties} tenants={tenants} />
-                </div>
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-8">
-                        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-wrap gap-4">
-                            <button
-                                onClick={() => setIsRegisterPropertyOpen(true)}
-                                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                            >
-                                🏠 Nueva Propiedad
-                            </button>
-                            <button
-                                onClick={() => setIsRegisterPaymentOpen(true)}
-                                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
-                            >
-                                💵 Registrar Pago
-                            </button>
-                            <button
-                                onClick={() => setIsRegisterGasOpen(true)}
-                                className="flex-1 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-2"
-                            >
-                                🔥 Registro Gas
-                            </button>
-                        </div>
+                {/* TOP SECTION: Actions & Metrics */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    {/* Left: Quick Actions (1 Col) */}
+                    <div className="lg:col-span-1">
+                        <h2 className="text-lg font-bold text-gray-400 uppercase tracking-wider mb-4 text-xs">Acciones Rápidas</h2>
+                        <QuickActions
+                            onNewPayment={() => setIsRegisterPaymentOpen(true)}
+                            onNewProperty={() => setIsRegisterPropertyOpen(true)}
+                            onRegisterGas={() => setIsRegisterGasOpen(true)}
+                        />
+                    </div>
 
+                    {/* Right: Metrics Panel (3 Cols) */}
+                    <div className="lg:col-span-3">
+                        <h2 className="text-lg font-bold text-gray-400 uppercase tracking-wider mb-4 text-xs">Resumen Financiero</h2>
                         <MetricsPanel
                             properties={properties}
                             tenants={tenants}
@@ -110,30 +106,70 @@ export default function Dashboard() {
                             gasReadings={gasReadings}
                         />
 
-                        <div>
-                            <h2 className="text-xl font-bold text-white mb-4">Mis Propiedades</h2>
+                        {/* Secondary KPIs Row - Compact */}
+                        <div className="grid grid-cols-3 gap-4 mt-4">
+                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex items-center justify-between">
+                                <div>
+                                    <p className="text-slate-400 text-xs font-bold uppercase">Tasa de Cobro</p>
+                                    <p className={`text-xl font-bold ${metrics.collectionRate >= 95 ? 'text-green-400' : 'text-yellow-400'}`}>{metrics.collectionRate}%</p>
+                                </div>
+                                <span className="text-2xl">📊</span>
+                            </div>
+                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex items-center justify-between">
+                                <div>
+                                    <p className="text-slate-400 text-xs font-bold uppercase">Ocupación</p>
+                                    <p className={`text-xl font-bold ${metrics.occupancyRate === 100 ? 'text-green-400' : 'text-blue-400'}`}>{metrics.occupancyRate}%</p>
+                                </div>
+                                <span className="text-2xl">🏠</span>
+                            </div>
+                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex items-center justify-between">
+                                <div>
+                                    <p className="text-slate-400 text-xs font-bold uppercase">Alertas</p>
+                                    <p className={`text-xl font-bold ${metrics.alerts.length === 0 ? 'text-green-400' : 'text-red-400'}`}>{metrics.alerts.length}</p>
+                                </div>
+                                <span className="text-2xl">⚠️</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* BOTTOM SECTION: Properties & Details */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-400px)] min-h-[600px]">
+
+                    {/* Left: Property List (4 Cols) */}
+                    <div className="lg:col-span-4 flex flex-col h-full">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-white">Mis Propiedades</h2>
+                            <span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{properties.length}</span>
+                        </div>
+                        <div className="overflow-y-auto pr-2 custom-scrollbar flex-1 space-y-3 pb-4">
                             <PropertyGrid
                                 properties={properties}
                                 tenants={tenants}
                                 payments={payments}
                                 onSelectProperty={handlePropertySelect}
                                 selectedProperty={selectedProperty}
+                                isVertical={true}
                             />
                         </div>
                     </div>
 
-                    <div className="lg:col-span-1">
-                        <div className="sticky top-20 h-[calc(100vh-6rem)]">
-                            <PropertyDetails
-                                property={selectedProperty}
-                                activeTenant={activeTenantForSelected} // Passed as prop!
-                                onEditTenant={(tenant) => openAssignModal(selectedProperty, tenant)}
-                                onChangeTenant={() => openAssignModal(selectedProperty, null)}
-                            />
-                        </div>
+                    {/* Right: Property Details (8 Cols) */}
+                    <div className="lg:col-span-8 h-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                        <PropertyDetails
+                            property={selectedProperty}
+                            activeTenant={activeTenantForSelected}
+                            onEditTenant={(tenant) => openAssignModal(selectedProperty, tenant)}
+                            onChangeTenant={() => openAssignModal(selectedProperty, null)}
+                        />
                     </div>
                 </div>
+
+                {/* Floating Notification Button */}
+                <FloatingNotificationButton alerts={metrics.alerts} />
             </main>
+
+            <Footer />
 
             <RegisterPropertyModal
                 isOpen={isRegisterPropertyOpen}
@@ -165,3 +201,4 @@ export default function Dashboard() {
         </div>
     )
 }
+

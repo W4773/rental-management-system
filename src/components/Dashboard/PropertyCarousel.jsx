@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { getPaymentStatusColor, formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 
-export default function PropertyGrid({ properties = [], tenants = [], payments = [], onSelectProperty, selectedProperty }) {
+export default function PropertyGrid({ properties = [], tenants = [], payments = [], onSelectProperty, selectedProperty, isVertical = false }) {
     const safeProps = Array.isArray(properties) ? properties : []
     const safeTenants = Array.isArray(tenants) ? tenants : []
     const safePayments = Array.isArray(payments) ? payments : []
@@ -20,7 +20,7 @@ export default function PropertyGrid({ properties = [], tenants = [], payments =
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={`grid gap-4 ${isVertical ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
             {safeProps.map(property => {
                 // Find active tenant for this property
                 const activeTenant = safeTenants.find(

@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="es-DO">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recibo de Pago - Alquiler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: #f5f5f5;
+            padding: 2rem;
+            color: #333;
+        }
+
+        .receipt-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* Header Section */
+        .receipt-header {
+            background: linear-gradient(135deg, #0f172e 0%, #1a2a4f 100%);
+            padding: 2rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .receipt-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200px;
+            height: 200px;
+            background: rgba(33, 128, 160, 0.1);
+            border-radius: 50%;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .company-info h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .company-info p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .receipt-badge {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid #22c55e;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .receipt-badge .badge-label {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .receipt-badge .badge-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #22c55e;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        /* Main Content Section */
+        .receipt-content {
+            padding: 2rem;
+        }
+
+        /* Two Column Layout */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-block {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            color: #1f2937;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-value.large {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        /* Separator */
+        .divider {
+            border: none;
+            border-top: 2px dashed #e5e7eb;
+            margin: 1.5rem 0;
+        }
+
+        /* Payment Details Section */
+        .payment-section {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-left: 4px solid #2180a0;
+        }
+
+        .payment-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+        }
+
+        .payment-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            margin-bottom: 0.75rem;
+            align-items: center;
+        }
+
+        .payment-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .payment-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .payment-amount {
+            font-size: 1rem;
+            color: #1f2937;
+            font-weight: 600;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        .payment-total {
+            border-top: 2px solid #ddd;
+            padding-top: 1rem;
+            margin-top: 1rem;
+            display: grid;
+            grid-template-columns: 1fr auto;
+        }
+
+        .total-label {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .total-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2180a0;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        /* Breakdown Table */
+        .breakdown-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+
+        .breakdown-table thead {
+            background: #f3f4f6;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .breakdown-table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .breakdown-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.9rem;
+        }
+
+        .breakdown-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .breakdown-table .amount {
+            text-align: right;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-paid {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-partial {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Notes Section */
+        .notes-section {
+            background: #faf9f7;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .notes-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+        }
+
+        .notes-content {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.5;
+            min-height: 40px;
+        }
+
+        /* Footer Section */
+        .receipt-footer {
+            background: #f9fafb;
+            padding: 2rem;
+            border-top: 1px solid #e5e7eb;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .footer-column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .signature-area {
+            border-top: 2px solid #333;
+            padding-top: 1rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .signature-label {
+            font-size: 0.75rem;
+            color: #666;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        /* Contact Info */
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .contact-item {
+            font-size: 0.85rem;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .contact-icon {
+            width: 16px;
+            height: 16px;
+            color: #2180a0;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .receipt-container {
+                box-shadow: none;
+                border-radius: 0;
+                max-width: 100%;
+            }
+
+            .print-button {
+                display: none;
+            }
+
+            @page {
+                margin: 0.5in;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .receipt-container {
+                border-radius: 0;
+            }
+
+            .header-content {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .receipt-badge {
+                min-width: auto;
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .receipt-footer {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .breakdown-table {
+                font-size: 0.8rem;
+            }
+
+            .breakdown-table th,
+            .breakdown-table td {
+                padding: 0.5rem;
+            }
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            print-color-adjust: none;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #2180a0;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #186b80;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        /* Print Button */
+        .print-button {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #2180a0;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(33, 128, 160, 0.3);
+            font-size: 1.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .print-button:hover {
+            background: #186b80;
+            box-shadow: 0 6px 16px rgba(33, 128, 160, 0.4);
+            transform: scale(1.1);
+        }
+
+        @media print {
+            .print-button {
+                display: none;
+            }
+        }
+
+        /* Security Features */
+        .security-footer-text {
+            font-size: 0.75rem;
+            color: #999;
+            text-align: center;
+            padding-top: 1rem;
+            border-top: 1px dashed #ddd;
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .lock-icon {
+            color: #22c55e;
+        }
+    </style>
+</head>
+<body>
+
+<div class="receipt-container">
+    <!-- HEADER SECTION -->
+    <div class="receipt-header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo">🏠</div>
+                <div class="company-info">
+                    <h1>Rental Manager</h1>
+                    <p>Sistema de Gestión de Alquileres</p>
+                </div>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <div class="receipt-badge">
+                <div class="badge-label">Recibo Nº</div>
+                <div class="badge-number" id="receiptNumber">REC-2025-0147</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="receipt-content">
+        
+        <!-- FECHA Y ESTADO -->
+        <div class="content-grid">
+            <div class="info-block">
+                <span class="info-label">📅 Fecha de Pago</span>
+                <span class="info-value" id="paymentDate">19 de Enero de 2026</span>
+                
+                <span class="info-label">⏰ Hora de Registro</span>
+                <span class="info-value" id="paymentTime">08:45 AM</span>
+            </div>
+
+            <div class="info-block">
+                <span class="info-label">Estado del Recibo</span>
+                <div style="margin-top: 0.5rem; margin-bottom: 1.5rem;">
+                    <span class="status-badge status-paid" id="statusBadge">
+                        ✓ PAGADO
+                    </span>
+                </div>
+
+                <span class="info-label">Período de Cobro</span>
+                <span class="info-value" id="billingPeriod">Enero 2026</span>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- INFORMACIÓN DEL INQUILINO -->
+        <div style="margin-bottom: 2rem;">
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1f2937; font-weight: 700;">Información del Inquilino</h3>
+            
+            <div class="content-grid">
+                <div class="info-block">
+                    <span class="info-label">Nombre del Inquilino</span>
+                    <span class="info-value large" id="tenantName">Carlos Eje González</span>
+
+                    <span class="info-label">Número de Identificación</span>
+                    <span class="info-value" id="tenantID">001-5412413-2</span>
+
+                    <span class="info-label">Correo Electrónico</span>
+                    <span class="info-value" id="tenantEmail">carlos.eje@email.com</span>
+                </div>
+
+                <div class="info-block">
+                    <span class="info-label">Teléfono</span>
+                    <span class="info-value" id="tenantPhone">(123) 123-3112</span>
+
+                    <span class="info-label">Nombre de la Propiedad</span>
+                    <span class="info-value large" id="propertyName">CASA 2 - EJEMPLO</span>
+
+                    <span class="info-label">Dirección de la Propiedad</span>
+                    <span class="info-value" id="propertyAddress">Calle Principal 123, Esperalvillo, Monte Plata</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROPIETARIO/EMPRESA -->
+        <div style="margin-bottom: 2rem;">
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1f2937; font-weight: 700;">Información del Propietario</h3>
+            
+            <div class="content-grid">
+                <div class="info-block">
+                    <span class="info-label">Nombre del Propietario</span>
+                    <span class="info-value large" id="ownerName">Josemelo García</span>
+
+                    <span class="info-label">Correo del Propietario</span>
+                    <span class="info-value" id="ownerEmail">josemelo@gmail.com</span>
+                </div>
+
+                <div class="info-block">
+                    <span class="info-label">Teléfono del Propietario</span>
+                    <span class="info-value" id="ownerPhone">(123) 456-7890</span>
+
+                    <span class="info-label">Registro RNC/Número Fiscal</span>
+                    <span class="info-value" id="ownerRNC">101234567-8</span>
+                </div>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- DESGLOSE DE PAGO -->
+        <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1f2937; font-weight: 700;">Desglose de Pago</h3>
+
+        <table class="breakdown-table">
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    <th>Descripción</th>
+                    <th style="text-align: right;">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Alquiler Mensual</td>
+                    <td id="rentalDesc">Enero 2026 - CASA 2</td>
+                    <td class="amount" id="rentalAmount">RD$100.00</td>
+                </tr>
+                <tr>
+                    <td>Servicio de Gas</td>
+                    <td id="gasDesc">Factura Enero 2026</td>
+                    <td class="amount" id="gasAmount">RD$10.00</td>
+                </tr>
+                <tr>
+                    <td>Otros Cargos</td>
+                    <td id="otherDesc">Mantenimiento/Reparaciones</td>
+                    <td class="amount" id="otherAmount">RD$0.00</td>
+                </tr>
+                <tr style="background: #f3f4f6; font-weight: 600;">
+                    <td colspan="2">Subtotal</td>
+                    <td class="amount" id="subtotal">RD$110.00</td>
+                </tr>
+                <tr style="background: #f3f4f6;">
+                    <td colspan="2">Descuento/Abono</td>
+                    <td class="amount" id="discount">RD$0.00</td>
+                </tr>
+                <tr style="background: #f3f4f6; font-weight: 700; border-bottom: 2px solid #1f2937;">
+                    <td colspan="2">TOTAL PAGADO</td>
+                    <td class="amount" id="totalAmount" style="color: #2180a0; font-size: 1.1rem;">RD$110.00</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- MÉTODO DE PAGO -->
+        <div class="payment-section">
+            <div class="payment-title">Forma de Pago</div>
+            
+            <div class="payment-row">
+                <span class="payment-label">Método de Pago</span>
+                <span class="payment-amount" id="paymentMethod">Transferencia Bancaria</span>
+            </div>
+
+            <div class="payment-row">
+                <span class="payment-label">Número de Transacción</span>
+                <span class="payment-amount" id="transactionID">TRX-20260119-4527</span>
+            </div>
+
+            <div class="payment-row">
+                <span class="payment-label">Banco/Medio de Pago</span>
+                <span class="payment-amount" id="bankName">Banco Popular Dominicano</span>
+            </div>
+        </div>
+
+        <!-- NOTAS/OBSERVACIONES -->
+        <div class="notes-section">
+            <div class="notes-title">📝 Notas y Observaciones</div>
+            <div class="notes-content" id="notesContent">
+                Pago completo del alquiler y servicios. Acuse de recibo generado automáticamente en el sistema. Este recibo acredita que el pago ha sido procesado exitosamente.
+            </div>
+        </div>
+
+        <!-- CONDICIONES Y TÉRMINOS -->
+        <div style="font-size: 0.8rem; color: #666; line-height: 1.6; margin-bottom: 2rem;">
+            <strong>Condiciones:</strong>
+            <ul style="margin: 0.5rem 0 0 1.5rem;">
+                <li>Este recibo es válido como comprobante de pago.</li>
+                <li>La próxima cuota será pagadera el primer día del próximo mes.</li>
+                <li>En caso de discrepancias, contactar inmediatamente a la oficina de administración.</li>
+                <li>Los pagos se registran en el sistema según la fecha de transacción.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- FOOTER SECTION -->
+    <div class="receipt-footer">
+        <div class="footer-column">
+            <h4 style="font-size: 0.875rem; font-weight: 700; color: #333; margin-bottom: 0.5rem;">Firma del Propietario</h4>
+            <div class="signature-area">
+                <div style="height: 50px;"></div>
+                <div class="signature-label">Josemelo García - Propietario</div>
+                <div class="signature-label" style="margin-top: 0.25rem;">Fecha y Firma</div>
+            </div>
+        </div>
+
+        <div class="footer-column">
+            <h4 style="font-size: 0.875rem; font-weight: 700; color: #333; margin-bottom: 1rem;">Información de Contacto</h4>
+            <div class="contact-info">
+                <div class="contact-item">
+                    <span>📞</span>
+                    <span id="supportPhone">(123) 456-7890</span>
+                </div>
+                <div class="contact-item">
+                    <span>📧</span>
+                    <span id="supportEmail">soporte@rentalmanager.com</span>
+                </div>
+                <div class="contact-item">
+                    <span>🌐</span>
+                    <span id="supportWebsite">www.rentalmanager.com</span>
+                </div>
+                <div class="contact-item">
+                    <span>🏢</span>
+                    <span id="supportAddress">Esperalvillo, Monte Plata, DO</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Footer -->
+    <div class="security-footer-text">
+        <span class="lock-icon">🔒</span>
+        <span>Protegido con encriptación de 256 bits | Recibo digital verificable</span>
+    </div>
+</div>
+
+<!-- Print Button -->
+<button class="print-button" onclick="window.print()" title="Imprimir Recibo">
+    🖨️
+</button>
+
+<!-- JavaScript para funcionalidad -->
+<script>
+    // Función para generar números de recibo secuenciales
+    function generateReceiptNumber() {
+        const date = new Date();
+        const year = date.getFullYear();
+        const random = Math.floor(Math.random() * 9000) + 1000;
+        return `REC-${year}-${random}`;
+    }
+
+    // Función para formatear fecha
+    function formatDate(date = new Date()) {
+        const options = { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            timeZone: 'America/Puerto_Rico'
+        };
+        return new Intl.DateTimeFormat('es-DO', options).format(date);
+    }
+
+    // Función para formatear hora
+    function formatTime(date = new Date()) {
+        return date.toLocaleTimeString('es-DO', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            timeZone: 'America/Puerto_Rico'
+        });
+    }
+
+    // Inicializar datos del recibo
+    function initializeReceipt() {
+        document.getElementById('receiptNumber').textContent = generateReceiptNumber();
+        document.getElementById('paymentDate').textContent = formatDate();
+        document.getElementById('paymentTime').textContent = formatTime();
+    }
+
+    // Función para actualizar totales automáticamente
+    function updateTotals() {
+        const rentalAmount = parseFloat(document.getElementById('rentalAmount').textContent.replace('RD$', '')) || 0;
+        const gasAmount = parseFloat(document.getElementById('gasAmount').textContent.replace('RD$', '')) || 0;
+        const otherAmount = parseFloat(document.getElementById('otherAmount').textContent.replace('RD$', '')) || 0;
+        const discount = parseFloat(document.getElementById('discount').textContent.replace('RD$', '')) || 0;
+
+        const subtotal = rentalAmount + gasAmount + otherAmount;
+        const total = subtotal - discount;
+
+        document.getElementById('subtotal').textContent = `RD$${subtotal.toFixed(2)}`;
+        document.getElementById('totalAmount').textContent = `RD$${total.toFixed(2)}`;
+    }
+
+    // Función para exportar a PDF (requiere librería como html2pdf)
+    function exportToPDF() {
+        const element = document.querySelector('.receipt-container');
+        const opt = {
+            margin: 10,
+            filename: `Recibo_${document.getElementById('receiptNumber').textContent}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+        };
+        
+        // Descomentar cuando se agregue la librería html2pdf
+        // html2pdf().set(opt).from(element).save();
+    }
+
+    // Función para enviar por email (integración con backend)
+    function sendByEmail() {
+        const receiptData = {
+            receiptNumber: document.getElementById('receiptNumber').textContent,
+            tenantEmail: document.getElementById('tenantEmail').value || document.getElementById('tenantEmail').textContent,
+            propertyName: document.getElementById('propertyName').textContent,
+            totalAmount: document.getElementById('totalAmount').textContent,
+        };
+
+        console.log('Enviando recibo por email:', receiptData);
+        // Aquí se haría la llamada a la API
+        // fetch('/api/send-receipt', { method: 'POST', body: JSON.stringify(receiptData) })
+    }
+
+    // Inicializar la página
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeReceipt();
+        updateTotals();
+    });
+
+    // Permitir edición de campos antes de imprimir
+    function makeFieldsEditable() {
+        const editableFields = [
+            'tenantName', 'tenantID', 'tenantEmail', 'tenantPhone',
+            'propertyName', 'propertyAddress',
+            'rentalAmount', 'gasAmount', 'otherAmount', 'discount',
+            'paymentMethod', 'transactionID', 'bankName',
+            'notesContent'
+        ];
+
+        editableFields.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.cursor = 'text';
+                element.style.padding = '2px 4px';
+                element.addEventListener('click', () => {
+                    element.contentEditable = true;
+                    element.style.background = '#fffacd';
+                    element.focus();
+                });
+                element.addEventListener('blur', () => {
+                    element.contentEditable = false;
+                    element.style.background = 'transparent';
+                    updateTotals();
+                });
+            }
+        });
+    }
+
+    // Habilitar edición
+    makeFieldsEditable();
+</script>
+
+</body>
+</html>

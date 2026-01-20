@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 
 export default function RegisterGasModal({ isOpen, onClose, onSuccess }) {
     const { properties } = useProperties()
-    const { addGasReading, getLatestReadingForProperty } = useGasReadings()
+    const { addGasReading, getReadingsByProperty } = useGasReadings()
     const [loading, setLoading] = useState(false)
 
     const [formData, setFormData] = useState({
@@ -27,23 +27,27 @@ export default function RegisterGasModal({ isOpen, onClose, onSuccess }) {
     useEffect(() => {
         if (formData.property_id) {
             setError(null) // Clear previous errors
-            getLatestReadingForProperty(formData.property_id)
+            getReadingsByProperty(formData.property_id)
                 .then(({ data, error: readError }) => {
                     if (readError) {
-                        console.warn('Error loading last reading:', readError)
-                        setLastReading(null) // Start fresh if error
+                        console.warn('Error loading readings:', readError)
+                        setLastReading(null)
+                    } else if (data && data.length > 0) {
+                        // Assuming getReadingsByProperty returns sorted DESC
+                        setLastReading(data[0])
+                        console.log("Found last reading:", data[0])
                     } else {
-                        setLastReading(data)
+                        setLastReading(null)
                     }
                 })
                 .catch(err => {
-                    console.error('Failed to fetch latest reading:', err)
+                    console.error('Failed to fetch readings:', err)
                     setLastReading(null)
                 })
         } else {
             setLastReading(null)
         }
-    }, [formData.property_id, getLatestReadingForProperty])
+    }, [formData.property_id, getReadingsByProperty])
 
     // Calculate consumption and cost live
     useEffect(() => {
