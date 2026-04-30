@@ -8,8 +8,10 @@ import { usePayments } from '../../hooks/usePayments'
 import { startOfMonth, addMonths, format, setMonth, setYear } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
+import { useUserSettings } from '../../hooks/useUserSettings'
 
 export default function RegisterPaymentModal({ isOpen, onClose, onSuccess }) {
+    const { settings: userSettings } = useUserSettings()
     const { properties } = useProperties()
     const { tenants, getActiveTenantForProperty } = useTenants()
     const { addPayment, getPaymentsByProperty, payments: allPayments } = usePayments()
@@ -211,7 +213,7 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess }) {
                 try {
                     // Handle array or single object
                     const payObj = Array.isArray(finalPayment) ? finalPayment[0] : finalPayment
-                    generateReceiptPDF(payObj, selectedProperty, activeTenant)
+                    await generateReceiptPDF(payObj, selectedProperty, activeTenant, userSettings || {})
                 } catch (e) { console.error('PDF Error', e) }
             }
 

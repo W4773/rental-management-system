@@ -10,8 +10,10 @@ import YearlyPaymentGrid from './YearlyPaymentGrid'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
+import { useUserSettings } from '../../hooks/useUserSettings'
 
 export default function PropertyDetails({ property, activeTenant, onEditTenant, onChangeTenant }) {
+    const { settings: userSettings } = useUserSettings()
     const { getPaymentsByProperty, deletePayment } = usePayments()
     const { deleteProperty } = useProperties()
     const { getReadingsByProperty } = useUtilityReadings()
@@ -56,12 +58,12 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
         }
     }, [property])
 
-    const handleDownloadReceipt = (payment) => {
+    const handleDownloadReceipt = async (payment) => {
         let tenantInfo = { name: 'Inquilino Histórico', identity_number: '' }
         if (activeTenant && activeTenant.id === payment.tenant_id) {
             tenantInfo = activeTenant
         }
-        generateReceiptPDF(payment, property, tenantInfo)
+        await generateReceiptPDF(payment, property, tenantInfo, userSettings || {})
     }
 
     const confirmDeletePayment = async () => {
@@ -213,11 +215,12 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                                     {payment.amount_paid > 0 && (
                                         <>
                                             <button
-                                                onClick={() => window.open(`/receipt/${payment.id}`, '_blank')}
-                                                className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-blue-600 transition"
-                                                title="Ver Recibo"
+                                                onClick={() => handleDownloadReceipt(payment)}
+                                                className="p-2 hover:bg-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition font-medium text-[16px]"
+                                                title="Descargar Recibo PDF"
+                                                style={{ minHeight: '40px', minWidth: '40px' }}
                                             >
-                                                📄
+                                                🖨️
                                             </button>
                                             <button
                                                 onClick={() => setDeletePaymentModal(payment.id)}
