@@ -2,12 +2,12 @@ import { useState } from 'react'
 import Modal from '../Common/Modal'
 import Button from '../Common/Button'
 import ConfirmModal from '../Common/ConfirmModal'
-import { useGasReadings } from '../../hooks/useGasReadings'
+import { useUtilityReadings } from '../../hooks/useUtilityReadings'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 
 export default function PayGasModal({ isOpen, onClose, onSuccess, gasReading }) {
-    const { updateGasReading } = useGasReadings()
+    const { updateGasReading } = useUtilityReadings()
     const [paymentNotes, setPaymentNotes] = useState('')
 
     if (!gasReading) return null

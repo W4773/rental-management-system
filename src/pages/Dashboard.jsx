@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import Header from '../components/Common/Header'
-import SummaryCards from '../components/Dashboard/SummaryCards'
 import MetricsPanel from '../components/Dashboard/MetricsPanel'
 import PropertyGrid from '../components/Dashboard/PropertyCarousel'
 import PropertyDetails from '../components/Dashboard/PropertyDetails'
-import KPICard from '../components/Dashboard/KPICard'
 import FloatingNotificationButton from '../components/Dashboard/FloatingNotificationButton'
 import QuickActions from '../components/Dashboard/QuickActions'
+import TenantSection from '../components/Dashboard/TenantSection'
 import RegisterPropertyModal from '../components/Modals/RegisterPropertyModal'
 import AssignTenantModal from '../components/Modals/AssignTenantModal'
 import RegisterPaymentModal from '../components/Modals/RegisterPaymentModal'
@@ -17,16 +16,16 @@ import { useToast } from '../components/Common/Toast'
 import { useProperties } from '../hooks/useProperties'
 import { useTenants } from '../hooks/useTenants'
 import { usePayments } from '../hooks/usePayments'
-import { useGasReadings } from '../hooks/useGasReadings'
+import { useUtilityReadings } from '../hooks/useUtilityReadings'
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
 
 export default function Dashboard() {
     const { properties, loading: loadingProps, refresh: refreshProperties } = useProperties()
-    const { tenants, refresh: refreshTenants } = useTenants()
+    const { tenants, closeTenant, refresh: refreshTenants } = useTenants()
     const { payments, refresh: refreshPayments } = usePayments()
-    const { gasReadings, refresh: refreshGas } = useGasReadings()
+    const { gasReadings, refresh: refreshGas } = useUtilityReadings()
 
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+    const [selectedYear] = useState(new Date().getFullYear())
     const metrics = useDashboardMetrics(selectedYear)
 
     const [selectedProperty, setSelectedProperty] = useState(null)
@@ -46,17 +45,12 @@ export default function Dashboard() {
         }
     }, [properties, selectedProperty])
 
-    const handlePropertySelect = (property) => {
-        setSelectedProperty(property)
-    }
-
     const handleDataUpdate = () => {
         refreshProperties()
         refreshTenants()
         refreshPayments()
         refreshGas()
         showToast('Datos actualizados', 'success')
-        // Auto-reload to ensure all data is fresh
         setTimeout(() => window.location.reload(), 800)
     }
 
@@ -64,6 +58,15 @@ export default function Dashboard() {
         setParamTenantProperty(property || selectedProperty)
         setParamEditTenant(tenantToEdit)
         setIsAssignTenantOpen(true)
+    }
+
+    const handleUnassignTenant = async (tenantId) => {
+        const { error } = await closeTenant(tenantId, new Date())
+        if (error) {
+            showToast('Error al desasignar inquilino', 'error')
+        } else {
+            handleDataUpdate()
+        }
     }
 
     const activeTenantForSelected = tenants.find(t =>
@@ -86,27 +89,24 @@ export default function Dashboard() {
 
                 {/* TOP SECTION: Actions & Metrics */}
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* Left: Quick Actions (1 Col) */}
                     <div className="lg:col-span-1">
-                        <h2 className="text-lg font-bold text-gray-400 uppercase tracking-wider mb-4 text-xs">Acciones Rápidas</h2>
+                        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Acciones Rápidas</h2>
                         <QuickActions
                             onNewPayment={() => setIsRegisterPaymentOpen(true)}
                             onNewProperty={() => setIsRegisterPropertyOpen(true)}
                             onRegisterGas={() => setIsRegisterGasOpen(true)}
+                            onNewTenant={() => openAssignModal()}
                         />
                     </div>
 
-                    {/* Right: Metrics Panel (3 Cols) */}
                     <div className="lg:col-span-3">
-                        <h2 className="text-lg font-bold text-gray-400 uppercase tracking-wider mb-4 text-xs">Resumen Financiero</h2>
+                        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Resumen Financiero</h2>
                         <MetricsPanel
                             properties={properties}
                             tenants={tenants}
                             payments={payments}
                             gasReadings={gasReadings}
                         />
-
-                        {/* Secondary KPIs Row - Compact */}
                         <div className="grid grid-cols-3 gap-4 mt-4">
                             <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex items-center justify-between">
                                 <div>
@@ -133,10 +133,8 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* BOTTOM SECTION: Properties & Details */}
+                {/* PROPERTIES & DETAILS SECTION */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-400px)] min-h-[600px]">
-
-                    {/* Left: Property List (4 Cols) */}
                     <div className="lg:col-span-4 flex flex-col h-full">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold text-white">Mis Propiedades</h2>
@@ -147,14 +145,13 @@ export default function Dashboard() {
                                 properties={properties}
                                 tenants={tenants}
                                 payments={payments}
-                                onSelectProperty={handlePropertySelect}
+                                onSelectProperty={setSelectedProperty}
                                 selectedProperty={selectedProperty}
                                 isVertical={true}
                             />
                         </div>
                     </div>
 
-                    {/* Right: Property Details (8 Cols) */}
                     <div className="lg:col-span-8 h-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                         <PropertyDetails
                             property={selectedProperty}
@@ -165,7 +162,15 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Floating Notification Button */}
+                {/* TENANT SECTION */}
+                <TenantSection
+                    tenants={tenants}
+                    properties={properties}
+                    onNewTenant={() => openAssignModal()}
+                    onUnassignTenant={handleUnassignTenant}
+                    onEditTenant={(tenant) => openAssignModal(null, tenant)}
+                />
+
                 <FloatingNotificationButton alerts={metrics.alerts} />
             </main>
 
@@ -201,4 +206,3 @@ export default function Dashboard() {
         </div>
     )
 }
-

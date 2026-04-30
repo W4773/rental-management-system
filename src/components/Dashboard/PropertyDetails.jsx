@@ -3,7 +3,7 @@ import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { usePayments } from '../../hooks/usePayments'
 import { useProperties } from '../../hooks/useProperties'
-import { useGasReadings } from '../../hooks/useGasReadings'
+import { useUtilityReadings } from '../../hooks/useUtilityReadings'
 import ConfirmModal from '../Common/ConfirmModal'
 import PayGasModal from '../Modals/PayGasModal'
 import YearlyPaymentGrid from './YearlyPaymentGrid'
@@ -14,7 +14,7 @@ import { generateReceiptPDF } from '../../lib/pdfGenerator'
 export default function PropertyDetails({ property, activeTenant, onEditTenant, onChangeTenant }) {
     const { getPaymentsByProperty, deletePayment } = usePayments()
     const { deleteProperty } = useProperties()
-    const { getReadingsByProperty } = useGasReadings()
+    const { getReadingsByProperty } = useUtilityReadings()
 
     const [payments, setPayments] = useState([])
     const [allPayments, setAllPayments] = useState([])
