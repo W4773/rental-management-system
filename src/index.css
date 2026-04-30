@@ -470,6 +470,14 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 12px;
+
+  /* Accesibilidad — adultos mayores */
+  --text-body-min: 16px;
+  --text-label: 18px;
+  --text-value: 24px;
+  --text-title: 20px;
+  --touch-min: 48px;
+  --focus-ring: 0 0 0 3px rgba(37,99,235,0.5);
 }
 
 /* ===== DASHBOARD ANIMATIONS ===== */
@@ -1247,4 +1255,80 @@
 
 .dropdown-menu button:not(:last-child) {
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* ===== ACCESSIBILITY BASE STYLES ===== */
+
+/* Sidebar */
+.sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: var(--text-label);
+    font-weight: 600;
+    min-height: var(--touch-min);
+    transition: background-color 0.15s, color 0.15s;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.sidebar-nav-item:hover {
+    background: #f1f5f9;
+    color: #1e3a8a;
+}
+
+.sidebar-nav-item.active {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-left: 4px solid #2563eb;
+}
+
+.sidebar-nav-item:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* Accessible form controls */
+.accessible-input {
+    min-height: var(--touch-min);
+    font-size: var(--text-label);
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    color: #0f172a;
+    width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.accessible-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: var(--focus-ring);
+}
+
+.accessible-label {
+    font-size: var(--text-label);
+    font-weight: 600;
+    color: #374151;
+    display: block;
+    margin-bottom: 6px;
+}
+
+/* Section headers */
+.section-title {
+    font-size: var(--text-title);
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* KPI values */
+.kpi-amount {
+    font-size: var(--text-value);
+    font-weight: 800;
+    color: #0f172a;
 }
