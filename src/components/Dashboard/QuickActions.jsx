@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
-export default function QuickActions({ onNewPayment, onNewProperty, onRegisterGas }) {
+export default function QuickActions({ onNewPayment, onNewProperty, onRegisterGas, onRegisterElectricity, onRegisterWater, onNewTenant }) {
     const [showExpensesMenu, setShowExpensesMenu] = useState(false)
-    const navigate = useNavigate()
 
     return (
         <div className="flex flex-col gap-3 w-full">
@@ -21,6 +19,14 @@ export default function QuickActions({ onNewPayment, onNewProperty, onRegisterGa
             >
                 <span className="text-2xl group-hover:scale-110 transition-transform">🏠</span>
                 <span className="font-semibold text-gray-700">Nueva Propiedad</span>
+            </button>
+
+            <button
+                className="flex items-center gap-3 bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all text-left group"
+                onClick={onNewTenant}
+            >
+                <span className="text-2xl group-hover:scale-110 transition-transform">👤</span>
+                <span className="font-semibold text-gray-700">Nuevo Inquilino</span>
             </button>
 
             <div className="relative">
@@ -41,15 +47,21 @@ export default function QuickActions({ onNewPayment, onNewProperty, onRegisterGa
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden animate-fade-in-down">
                         <button
                             className="w-full text-left px-4 py-3 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-2 border-b border-gray-50"
-                            onClick={() => { onRegisterGas(); setShowExpensesMenu(false); }}
+                            onClick={() => { onRegisterGas(); setShowExpensesMenu(false) }}
                         >
                             <span>🔥</span> Gas
                         </button>
-                        <button className="w-full text-left px-4 py-3 hover:bg-yellow-50 hover:text-yellow-600 transition flex items-center gap-2 border-b border-gray-50 text-gray-400 cursor-not-allowed">
-                            <span>💡</span> Luz (Pronto)
+                        <button
+                            className="w-full text-left px-4 py-3 hover:bg-yellow-50 hover:text-yellow-600 transition flex items-center gap-2 border-b border-gray-50"
+                            onClick={() => { onRegisterElectricity(); setShowExpensesMenu(false) }}
+                        >
+                            <span>💡</span> Luz (Electricidad)
                         </button>
-                        <button className="w-full text-left px-4 py-3 hover:bg-blue-50 hover:text-blue-600 transition flex items-center gap-2 border-b border-gray-50 text-gray-400 cursor-not-allowed">
-                            <span>💧</span> Agua (Pronto)
+                        <button
+                            className="w-full text-left px-4 py-3 hover:bg-blue-50 hover:text-blue-600 transition flex items-center gap-2 border-b border-gray-50"
+                            onClick={() => { onRegisterWater(); setShowExpensesMenu(false) }}
+                        >
+                            <span>💧</span> Agua
                         </button>
                         <button className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center gap-2 text-gray-400 cursor-not-allowed">
                             <span>📋</span> Extra (Pronto)
