@@ -15,16 +15,16 @@ export function useAlerts(payments = [], tenants = [], properties = []) {
 
         const overdue = [], upcoming = []
 
-        for (const p of payments.filter(p => !p.paid)) {
+        for (const p of payments.filter(p => p.payment_status !== 'paid')) {
             const dueDate = new Date(p.payment_month); dueDate.setHours(0, 0, 0, 0)
             const tenant = tenants.find(t => t.property_id === p.property_id && !t.end_date)
             const property = properties.find(pr => pr.id === p.property_id)
             const alert = {
                 id: p.id,
                 propertyId: p.property_id,
-                tenantName: tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Inquilino desconocido',
+                tenantName: tenant?.name ?? 'Inquilino desconocido',
                 propertyName: property?.name ?? 'Propiedad desconocida',
-                amount: p.amount ?? property?.rent_price ?? 0,
+                amount: p.rent_amount ?? property?.monthly_rent ?? 0,
                 dueDate,
                 paymentId: p.id,
             }

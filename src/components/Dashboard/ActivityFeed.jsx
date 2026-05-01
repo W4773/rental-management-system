@@ -10,15 +10,15 @@ function formatDate(dateStr) {
 }
 
 export default function ActivityFeed({ payments = [], tenants = [], properties = [] }) {
-    const items = payments.filter(p => p.paid).slice(0, 8).map(p => {
+    const items = payments.filter(p => p.payment_status === 'paid').slice(0, 8).map(p => {
         const tenant = tenants.find(t => t.property_id === p.property_id && !t.end_date)
             ?? tenants.find(t => t.property_id === p.property_id)
         const property = properties.find(pr => pr.id === p.property_id)
         return {
             id: p.id,
             icon: '💰',
-            title: `Pago recibido${tenant ? ` — ${tenant.first_name} ${tenant.last_name}` : ''}`,
-            subtitle: `${property?.name ?? 'Propiedad'} · RD$${Number(p.amount ?? property?.rent_price ?? 0).toLocaleString('es-DO')}`,
+            title: `Pago recibido${tenant ? ` — ${tenant.name}` : ''}`,
+            subtitle: `${property?.name ?? 'Propiedad'} · RD$${Number(p.amount_paid ?? p.rent_amount ?? property?.monthly_rent ?? 0).toLocaleString('es-DO')}`,
             date: p.payment_date ?? p.created_at,
         }
     })

@@ -5,7 +5,7 @@ function getPaymentStatus(property, tenants, payments) {
     const today = new Date()
     const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
     const thisMonthPay = payments.find(p => p.property_id === property.id && p.payment_month?.slice(0, 7) === currentMonth)
-    if (!thisMonthPay || !thisMonthPay.paid) {
+    if (!thisMonthPay || thisMonthPay.payment_status !== 'paid') {
         const dueDate = thisMonthPay ? new Date(thisMonthPay.payment_month) : null
         if (dueDate && dueDate < today) return { label: 'VENCIDO', badgeClass: 'wp-badge-red' }
         return { label: 'PENDIENTE', badgeClass: 'wp-badge-amber' }
@@ -35,12 +35,12 @@ export default function PropertiesList({ properties = [], tenants = [], payments
                         <div>
                             <div className="wp-title" style={{ fontSize: 11 }}>{property.name}</div>
                             <div style={{ fontSize: 10, color: 'var(--wp-text-muted)', marginTop: 1 }}>
-                                {tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Sin inquilino'}
+                                {tenant ? tenant.name : 'Sin inquilino'}
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--wp-gold)' }}>
-                                RD${Number(property.rent_price ?? 0).toLocaleString('es-DO')}
+                                RD${Number(property.monthly_rent ?? 0).toLocaleString('es-DO')}
                             </div>
                             {badgeClass && <span className={badgeClass} style={{ marginTop: 3, display: 'inline-block', fontSize: 9 }}>{label}</span>}
                         </div>

@@ -113,17 +113,17 @@ export default function Dashboard() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
                         <KPICard
-                            title="Cobrado este mes"
-                            value={`RD$${Number(metrics?.totalCollected ?? 0).toLocaleString('es-DO')}`}
+                            title="Cobrado este año"
+                            value={`RD$${Number(metrics?.totalRevenue ?? 0).toLocaleString('es-DO')}`}
                             status="default"
-                            barWidth={metrics?.totalExpected ? (metrics.totalCollected / metrics.totalExpected) * 100 : 0}
+                            barWidth={metrics?.collectionRate ?? 0}
                             icon="💰"
                         />
                         <KPICard
-                            title="Pendiente"
-                            value={`RD$${Number(metrics?.totalPending ?? 0).toLocaleString('es-DO')}`}
-                            status={metrics?.totalPending > 0 ? 'danger' : 'success'}
-                            barWidth={metrics?.totalExpected ? (metrics.totalPending / metrics.totalExpected) * 100 : 0}
+                            title="Monto atrasado"
+                            value={`RD$${Number(metrics?.overdueAmount ?? 0).toLocaleString('es-DO')}`}
+                            status={metrics?.overdueAmount > 0 ? 'danger' : 'success'}
+                            barWidth={metrics?.overdueAmount > 0 && metrics?.totalRevenue > 0 ? Math.min(100, (metrics.overdueAmount / metrics.totalRevenue) * 100) : 0}
                             icon="⏳"
                         />
                         <KPICard
@@ -134,10 +134,10 @@ export default function Dashboard() {
                             icon="🏠"
                         />
                         <KPICard
-                            title="Total esperado"
-                            value={`RD$${Number(metrics?.totalExpected ?? 0).toLocaleString('es-DO')}`}
-                            status="default"
-                            barWidth={100}
+                            title="Tasa de cobro"
+                            value={`${metrics?.collectionRate ?? 0}%`}
+                            status={metrics?.collectionRate >= 95 ? 'success' : metrics?.collectionRate >= 80 ? 'warning' : 'danger'}
+                            barWidth={metrics?.collectionRate ?? 0}
                             icon="📊"
                         />
                     </div>
