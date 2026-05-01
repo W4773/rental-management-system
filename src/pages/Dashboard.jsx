@@ -1,11 +1,8 @@
 // src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react'
 import AppLayout from '../components/Layout/AppLayout'
-import MetricsPanel from '../components/Dashboard/MetricsPanel'
 import PropertyGrid from '../components/Dashboard/PropertyCarousel'
 import PropertyDetails from '../components/Dashboard/PropertyDetails'
-import FloatingNotificationButton from '../components/Dashboard/FloatingNotificationButton'
-import QuickActions from '../components/Dashboard/QuickActions'
 import TenantSection from '../components/Dashboard/TenantSection'
 import RegisterPropertyModal from '../components/Modals/RegisterPropertyModal'
 import AssignTenantModal from '../components/Modals/AssignTenantModal'
@@ -17,6 +14,11 @@ import { useTenants } from '../hooks/useTenants'
 import { usePayments } from '../hooks/usePayments'
 import { useUtilityReadings } from '../hooks/useUtilityReadings'
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
+import { useAlerts } from '../hooks/useAlerts'
+import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
+import PropertiesList from '../components/Dashboard/PropertiesList'
+import ActivityFeed from '../components/Dashboard/ActivityFeed'
+import KPICard from '../components/Dashboard/KPICard'
 
 export default function Dashboard() {
     const { properties, loading: loadingProps, refresh: refreshProperties } = useProperties()
@@ -29,6 +31,7 @@ export default function Dashboard() {
 
     const [activeSection, setActiveSection] = useState('resumen')
     const [selectedProperty, setSelectedProperty] = useState(null)
+    const [isAlertDrawerOpen, setIsAlertDrawerOpen] = useState(false)
 
     const [isRegisterPropertyOpen, setIsRegisterPropertyOpen] = useState(false)
     const [isAssignTenantOpen, setIsAssignTenantOpen] = useState(false)
@@ -39,6 +42,8 @@ export default function Dashboard() {
     const [paramEditTenant, setParamEditTenant] = useState(null)
 
     const { toast, showToast, hideToast } = useToast()
+
+    const { overdue, upcoming, total: alertTotal } = useAlerts(payments, tenants, properties)
 
     useEffect(() => {
         if (!selectedProperty && properties.length > 0) {
@@ -76,69 +81,76 @@ export default function Dashboard() {
 
     if (loadingProps || metrics.loading) {
         return (
-            <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div style={{ minHeight: '100vh', background: 'var(--wp-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#b8962e]"></div>
             </div>
         )
     }
 
     return (
-        <AppLayout activeSection={activeSection} onSectionChange={setActiveSection}>
+        <AppLayout
+            activeSection={activeSection}
+            onSectionChange={setActiveSection}
+            alertCount={alertTotal}
+            onAlertClick={() => setIsAlertDrawerOpen(true)}
+        >
 
             {/* RESUMEN */}
             {activeSection === 'resumen' && (
-                <div className="space-y-6">
-                    <h2 className="section-title">Resumen General</h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        <div className="lg:col-span-1">
-                            <p className="accessible-label mb-3">Acciones Rápidas</p>
-                            <QuickActions
-                                onNewPayment={() => setIsRegisterPaymentOpen(true)}
-                                onNewProperty={() => setIsRegisterPropertyOpen(true)}
-                                onRegisterGas={() => setUtilityModalType('gas')}
-                                onRegisterElectricity={() => setUtilityModalType('electricity')}
-                                onRegisterWater={() => setUtilityModalType('water')}
-                                onNewTenant={() => openAssignModal()}
-                            />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                        <div>
+                            <h1 className="wp-title" style={{ fontSize: 22 }}>Dashboard</h1>
+                            <p style={{ fontSize: 12, color: 'var(--wp-text-muted)', marginTop: 3 }}>
+                                {new Date().toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })} · {properties.length} {properties.length === 1 ? 'propiedad activa' : 'propiedades activas'}
+                            </p>
                         </div>
-                        <div className="lg:col-span-3">
-                            <p className="accessible-label mb-3">Resumen Financiero</p>
-                            <MetricsPanel
-                                properties={properties}
-                                tenants={tenants}
-                                payments={payments}
-                                gasReadings={gasReadings}
-                            />
-                            <div className="grid grid-cols-3 gap-4 mt-4">
-                                <div className="bg-white p-5 rounded-xl border-2 border-gray-200 flex items-center justify-between">
-                                    <div>
-                                        <p className="accessible-label">Tasa de Cobro</p>
-                                        <p className={`kpi-amount ${metrics.collectionRate >= 95 ? 'text-green-600' : 'text-yellow-600'}`}>
-                                            {metrics.collectionRate}%
-                                        </p>
-                                    </div>
-                                    <span className="text-3xl">📊</span>
-                                </div>
-                                <div className="bg-white p-5 rounded-xl border-2 border-gray-200 flex items-center justify-between">
-                                    <div>
-                                        <p className="accessible-label">Ocupación</p>
-                                        <p className={`kpi-amount ${metrics.occupancyRate === 100 ? 'text-green-600' : 'text-blue-600'}`}>
-                                            {metrics.occupancyRate}%
-                                        </p>
-                                    </div>
-                                    <span className="text-3xl">🏠</span>
-                                </div>
-                                <div className="bg-white p-5 rounded-xl border-2 border-gray-200 flex items-center justify-between">
-                                    <div>
-                                        <p className="accessible-label">Alertas</p>
-                                        <p className={`kpi-amount ${metrics.alerts.length === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {metrics.alerts.length}
-                                        </p>
-                                    </div>
-                                    <span className="text-3xl">⚠️</span>
-                                </div>
-                            </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="wp-btn-secondary" onClick={() => setIsAssignTenantOpen(true)}>+ Inquilino</button>
+                            <button className="wp-btn-primary" onClick={() => setIsRegisterPropertyOpen(true)}>+ Propiedad</button>
                         </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                        <KPICard
+                            title="Cobrado este mes"
+                            value={`RD$${Number(metrics?.totalCollected ?? 0).toLocaleString('es-DO')}`}
+                            status="default"
+                            barWidth={metrics?.totalExpected ? (metrics.totalCollected / metrics.totalExpected) * 100 : 0}
+                            icon="💰"
+                        />
+                        <KPICard
+                            title="Pendiente"
+                            value={`RD$${Number(metrics?.totalPending ?? 0).toLocaleString('es-DO')}`}
+                            status={metrics?.totalPending > 0 ? 'danger' : 'success'}
+                            barWidth={metrics?.totalExpected ? (metrics.totalPending / metrics.totalExpected) * 100 : 0}
+                            icon="⏳"
+                        />
+                        <KPICard
+                            title="Ocupación"
+                            value={`${metrics?.occupancyRate ?? 0}%`}
+                            status={metrics?.occupancyRate >= 100 ? 'success' : 'warning'}
+                            barWidth={metrics?.occupancyRate ?? 0}
+                            icon="🏠"
+                        />
+                        <KPICard
+                            title="Total esperado"
+                            value={`RD$${Number(metrics?.totalExpected ?? 0).toLocaleString('es-DO')}`}
+                            status="default"
+                            barWidth={100}
+                            icon="📊"
+                        />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <PropertiesList
+                            properties={properties}
+                            tenants={tenants}
+                            payments={payments}
+                            onSelectProperty={(p) => { setSelectedProperty(p); setActiveSection('propiedades') }}
+                            onAddProperty={() => setIsRegisterPropertyOpen(true)}
+                        />
+                        <ActivityFeed payments={payments} tenants={tenants} properties={properties} />
                     </div>
                 </div>
             )}
@@ -196,7 +208,13 @@ export default function Dashboard() {
                 />
             )}
 
-            <FloatingNotificationButton alerts={metrics.alerts} />
+            <AlertDrawer
+                isOpen={isAlertDrawerOpen}
+                onClose={() => setIsAlertDrawerOpen(false)}
+                overdue={overdue}
+                upcoming={upcoming}
+                onPayClick={() => { setIsAlertDrawerOpen(false); setIsRegisterPaymentOpen(true) }}
+            />
 
             {/* Modales */}
             <RegisterPropertyModal

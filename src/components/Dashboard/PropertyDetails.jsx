@@ -109,7 +109,7 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                     <p className="text-gray-500">{property.address}</p>
                 </div>
                 <div className="text-right flex flex-col items-end">
-                    <p className="text-xl font-bold text-blue-600">{formatCurrency(property.monthly_rent)}</p>
+                    <p className="text-xl font-bold" style={{ color: 'var(--wp-gold)' }}>{formatCurrency(property.monthly_rent)}</p>
                     <p className="text-xs text-gray-500 mb-2">mensual</p>
                     <button
                         onClick={() => setDeletePropertyModal(true)}
@@ -137,7 +137,7 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                     <span>👤</span> INQUILINO ACTUAL
                 </h3>
                 {activeTenant ? (
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-100 animate-fade-in">
+                    <div className="rounded-lg p-4 animate-fade-in" style={{ background: 'var(--wp-amber-bg)', border: '1px solid var(--wp-border)' }}>
                         <div className="space-y-2 text-sm text-gray-700">
                             <p><span className="font-semibold">Nombre:</span> {activeTenant.name}</p>
                             <p><span className="font-semibold">Cédula:</span> {activeTenant.identity_number}</p>
@@ -148,7 +148,7 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                         <div className="mt-4 flex gap-2">
                             <button
                                 onClick={() => onEditTenant(activeTenant)}
-                                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition font-medium text-sm"
+                                className="flex-1 wp-btn-primary py-2 rounded-md font-medium text-sm"
                             >
                                 Editar Inquilino
                             </button>
@@ -165,7 +165,8 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                         <p className="text-gray-500 mb-2">No hay inquilino activo</p>
                         <button
                             onClick={() => onChangeTenant(null)}
-                            className="text-blue-600 font-medium hover:underline text-sm"
+                            className="font-medium hover:underline text-sm"
+                            style={{ color: 'var(--wp-gold)' }}
                         >
                             + Asignar Nuevo Inquilino
                         </button>
@@ -268,7 +269,7 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                                         {!reading.paid && (
                                             <button
                                                 onClick={() => setPayGasModal(reading)}
-                                                className="mt-1 text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition font-medium"
+                                                className="wp-btn-primary mt-1 text-xs px-3 py-1 rounded font-medium"
                                             >
                                                 💳 Pagar
                                             </button>
