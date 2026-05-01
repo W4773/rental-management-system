@@ -157,25 +157,25 @@ export default function Dashboard() {
 
             {/* PROPIEDADES */}
             {activeSection === 'propiedades' && (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h2 className="section-title">Mis Propiedades</h2>
-                        <span className="bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1 rounded-full">{properties.length}</span>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" style={{ minHeight: '600px' }}>
-                        <div className="lg:col-span-4 flex flex-col">
-                            <div className="overflow-y-auto pr-2 custom-scrollbar flex-1 space-y-3">
-                                <PropertyGrid
-                                    properties={properties}
-                                    tenants={tenants}
-                                    payments={payments}
-                                    onSelectProperty={setSelectedProperty}
-                                    selectedProperty={selectedProperty}
-                                    isVertical={true}
-                                />
-                            </div>
+                <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <h2 className="wp-title" style={{ fontSize: 18 }}>Mis Propiedades</h2>
+                            <span className="wp-badge-amber">{properties.length}</span>
                         </div>
-                        <div className="lg:col-span-8 bg-white rounded-xl shadow-sm overflow-hidden border-2 border-gray-200">
+                        <button className="wp-btn-primary" onClick={() => setIsRegisterPropertyOpen(true)}>+ Nueva Propiedad</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 16, alignItems: 'start' }}>
+                        <div style={{ position: 'sticky', top: 70 }}>
+                            <PropertyGrid
+                                properties={properties}
+                                tenants={tenants}
+                                payments={payments}
+                                onSelectProperty={setSelectedProperty}
+                                selectedProperty={selectedProperty}
+                            />
+                        </div>
+                        <div style={{ border: '1px solid var(--wp-border)', borderRadius: 'var(--wp-radius-md)', overflow: 'hidden', background: 'var(--wp-surface)' }}>
                             <PropertyDetails
                                 property={selectedProperty}
                                 activeTenant={activeTenantForSelected}
