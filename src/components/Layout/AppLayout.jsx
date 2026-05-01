@@ -1,19 +1,18 @@
 // src/components/Layout/AppLayout.jsx
-import Header from '../Common/Header'
-import Sidebar from './Sidebar'
-import Footer from '../Common/Footer'
+import TopNav from './TopNav'
 
-export default function AppLayout({ activeSection, onSectionChange, children }) {
+export default function AppLayout({ activeSection, onSectionChange, alertCount = 0, onAlertClick, children }) {
     return (
-        <div className="min-h-screen bg-[#f8fafc] flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-                <Sidebar activeSection={activeSection} onSectionChange={onSectionChange} />
-                <main className="flex-1 overflow-auto p-6">
-                    {children}
-                </main>
-            </div>
-            <Footer />
+        <div style={{ minHeight: '100vh', background: 'var(--wp-bg)', display: 'flex', flexDirection: 'column' }}>
+            <TopNav
+                activeSection={activeSection}
+                onSectionChange={onSectionChange}
+                alertCount={alertCount}
+                onAlertClick={onAlertClick}
+            />
+            <main style={{ flex: 1, padding: '24px 20px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+                {children}
+            </main>
         </div>
     )
 }
