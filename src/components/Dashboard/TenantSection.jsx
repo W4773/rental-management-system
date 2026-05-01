@@ -1,6 +1,30 @@
 import { useState } from 'react'
 
-export default function TenantSection({ tenants, properties, onNewTenant, onUnassignTenant, onEditTenant }) {
+function getTenantPaymentStatus(tenant, payments) {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+
+    const currentPaid = payments.find(p =>
+        p.property_id === tenant.property_id &&
+        p.payment_month?.slice(0, 7) === currentMonth &&
+        p.payment_status === 'paid'
+    )
+    if (currentPaid) return { label: 'AL DÍA', badgeClass: 'wp-badge-green' }
+
+    const unpaid = payments
+        .filter(p => p.property_id === tenant.property_id && p.payment_status !== 'paid')
+        .sort((a, b) => new Date(a.payment_month) - new Date(b.payment_month))
+
+    if (unpaid.length === 0) return { label: 'AL DÍA', badgeClass: 'wp-badge-green' }
+
+    const firstOfOldest = new Date(unpaid[0].payment_month.slice(0, 7) + '-01T00:00:00')
+    const daysSince = Math.floor((today - firstOfOldest) / 86400000)
+
+    if (daysSince > 30) return { label: 'ATRASADO', badgeClass: 'wp-badge-red' }
+    return { label: 'PENDIENTE', badgeClass: 'wp-badge-amber' }
+}
+
+export default function TenantSection({ tenants, properties, payments = [], onNewTenant, onUnassignTenant, onEditTenant }) {
     const [confirmingId, setConfirmingId] = useState(null)
 
     const activeTenants = tenants.filter(t => t.end_date === null)
@@ -36,7 +60,7 @@ export default function TenantSection({ tenants, properties, onNewTenant, onUnas
                         <table className="w-full" style={{ fontSize: 14 }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--wp-border)' }}>
-                                    {['Propiedad', 'Inquilino', 'Cédula', 'Teléfono', 'Email', 'Ingreso', ''].map(h => (
+                                    {['Propiedad', 'Inquilino', 'Cédula', 'Teléfono', 'Email', 'Ingreso', 'Estado Pago', ''].map(h => (
                                         <th key={h} style={{ padding: '10px 14px', textAlign: h === '' ? 'right' : 'left', fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--wp-text-muted)' }}>{h}</th>
                                     ))}
                                 </tr>
@@ -45,6 +69,7 @@ export default function TenantSection({ tenants, properties, onNewTenant, onUnas
                                 {activeTenants.map((tenant, idx) => {
                                     const prop = getProperty(tenant.property_id)
                                     const isConfirming = confirmingId === tenant.id
+                                    const payStatus = getTenantPaymentStatus(tenant, payments)
 
                                     return (
                                         <tr
@@ -62,6 +87,9 @@ export default function TenantSection({ tenants, properties, onNewTenant, onUnas
                                                 {tenant.start_date
                                                     ? new Date(tenant.start_date + 'T00:00:00').toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' })
                                                     : '—'}
+                                            </td>
+                                            <td style={{ padding: '10px 14px' }}>
+                                                <span className={payStatus.badgeClass} style={{ fontSize: 9 }}>{payStatus.label}</span>
                                             </td>
                                             <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                                                 {isConfirming ? (

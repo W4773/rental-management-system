@@ -192,6 +192,7 @@ export default function Dashboard() {
                 <TenantSection
                     tenants={tenants}
                     properties={properties}
+                    payments={payments}
                     onNewTenant={() => openAssignModal()}
                     onUnassignTenant={handleUnassignTenant}
                     onEditTenant={(tenant) => openAssignModal(null, tenant)}

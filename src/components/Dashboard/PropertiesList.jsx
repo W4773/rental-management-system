@@ -2,15 +2,28 @@
 function getPaymentStatus(property, tenants, payments) {
     const tenant = tenants.find(t => t.property_id === property.id && !t.end_date)
     if (!tenant) return { label: 'VACANTE', badgeClass: null }
-    const today = new Date()
+
+    const today = new Date(); today.setHours(0, 0, 0, 0)
     const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-    const thisMonthPay = payments.find(p => p.property_id === property.id && p.payment_month?.slice(0, 7) === currentMonth)
-    if (!thisMonthPay || thisMonthPay.payment_status !== 'paid') {
-        const dueDate = thisMonthPay ? new Date(thisMonthPay.payment_month) : null
-        if (dueDate && dueDate < today) return { label: 'VENCIDO', badgeClass: 'wp-badge-red' }
-        return { label: 'PENDIENTE', badgeClass: 'wp-badge-amber' }
-    }
-    return { label: 'PAGADO', badgeClass: 'wp-badge-green' }
+
+    const currentPaid = payments.find(p =>
+        p.property_id === property.id &&
+        p.payment_month?.slice(0, 7) === currentMonth &&
+        p.payment_status === 'paid'
+    )
+    if (currentPaid) return { label: 'PAGADO', badgeClass: 'wp-badge-green' }
+
+    const unpaid = payments
+        .filter(p => p.property_id === property.id && p.payment_status !== 'paid')
+        .sort((a, b) => new Date(a.payment_month) - new Date(b.payment_month))
+
+    if (unpaid.length === 0) return { label: 'PAGADO', badgeClass: 'wp-badge-green' }
+
+    const firstOfOldest = new Date(unpaid[0].payment_month.slice(0, 7) + '-01T00:00:00')
+    const daysSince = Math.floor((today - firstOfOldest) / 86400000)
+
+    if (daysSince > 30) return { label: 'ATRASADO', badgeClass: 'wp-badge-red' }
+    return { label: 'PENDIENTE', badgeClass: 'wp-badge-amber' }
 }
 
 export default function PropertiesList({ properties = [], tenants = [], payments = [], onSelectProperty, onAddProperty }) {

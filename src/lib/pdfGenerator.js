@@ -250,7 +250,7 @@ export async function generateReceiptPDF(payment, property, tenant, userSettings
     doc.text('ARRENDADOR', (sigX + pageWidth - margin) / 2, y, { align: 'center', charSpace: 0.8 })
 
     // === FOOTER ===
-    const footerY = doc.internal.pageSize.getHeight() - 18
+    const footerY = doc.internal.pageSize.getHeight() - 22
     doc.setDrawColor(220, 210, 190)
     doc.setLineWidth(0.3)
     doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4)
@@ -261,18 +261,39 @@ export async function generateReceiptPDF(payment, property, tenant, userSettings
     doc.text(`${businessName} · ${landlordEmail} · ${landlordPhone}`, pageWidth / 2, footerY, { align: 'center' })
 
     doc.setFont('times', 'italic')
-    doc.setFontSize(8)
-    doc.setTextColor([184, 168, 128])
+    doc.setFontSize(7.5)
+    doc.setTextColor(184, 168, 128)
     doc.text(footerNote, pageWidth / 2, footerY + 5, { align: 'center' })
+
+    // Verification code
+    const verRaw = payment.id.replace(/-/g, '').toUpperCase()
+    const verCode = `${verRaw.slice(0, 4)}-${verRaw.slice(4, 8)}-${verRaw.slice(8, 12)}`
+    doc.setFont('courier', 'normal')
+    doc.setFontSize(6.5)
+    doc.setTextColor(170, 160, 140)
+    doc.text(
+        `VER: ${verCode} · Válido únicamente con firma original del arrendador · No se acepta copia sin sello`,
+        pageWidth / 2, footerY + 10, { align: 'center' }
+    )
 
     // Bottom gold rule
     doc.setDrawColor(...GOLD)
     doc.setLineWidth(1.2)
-    doc.line(margin, footerY + 10, pageWidth - margin, footerY + 10)
+    doc.line(margin, footerY + 15, pageWidth - margin, footerY + 15)
 
-    // Save
-    const fileName = `Recibo_${tenant.name.split(' ')[0]}_${format(new Date(payment.payment_month), 'MMM-yyyy')}.pdf`
-    doc.save(fileName)
+    // === ANTI-FORGERY DIAGONAL WATERMARK ===
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(62)
+    doc.setTextColor(242, 237, 224)
+    doc.text('ALQUILER PRO', pageWidth / 2, doc.internal.pageSize.getHeight() * 0.44, { align: 'center', angle: 45 })
+    doc.setFontSize(28)
+    doc.setTextColor(245, 241, 231)
+    doc.text('DOCUMENTO AUTÉNTICO', pageWidth / 2, doc.internal.pageSize.getHeight() * 0.68, { align: 'center', angle: 45 })
+
+    // Open in new browser tab instead of downloading
+    const blob = doc.output('blob')
+    const blobUrl = URL.createObjectURL(blob)
+    window.open(blobUrl, '_blank')
 }
 
 const getPaymentMethodLabel = (method) => {

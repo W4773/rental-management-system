@@ -47,6 +47,7 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
     const [formData, setFormData] = useState(EMPTY_FORM)
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
+    const [prevReadingInfo, setPrevReadingInfo] = useState(null) // null | 'none' | { value, date }
 
     const config = UTILITY_CONFIG[utilityType] || UTILITY_CONFIG.gas
 
@@ -64,15 +65,20 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
         if (!isOpen) return
         setFormData(EMPTY_FORM)
         setErrors({})
+        setPrevReadingInfo(null)
     }, [isOpen, utilityType])
 
     const handlePropertyChange = async (e) => {
         const propertyId = e.target.value
         setFormData(prev => ({ ...prev, property_id: propertyId, previous_reading: '' }))
+        setPrevReadingInfo(null)
         if (propertyId) {
             const { data: latest } = await getLatestReadingForProperty(propertyId)
             if (latest) {
                 setFormData(prev => ({ ...prev, property_id: propertyId, previous_reading: String(latest.current_reading) }))
+                setPrevReadingInfo({ value: latest.current_reading, date: latest.reading_date })
+            } else {
+                setPrevReadingInfo('none')
             }
         }
     }
@@ -105,7 +111,9 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
             const { error } = await addReading({
                 property_id: formData.property_id,
                 reading_date: formData.reading_date,
+                previous_reading: formData.previous_reading ? parseFloat(formData.previous_reading) : 0,
                 current_reading: parseFloat(formData.current_reading),
+                price_per_unit: parseFloat(formData.cost_per_unit),
                 consumption_volume: consumption,
                 total_cost: totalCost,
                 paid: false,
@@ -154,16 +162,28 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
                 />
 
                 <div className="grid grid-cols-2 gap-4">
+                    <div>
                     <FormInput
                         label={`Lectura Anterior (${config.unit})`}
                         name="previous_reading"
                         type="number"
                         value={formData.previous_reading}
                         onChange={handleChange}
-                        placeholder="Auto desde última lectura"
+                        placeholder={prevReadingInfo === 'none' ? 'Ingresa valor inicial' : 'Auto desde última lectura'}
                         min="0"
                         step="0.01"
                     />
+                    {prevReadingInfo === 'none' && (
+                        <p style={{ fontSize: 11, color: 'var(--wp-text-muted)', marginTop: -8, marginBottom: 8 }}>
+                            ⚡ Primera lectura — ingresa el valor inicial del medidor
+                        </p>
+                    )}
+                    {prevReadingInfo && prevReadingInfo !== 'none' && (
+                        <p style={{ fontSize: 11, color: 'var(--wp-green)', marginTop: -8, marginBottom: 8 }}>
+                            ✓ Del {new Date(prevReadingInfo.date + 'T00:00:00').toLocaleDateString('es-DO', { day: '2-digit', month: 'short' })} · {prevReadingInfo.value} {config.unit}
+                        </p>
+                    )}
+                    </div>
                     <FormInput
                         label={`Lectura Actual (${config.unit})`}
                         name="current_reading"
