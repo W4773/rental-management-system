@@ -4,6 +4,7 @@ import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
 import { generatePaymentsReport } from '../../lib/reportGenerator'
+import { logActivity } from '../../lib/activityLog'
 
 /**
  * Payments report PDF.
@@ -12,6 +13,7 @@ import { generatePaymentsReport } from '../../lib/reportGenerator'
 export default function ReportModal({ isOpen, onClose, initial, properties, tenants, payments, buildings, settings }) {
     const currentYear = new Date().getFullYear()
     const [propertyId, setPropertyId] = useState('')
+    const [tenantId, setTenantId] = useState(null)
     const [period, setPeriod] = useState(String(currentYear))
     const [error, setError] = useState('')
 
@@ -19,7 +21,8 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
     useEffect(() => {
         if (isOpen) {
             setPropertyId(initial?.propertyId || '')
-            setPeriod(selectedIds?.length ? 'selected' : String(currentYear))
+            setTenantId(initial?.tenantId || null)
+            setPeriod(selectedIds?.length ? 'selected' : initial?.tenantId ? 'all' : String(currentYear))
             setError('')
         }
     }, [isOpen, initial])
@@ -34,7 +37,7 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
         const property = properties.find(p => p.id === propertyId)
         if (!property) return setError('Seleccione una propiedad')
 
-        let rows = payments.filter(p => p.property_id === propertyId && !p.auto_generated)
+        let rows = payments.filter(p => p.property_id === propertyId && !p.auto_generated && (!tenantId || p.tenant_id === tenantId))
         let periodLabel = 'Historial completo'
         if (period === 'selected') {
             rows = rows.filter(p => selectedIds.includes(p.id))
@@ -46,17 +49,24 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
         rows = rows.filter(p => parseFloat(p.amount_paid) > 0)
         if (rows.length === 0) return setError('No hay pagos para ese período')
 
-        const tenant = tenants.find(t => t.property_id === propertyId && !t.end_date)
+        const tenant = (tenantId && tenants.find(t => t.id === tenantId))
+            || tenants.find(t => t.property_id === propertyId && !t.end_date)
             || tenants.find(t => t.id === rows[0].tenant_id)
         const building = buildings.find(b => b.id === property.building_id)
         generatePaymentsReport({ property, tenant, building, payments: rows, periodLabel, settings: settings || {} })
+        logActivity({ action: 'document.report', entityType: 'document', entityId: property.id, meta: { property_id: property.id, period: periodLabel, count: rows.length } })
         onClose()
     }
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Reporte de pagos (PDF)" size="sm">
+            {tenantId && (
+                <p className="mb-3 text-sm text-gray-600">
+                    Inquilino: <span className="font-semibold">{tenants.find(t => t.id === tenantId)?.name}</span>
+                </p>
+            )}
             <FormInput label="Propiedad" name="property" type="select" value={propertyId}
-                onChange={(e) => { setPropertyId(e.target.value); setError('') }} disabled={!!selectedIds?.length}>
+                onChange={(e) => { setPropertyId(e.target.value); setError('') }} disabled={!!selectedIds?.length || !!tenantId}>
                 <option value="">Seleccionar propiedad...</option>
                 {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </FormInput>

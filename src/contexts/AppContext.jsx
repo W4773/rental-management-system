@@ -4,6 +4,7 @@ import { useTenants } from '../hooks/useTenants'
 import { usePayments } from '../hooks/usePayments'
 import { useUtilityReadings } from '../hooks/useUtilityReadings'
 import { useBuildings } from '../hooks/useBuildings'
+import { useActivityLog } from '../hooks/useActivityLog'
 import { useUserSettings } from '../hooks/useUserSettings'
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
 import { useAlerts } from '../hooks/useAlerts'
@@ -38,6 +39,7 @@ export function AppProvider({ children }) {
     const paymentsHook = usePayments()
     const utilityHook = useUtilityReadings()
     const buildingsHook = useBuildings()
+    const activityHook = useActivityLog()
     const { settings } = useUserSettings()
     const toastApi = useToast()
 
@@ -80,7 +82,7 @@ export function AppProvider({ children }) {
     const refreshAll = () => {
         setRefreshTrigger(n => n + 1)
         return Promise.all([
-            propsHook.refresh(), tenantsHook.refresh(), paymentsHook.refresh(), utilityHook.refresh(), buildingsHook.refresh()
+            propsHook.refresh(), tenantsHook.refresh(), paymentsHook.refresh(), utilityHook.refresh(), buildingsHook.refresh(), activityHook.refresh()
         ])
     }
 
@@ -93,6 +95,12 @@ export function AppProvider({ children }) {
 
     const saveBuilding = async (values, building) => {
         const res = building ? await buildingsHook.updateBuilding(building.id, values) : await buildingsHook.addBuilding(values)
+        // Units copy the building's address when created: keep them in sync when it changes
+        if (!res.error && building && (building.address || '') !== (values.address || '')) {
+            const units = properties.filter(p => p.building_id === building.id && (p.address || '') === (building.address || ''))
+            await Promise.all(units.map(u => propsHook.updateProperty(u.id, { address: values.address || u.address }, { silent: true })))
+            propsHook.refresh()
+        }
         if (res.error) {
             return { error: /relation|schema cache|does not exist|Could not find/i.test(res.error)
                 ? 'Falta ejecutar supabase/migrations/002_buildings.sql en Supabase (esquema rental).'
@@ -104,11 +112,14 @@ export function AppProvider({ children }) {
 
     const value = {
         properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts,
+        activity: activityHook.entries,
+        activityAvailable: activityHook.available,
         buildingsAvailable: buildingsHook.available,
         closeTenant: tenantsHook.closeTenant,
         deletePayment: paymentsHook.deletePayment,
         deleteProperty: propsHook.deleteProperty,
         deleteBuilding: buildingsHook.deleteBuilding,
+        updateProperty: propsHook.updateProperty,
         toast: toastApi,
         refreshAll,
         onDataChanged,

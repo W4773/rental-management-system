@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { logActivity } from '../lib/activityLog'
 
 const MISSING = /could not find the function|schema cache|does not exist|PGRST202/i
 
@@ -33,6 +34,7 @@ export function useTeam() {
     async function invite(email, role = 'member') {
         const { error } = await supabase.rpc('invite_workspace_member', { p_email: email, p_role: role })
         if (error) return { error: error.message }
+        logActivity({ action: 'team.add', entityType: 'team', meta: { email } })
         await refresh()
         return { error: null }
     }
@@ -40,6 +42,7 @@ export function useTeam() {
     async function remove(memberId) {
         const { error } = await supabase.rpc('remove_workspace_member', { p_member_id: memberId })
         if (error) return { error: error.message }
+        logActivity({ action: 'team.remove', entityType: 'team', meta: { email: members.find(m => m.user_id === memberId)?.email } })
         await refresh()
         return { error: null }
     }

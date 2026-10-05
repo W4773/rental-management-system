@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
+import { logActivity } from '../lib/activityLog'
 
 export function useUtilityReadings(utilityType = null) {
     const [readings, setReadings] = useState([])
@@ -54,6 +55,7 @@ export function useUtilityReadings(utilityType = null) {
                 .insert([payload])
                 .select()
             if (insertError) throw insertError
+            logActivity({ action: 'utility.create', entityType: 'utility', entityId: data?.[0]?.id, meta: { type: payload.utility_type, property_id: payload.property_id, amount: payload.total_cost } })
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding utility reading:', err)
@@ -69,6 +71,13 @@ export function useUtilityReadings(utilityType = null) {
                 .eq('id', id)
                 .select()
             if (updateError) throw updateError
+            const known = readings.find(r => r.id === id) || data?.[0]
+            logActivity({
+                action: updates.paid === true ? 'utility.paid' : 'utility.update',
+                entityType: 'utility',
+                entityId: id,
+                meta: { type: known?.utility_type || 'gas', property_id: known?.property_id, amount: known?.total_cost }
+            })
             return { data: data?.[0], error: null }
         } catch (err) {
             return { data: null, error: err.message }

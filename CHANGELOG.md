@@ -5,6 +5,17 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.2.0] - 2026-10-05
+
+### Agregado
+- Sección **Edificios** en el header: editar nombre y dirección, ver unidades, ocupación y renta, eliminar y asignar propiedades sueltas.
+- **Registro de actividad** en Inicio (quién hizo qué y cuándo). Requiere `supabase/migrations/004_activity_log.sql`.
+- Inquilinos separados en **Activos** y **Antiguos**: el histórico conserva período, pagos y reporte PDF de cada inquilino anterior.
+- Botón **Desvincular inquilino** en Propiedades (el inquilino pasa a Antiguos; no se borra nada).
+
+### Corregido
+- El estado de pago ya no marca "AL DÍA" a quien debe: se calcula mes a mes (incluye meses sin registro) y muestra hasta qué mes está atrasado ("Debe jul – sep 2026"). Alertas y "Monto atrasado" usan la misma lógica.
+
 ## [1.1.0] - 2026-10-05
 
 ### Agregado

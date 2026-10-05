@@ -1,0 +1,166 @@
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Building2, Pencil, Trash2, Plus, MapPin, AlertTriangle } from 'lucide-react'
+import { useApp } from '../contexts/AppContext'
+import { formatCurrency } from '../lib/calculations'
+import { getPaymentStatus } from '../lib/paymentStatus'
+import ConfirmModal from '../components/Common/ConfirmModal'
+
+const DOT = { paid: 'bg-green-500', pending: 'bg-amber-400', late: 'bg-red-500', vacant: 'bg-gray-300' }
+
+function Unit({ property, tenant, status }) {
+    return (
+        <Link
+            to={`/propiedades?p=${property.id}`}
+            title={`${tenant ? tenant.name : 'Sin inquilino'} · ${status.detail}`}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-200 bg-white text-[12px] hover:border-brand-400 hover:bg-brand-50 transition"
+        >
+            <span className={`w-2 h-2 rounded-full shrink-0 ${DOT[status.key]}`} />
+            <span className="font-medium truncate max-w-[10rem]">{property.name}</span>
+        </Link>
+    )
+}
+
+export default function Buildings() {
+    const {
+        buildings, properties, tenants, payments, loading, buildingsAvailable,
+        openBuilding, deleteBuilding, updateProperty, refreshAll, toast
+    } = useApp()
+    const [toDelete, setToDelete] = useState(null)
+
+    const rows = useMemo(() => {
+        const enrich = (property) => {
+            const tenant = tenants.find(t => t.property_id === property.id && !t.end_date) || null
+            return { property, tenant, status: getPaymentStatus(property, tenant, payments) }
+        }
+        const stats = (units) => ({
+            total: units.length,
+            occupied: units.filter(u => u.tenant).length,
+            rent: units.reduce((s, u) => s + (parseFloat(u.property.monthly_rent) || 0), 0),
+            late: units.filter(u => u.status.key === 'late').length
+        })
+        const withBuilding = buildings.map(building => {
+            const units = properties.filter(p => p.building_id === building.id).map(enrich)
+            return { building, units, ...stats(units) }
+        })
+        const loose = properties.filter(p => !buildings.some(b => b.id === p.building_id)).map(enrich)
+        return { withBuilding, loose, looseStats: stats(loose) }
+    }, [buildings, properties, tenants, payments])
+
+    const handleDelete = async () => {
+        const { error } = await deleteBuilding(toDelete.id)
+        if (error) { toast.error('Error al eliminar edificio: ' + error); throw new Error(error) }
+        toast.success('Edificio eliminado. Sus propiedades quedaron sin edificio.')
+        refreshAll()
+    }
+
+    const assign = async (property, buildingId) => {
+        if (!buildingId) return
+        const building = buildings.find(b => b.id === buildingId)
+        const { error } = await updateProperty(property.id, {
+            building_id: buildingId,
+            ...(building?.address && !property.address ? { address: building.address } : {})
+        })
+        if (error) return toast.error('No se pudo asignar: ' + error)
+        toast.success(`${property.name} asignada a ${building.name}`)
+        refreshAll()
+    }
+
+    if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
+
+    return (
+        <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h1 className="flex items-center gap-2 text-xl font-bold">
+                    Edificios
+                    <span className="text-xs font-semibold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">{buildings.length}</span>
+                </h1>
+                <button onClick={() => openBuilding()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105">
+                    <Plus className="w-3.5 h-3.5" /> Nuevo edificio
+                </button>
+            </div>
+
+            {!buildingsAvailable && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>Falta activar los edificios: ejecuta <code className="font-mono text-xs">supabase/migrations/002_buildings.sql</code> en el SQL Editor de Supabase (proyecto del alquiler) y recarga.</span>
+                </div>
+            )}
+
+            {buildingsAvailable && buildings.length === 0 && (
+                <div className="bg-white rounded-xl border border-dashed border-brand-200 p-8 text-center">
+                    <Building2 className="w-8 h-8 mx-auto text-brand-400 mb-2" />
+                    <p className="text-sm text-gray-600 mb-3">Aún no hay edificios. Crea uno y asígnale propiedades.</p>
+                    <button onClick={() => openBuilding()} className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-semibold">+ Nuevo edificio</button>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                {rows.withBuilding.map(({ building, units, total, occupied, rent, late }) => (
+                    <section key={building.id} className="bg-white rounded-xl border border-brand-200 shadow-sm p-3">
+                        <div className="flex items-start gap-3">
+                            <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-400 to-brand-500 text-white flex items-center justify-center shrink-0">
+                                <Building2 className="w-4 h-4" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <h2 className="font-bold text-ink leading-tight truncate">{building.name}</h2>
+                                <p className="flex items-center gap-1 text-xs text-gray-500 truncate">
+                                    <MapPin className="w-3 h-3 shrink-0" />{building.address || 'Sin dirección'}
+                                </p>
+                            </div>
+                            <button onClick={() => openBuilding(building)} aria-label={`Editar ${building.name}`} title="Editar edificio"
+                                className="p-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => setToDelete(building)} aria-label={`Eliminar ${building.name}`} title="Eliminar edificio"
+                                className="p-1.5 rounded-md border border-red-100 text-red-500 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+
+                        <dl className="grid grid-cols-4 gap-2 mt-3 text-center">
+                            {[['Unidades', total], ['Ocupadas', `${occupied}/${total}`], ['Renta mensual', formatCurrency(rent)], ['Atrasadas', late]].map(([label, value]) => (
+                                <div key={label} className="rounded-lg bg-brand-50 px-1 py-1.5">
+                                    <dt className="text-[9px] font-bold uppercase tracking-wide text-gray-500">{label}</dt>
+                                    <dd className={`text-[13px] font-bold leading-tight ${label === 'Atrasadas' && late > 0 ? 'text-red-600' : 'text-ink'}`}>{value}</dd>
+                                </div>
+                            ))}
+                        </dl>
+
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                            {units.length === 0
+                                ? <p className="text-xs text-gray-400 italic">Sin propiedades asignadas todavía.</p>
+                                : units.map(u => <Unit key={u.property.id} {...u} />)}
+                        </div>
+                    </section>
+                ))}
+            </div>
+
+            {buildingsAvailable && rows.loose.length > 0 && (
+                <section className="bg-white rounded-xl border border-brand-200 shadow-sm p-3">
+                    <h2 className="font-bold text-ink mb-1">Sin edificio <span className="text-xs font-normal text-gray-500">({rows.loose.length})</span></h2>
+                    <p className="text-xs text-gray-500 mb-2">Asigna cada propiedad a un edificio para agruparlas en las listas.</p>
+                    <ul className="divide-y divide-gray-100">
+                        {rows.loose.map(({ property }) => (
+                            <li key={property.id} className="flex items-center gap-2 py-1.5">
+                                <Link to={`/propiedades?p=${property.id}`} className="flex-1 min-w-0 text-[13px] font-medium truncate hover:text-brand-700">{property.name}</Link>
+                                <select aria-label={`Asignar ${property.name} a un edificio`} value="" disabled={buildings.length === 0}
+                                    onChange={(e) => assign(property, e.target.value)}
+                                    className="px-2 py-1 text-xs border border-gray-200 rounded-lg bg-white">
+                                    <option value="">Asignar a edificio...</option>
+                                    {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            <ConfirmModal
+                isOpen={toDelete !== null}
+                onClose={() => setToDelete(null)}
+                onConfirm={handleDelete}
+                title="Eliminar edificio"
+                message={`¿Eliminar "${toDelete?.name || ''}"? Sus propiedades no se borran: quedarán sin edificio.`}
+                confirmText="Sí, eliminar edificio"
+                isDanger
+            />
+        </div>
+    )
+}

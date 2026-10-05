@@ -3,6 +3,7 @@ import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
 import { usePayments } from '../../hooks/usePayments'
+import { logActivity } from '../../lib/activityLog'
 import { monthLabel } from '../../lib/pdfHelpers'
 import { monthKeyOf, hasMoney } from '../../lib/paymentStatus'
 
@@ -130,10 +131,21 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
 
             const created = []
             for (const payment of toCreate) {
-                const { data, error } = await addPayment(payment)
+                const { data, error } = await addPayment(payment, { silent: true })
                 if (error) throw new Error(error)
                 created.push(data)
             }
+            logActivity({
+                action: 'payment.create',
+                entityType: 'payment',
+                entityId: created[0]?.id,
+                meta: {
+                    property_id: selectedProperty.id,
+                    tenant_id: activeTenant.id,
+                    months: toCreate.map(p => p.payment_month.slice(0, 7)),
+                    amount: toCreate.reduce((sum, p) => sum + p.amount_paid, 0)
+                }
+            })
             onSuccess?.({ payments: created, property: selectedProperty, tenant: activeTenant })
             onClose()
         } catch (err) {
