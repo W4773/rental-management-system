@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import InvoiceSettings from '../components/Settings/InvoiceSettings'
+import TeamSection from '../components/Settings/TeamSection'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../contexts/AppContext'
@@ -7,6 +8,7 @@ import { useApp } from '../contexts/AppContext'
 const TABS = [
     { id: 'account', label: 'Cuenta' },
     { id: 'invoice', label: 'Factura' },
+    { id: 'team', label: 'Equipo' },
 ]
 
 export default function Settings() {
@@ -142,6 +144,8 @@ export default function Settings() {
                     {activeTab === 'invoice' && (
                         <InvoiceSettings showToast={showToast} />
                     )}
+
+                    {activeTab === 'team' && <TeamSection />}
                 </div>
             </main>
         </div>

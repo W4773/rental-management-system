@@ -4,7 +4,7 @@ La app usa **el esquema `rental`** del proyecto Supabase `cfcssfwxdfgqpvyuepjo` 
 El cliente ya lo declara en `src/lib/supabase.js` (`db: { schema: 'rental' }`).
 
 Tablas existentes: `properties`, `tenants`, `rent_payments`, `gas_consumption`, `user_settings`, `workspace_members`
-y la función `rental.effective_owner_id()` (a nombre de quién se guardan los datos del workspace).
+y la función `rental.effective_owner_id()` (a nombre de quién se guardan los datos del workspace, la usa el front).
 
 ## Antes de ejecutar nada: verificar (solo lectura)
 
@@ -22,11 +22,12 @@ from pg_proc where pronamespace = 'rental'::regnamespace and proname = 'effectiv
 
 | Archivo | Qué hace |
 |---|---|
-| `supabase/migrations/002_buildings.sql` | Crea `rental.buildings` (nombre, dirección) con RLS del workspace y agrega `rental.properties.building_id`. |
+| `supabase/migrations/002_buildings.sql` | Crea `rental.buildings` (nombre, dirección) con RLS del workspace y agrega `rental.properties.building_id`. Solo depende de `rental.properties` y `rental.workspace_members`. |
+| `supabase/migrations/003_workspace_team.sql` | Funciones `list/invite/remove_workspace_member` para la pestaña Equipo de Ajustes (usa `rental.workspace_members`, no la modifica). |
 
 - Cada archivo es idempotente y no usa bloques `DO`: copia **todo** el archivo y pégalo de una vez.
 - Sin esta migración la app funciona igual; solo no se podrán crear edificios (la pantalla lo avisa).
-- La sección **Equipo** usa `rental.workspace_members`, que ya existe: no hay migración de equipo.
+- **Equipo** (Ajustes → Equipo) usa `rental.workspace_members` (`owner_id`, `member_id`, `role`, `created_at`). Para ver qué valores de `role` ya usas: `select role, count(*) from rental.workspace_members group by 1;`.
 
 ## Variables de entorno (Vercel y `.env` local)
 

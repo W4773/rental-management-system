@@ -14,6 +14,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Selección múltiple: pagos (reporte, recibo, eliminar) y meses (pagar varios a la vez).
 - Reporte de pagos en PDF y recibo consolidado de varios meses.
 - Iconos `lucide-react` en lugar de emoji; diseño más compacto.
+- Ajustes → Equipo: ver, agregar (por correo) y quitar miembros de `rental.workspace_members`. Requiere `supabase/migrations/003_workspace_team.sql`.
 
 ### Cambiado
 - Al registrar un pago se actualiza la vista sin recargar y se pregunta "¿Desea imprimir el recibo?" (Sí / Ahora no); ya no se abre una pestaña nueva.
