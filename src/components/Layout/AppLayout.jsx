@@ -11,7 +11,7 @@ export default function AppLayout() {
                     <Outlet />
                 </main>
                 <footer className="text-center text-[11px] text-gray-400 py-3">
-                    &copy; {new Date().getFullYear()} Alquiler Pro · Desarrollado por Optimard · v1.2.0
+                    &copy; {new Date().getFullYear()} Alquiler Pro · Desarrollado por Optimard · v1.2.1
                 </footer>
             </div>
         </AppProvider>

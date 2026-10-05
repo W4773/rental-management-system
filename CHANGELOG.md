@@ -5,6 +5,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.2.1] - 2026-10-05
+
+### Cambiado
+- Reglas del estado de pago: **Al día** = solo falta el mes actual (o nada); **Pendiente** = falta el mes anterior; **Atrasado** = falta el mes anterior y uno o más antes. El detalle indica los meses ("Debe jul – sep 2026 (3 meses)").
+
 ## [1.2.0] - 2026-10-05
 
 ### Agregado
