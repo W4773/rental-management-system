@@ -1,13 +1,5 @@
 import { useMemo, useState } from 'react'
-import { getPaymentStatusColor } from '../lib/calculations'
-import { normalizeText } from '../lib/metrics'
-
-export const STATUS_FILTERS = [
-    { key: 'all', label: 'Todos' },
-    { key: 'green', label: 'Al día' },
-    { key: 'late', label: 'Atrasados' },
-    { key: 'gray', label: 'Sin inquilino' }
-]
+import { getPaymentStatus, normalizeText } from '../lib/paymentStatus'
 
 /** Search + filters over properties, enriched with active tenant and payment status. */
 export function usePropertyFilters({ properties, tenants, payments }) {
@@ -16,16 +8,15 @@ export function usePropertyFilters({ properties, tenants, payments }) {
     const [buildingId, setBuildingId] = useState('all')
 
     const items = useMemo(() => properties.map(property => {
-        const tenant = tenants.find(t => t.property_id === property.id && t.end_date === null) || null
-        return { property, tenant, status: getPaymentStatusColor(property, tenant, payments) }
+        const tenant = tenants.find(t => t.property_id === property.id && !t.end_date) || null
+        return { property, tenant, status: getPaymentStatus(property.id, !!tenant, payments) }
     }), [properties, tenants, payments])
 
     const filtered = useMemo(() => {
         const q = normalizeText(query)
         return items.filter(({ property, tenant, status: st }) => {
             if (q && !normalizeText(`${property.name} ${tenant?.name || ''}`).includes(q)) return false
-            if (status === 'late' && !['yellow', 'red'].includes(st.color)) return false
-            if (['green', 'gray'].includes(status) && st.color !== status) return false
+            if (status !== 'all' && st.key !== status) return false
             if (buildingId === 'none' && property.building_id) return false
             if (buildingId !== 'all' && buildingId !== 'none' && property.building_id !== buildingId) return false
             return true

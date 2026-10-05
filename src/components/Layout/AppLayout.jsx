@@ -5,7 +5,7 @@ import Header from './Header'
 export default function AppLayout() {
     return (
         <AppProvider>
-            <div className="min-h-screen bg-cream flex flex-col">
+            <div className="min-h-screen bg-[#faf7f2] flex flex-col">
                 <Header />
                 <main className="flex-1 w-full max-w-[1500px] mx-auto px-3 sm:px-5 py-4">
                     <Outlet />

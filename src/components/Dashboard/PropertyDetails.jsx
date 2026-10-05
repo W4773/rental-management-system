@@ -1,13 +1,20 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, ChevronDown, ChevronUp, X, Building2, UserPlus } from 'lucide-react'
+import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, CheckSquare, ListChecks } from 'lucide-react'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
-import { generateReceiptPDF, monthLabel } from '../../lib/pdfGenerator'
+import { generateReceiptPDF } from '../../lib/pdfGenerator'
+import { monthLabel } from '../../lib/pdfHelpers'
+import { hasMoney, getMonthStatus } from '../../lib/paymentStatus'
 import { useApp } from '../../contexts/AppContext'
 import ConfirmModal from '../Common/ConfirmModal'
 import YearlyPaymentGrid from './YearlyPaymentGrid'
 
 const VISIBLE_PAYMENTS = 4
+const UTILITY_META = {
+    gas: { label: 'Gas', unit: 'GL', icon: Flame },
+    electricity: { label: 'Luz', unit: 'kWh', icon: Zap },
+    water: { label: 'Agua', unit: 'm³', icon: Droplets }
+}
 
 const IconBtn = ({ label, onClick, danger, children }) => (
     <button
@@ -36,7 +43,7 @@ const Section = ({ title, icon: Icon, right, children }) => (
 
 export default function PropertyDetails({ property, onDeleted }) {
     const {
-        payments: allPayments, tenants, gasReadings, buildings,
+        payments: allPayments, tenants, utilityReadings, buildings, settings,
         openPayment, openProperty, openTenant, openReport, openPayGas,
         deletePayment, deleteProperty, refreshAll, toast
     } = useApp()
@@ -46,11 +53,12 @@ export default function PropertyDetails({ property, onDeleted }) {
     const [selectedPayments, setSelectedPayments] = useState([])
     const [selectedMonths, setSelectedMonths] = useState([])
     const [confirmDeleteProperty, setConfirmDeleteProperty] = useState(false)
-    const [confirmDeletePayments, setConfirmDeletePayments] = useState(false)
+    const [deleteIds, setDeleteIds] = useState([])
+    const [selectMode, setSelectMode] = useState(false)
 
     // Reset local selections when switching property
     useEffect(() => {
-        setSelectedPayments([]); setSelectedMonths([]); setShowAll(false)
+        setSelectedPayments([]); setSelectedMonths([]); setShowAll(false); setSelectMode(false)
     }, [property?.id])
 
     const propertyPayments = useMemo(
@@ -59,16 +67,16 @@ export default function PropertyDetails({ property, onDeleted }) {
     )
     const history = useMemo(
         () => propertyPayments
-            .filter(p => parseFloat(p.amount_paid) > 0)
+            .filter(p => hasMoney(p) && !p.auto_generated)
             .sort((a, b) => b.payment_month.localeCompare(a.payment_month) || (b.payment_date || '').localeCompare(a.payment_date || '')),
         [propertyPayments]
     )
-    const gas = useMemo(
-        () => property ? gasReadings.filter(g => g.property_id === property.id) : [],
-        [gasReadings, property?.id]
+    const utilities = useMemo(
+        () => property ? utilityReadings.filter(g => g.property_id === property.id) : [],
+        [utilityReadings, property?.id]
     )
-    const pendingGas = gas.filter(g => !g.paid).reduce((s, g) => s + (parseFloat(g.total_cost) || 0), 0)
-    const activeTenant = property ? tenants.find(t => t.property_id === property.id && t.end_date === null) : null
+    const pendingUtilities = utilities.filter(g => !g.paid).reduce((s, g) => s + (parseFloat(g.total_cost) || 0), 0)
+    const activeTenant = property ? tenants.find(t => t.property_id === property.id && !t.end_date) : null
     const building = property ? buildings.find(b => b.id === property.building_id) : null
 
     if (!property) {
@@ -84,15 +92,23 @@ export default function PropertyDetails({ property, onDeleted }) {
     const toggle = (list, setList, id) => setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id])
     const allSelected = history.length > 0 && selectedPayments.length === history.length
 
+    const exitSelectMode = () => { setSelectMode(false); setSelectedPayments([]); setSelectedMonths([]) }
+    const toggleSelectMode = () => (selectMode ? exitSelectMode() : setSelectMode(true))
+    const pendingMonthKeys = Array.from({ length: 12 }, (_, i) => getMonthStatus(propertyPayments, property, year, i))
+        .filter(m => m.status === 'pending' || m.status === 'partial')
+        .map(m => m.key)
+    const allPendingSelected = pendingMonthKeys.length > 0 && pendingMonthKeys.every(k => selectedMonths.includes(k))
+
     const tenantFor = (payment) => tenants.find(t => t.id === payment.tenant_id)
         || (activeTenant && activeTenant.id === payment.tenant_id ? activeTenant : { name: 'Inquilino histórico', identity_number: '' })
 
     const handleDeletePayments = async () => {
-        for (const id of selectedPayments) {
+        for (const id of deleteIds) {
             const { error } = await deletePayment(id)
             if (error) { toast.error('Error al eliminar pago: ' + error); throw new Error(error) }
         }
-        toast.success(`${selectedPayments.length} pago(s) eliminado(s)`)
+        toast.success(`${deleteIds.length} pago(s) eliminado(s)`)
+        setDeleteIds([])
         setSelectedPayments([])
         refreshAll()
     }
@@ -164,11 +180,32 @@ export default function PropertyDetails({ property, onDeleted }) {
                 )}
             </Section>
 
+            {/* Payments toolbar: multi-select */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-100">
+                <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-gray-500 uppercase pt-2">
+                    <Wallet className="w-3.5 h-3.5" /> Pagos
+                </h3>
+                <div className="flex items-center gap-1.5 pt-2">
+                    {selectMode && activeTenant && pendingMonthKeys.length > 0 && (
+                        <button onClick={() => setSelectedMonths(allPendingSelected ? [] : pendingMonthKeys)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                            <ListChecks className="w-3.5 h-3.5" />
+                            {allPendingSelected ? 'Quitar meses pendientes' : `Marcar meses pendientes (${pendingMonthKeys.length})`}
+                        </button>
+                    )}
+                    <button onClick={toggleSelectMode} aria-pressed={selectMode}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-xs font-semibold transition ${
+                            selectMode ? 'bg-ink text-white border-ink' : 'border-brand-300 text-brand-700 bg-brand-50 hover:bg-brand-100'}`}>
+                        {selectMode ? <><X className="w-3.5 h-3.5" /> Salir de selección</> : <><CheckSquare className="w-3.5 h-3.5" /> Selección múltiple</>}
+                    </button>
+                </div>
+            </div>
+
             {/* Payments + yearly grid side by side on wide screens */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <Section
                     title="Historial de pagos"
-                    right={history.length > 0 && (
+                    right={selectMode && history.length > 0 && (
                         <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
                             <input type="checkbox" checked={allSelected}
                                 onChange={() => setSelectedPayments(allSelected ? [] : history.map(p => p.id))} />
@@ -183,9 +220,11 @@ export default function PropertyDetails({ property, onDeleted }) {
                             {visible.map(payment => (
                                 <li key={payment.id}
                                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${selectedPayments.includes(payment.id) ? 'bg-brand-50 border-brand-300' : 'bg-white border-gray-100'}`}>
-                                    <input type="checkbox" aria-label={`Seleccionar ${monthLabel(payment.payment_month)}`}
-                                        checked={selectedPayments.includes(payment.id)}
-                                        onChange={() => toggle(selectedPayments, setSelectedPayments, payment.id)} />
+                                    {selectMode && (
+                                        <input type="checkbox" aria-label={`Seleccionar ${monthLabel(payment.payment_month)}`}
+                                            checked={selectedPayments.includes(payment.id)}
+                                            onChange={() => toggle(selectedPayments, setSelectedPayments, payment.id)} />
+                                    )}
                                     <span className={`w-2 h-2 rounded-full shrink-0 ${payment.payment_status === 'paid' ? 'bg-green-500' : 'bg-amber-400'}`} />
                                     <div className="min-w-0 flex-1 leading-tight">
                                         <p className="text-[13px] font-medium capitalize">{monthLabel(payment.payment_month)}</p>
@@ -194,10 +233,10 @@ export default function PropertyDetails({ property, onDeleted }) {
                                     <span className={`text-[13px] font-semibold ${payment.payment_status === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>
                                         {formatCurrency(payment.amount_paid)}
                                     </span>
-                                    <button onClick={() => generateReceiptPDF(payment, property, tenantFor(payment))}
+                                    <button onClick={() => generateReceiptPDF(payment, property, tenantFor(payment), settings || {})}
                                         aria-label="Imprimir recibo" title="Imprimir recibo"
                                         className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Printer className="w-4 h-4" /></button>
-                                    <button onClick={() => { setSelectedPayments([payment.id]); setConfirmDeletePayments(true) }}
+                                    <button onClick={() => setDeleteIds([payment.id])}
                                         aria-label="Eliminar pago" title="Eliminar pago"
                                         className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                                 </li>
@@ -217,68 +256,76 @@ export default function PropertyDetails({ property, onDeleted }) {
                     payments={propertyPayments}
                     year={year}
                     onYearChange={setYear}
+                    selectMode={selectMode}
                     selected={selectedMonths}
                     onToggle={activeTenant ? (key) => toggle(selectedMonths, setSelectedMonths, key) : undefined}
+                    onMonthClick={activeTenant ? (key) => openPayment({ propertyId: property.id, months: [key] }) : undefined}
                 />
             </div>
 
-            {/* Gas */}
-            <Section title="Consumo de gas" icon={Flame}
-                right={pendingGas > 0 && <span className="text-xs font-semibold text-amber-700">Pendiente: {formatCurrency(pendingGas)}</span>}>
-                {gas.length === 0 ? (
-                    <p className="text-sm italic text-gray-500 py-1.5 text-center bg-gray-50 rounded-lg">No hay lecturas de gas registradas</p>
+            {/* Utilities: gas / luz / agua */}
+            <Section title="Servicios (gas, luz, agua)" icon={Flame}
+                right={pendingUtilities > 0 && <span className="text-xs font-semibold text-amber-700">Pendiente: {formatCurrency(pendingUtilities)}</span>}>
+                {utilities.length === 0 ? (
+                    <p className="text-sm italic text-gray-500 py-1.5 text-center bg-gray-50 rounded-lg">No hay lecturas registradas</p>
                 ) : (
                     <ul className="space-y-1">
-                        {gas.map(reading => (
-                            <li key={reading.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[13px] ${reading.paid ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
-                                <div className="flex-1 min-w-0 leading-tight">
-                                    <span className="font-medium">{formatDate(reading.reading_date)}</span>
-                                    <span className="text-[11px] text-gray-600 ml-2">Lectura {reading.current_reading} · {reading.consumption_volume} GL</span>
-                                    {reading.paid && <span className="text-[11px] text-green-700 ml-2">Pagado {formatDate(reading.payment_date)}</span>}
-                                </div>
-                                <span className="font-bold">{formatCurrency(reading.total_cost)}</span>
-                                {!reading.paid && (
-                                    <button onClick={() => openPayGas(reading)}
-                                        className="px-2 py-0.5 rounded bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700">Pagar</button>
-                                )}
-                            </li>
-                        ))}
+                        {utilities.map(reading => {
+                            const meta = UTILITY_META[reading.utility_type] || UTILITY_META.gas
+                            return (
+                                <li key={reading.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[13px] ${reading.paid ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
+                                    <meta.icon className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                                    <div className="flex-1 min-w-0 leading-tight">
+                                        <span className="font-medium">{meta.label} · {formatDate(reading.reading_date)}</span>
+                                        <span className="text-[11px] text-gray-600 ml-2">Lectura {reading.current_reading} · {reading.consumption_volume} {meta.unit}</span>
+                                        {reading.paid && <span className="text-[11px] text-green-700 ml-2">Pagado {formatDate(reading.payment_date)}</span>}
+                                    </div>
+                                    <span className="font-bold">{formatCurrency(reading.total_cost)}</span>
+                                    {!reading.paid && (
+                                        <button onClick={() => openPayGas(reading)}
+                                            className="px-2 py-0.5 rounded bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700">Pagar</button>
+                                    )}
+                                </li>
+                            )
+                        })}
                     </ul>
                 )}
             </Section>
 
             {/* Floating multi-select action bar */}
-            {(selectedPayments.length > 0 || selectedMonths.length > 0) && (
+            {selectMode && (
                 <div className="sticky bottom-2 z-20 mx-auto w-fit max-w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-ink text-white shadow-xl text-xs">
+                    {selectedPayments.length === 0 && selectedMonths.length === 0 && (
+                        <span className="opacity-80">Marca meses pendientes para pagarlos juntos, o pagos para imprimirlos o eliminarlos.</span>
+                    )}
+                    {selectedMonths.length > 0 && (
+                        <>
+                            <span className="font-semibold">{selectedMonths.length} mes(es)</span>
+                            <button className="px-2.5 py-1 rounded-md bg-brand-500 hover:bg-brand-400 font-semibold flex items-center gap-1"
+                                onClick={() => { openPayment({ propertyId: property.id, months: selectedMonths }); exitSelectMode() }}>
+                                <Wallet className="w-3.5 h-3.5" /> Pagar {selectedMonths.length > 1 ? `${selectedMonths.length} meses` : 'mes'}
+                            </button>
+                        </>
+                    )}
                     {selectedPayments.length > 0 && (
                         <>
+                            {selectedMonths.length > 0 && <span className="opacity-40">|</span>}
                             <span className="font-semibold">{selectedPayments.length} pago(s)</span>
                             <button className="px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 flex items-center gap-1"
                                 onClick={() => openReport({ propertyId: property.id, paymentIds: selectedPayments })}>
                                 <FileText className="w-3.5 h-3.5" /> Reporte
                             </button>
                             <button className="px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 flex items-center gap-1"
-                                onClick={() => generateReceiptPDF(history.filter(p => selectedPayments.includes(p.id)), property, activeTenant || tenantFor(history.find(p => selectedPayments.includes(p.id))))}>
+                                onClick={() => generateReceiptPDF(history.filter(p => selectedPayments.includes(p.id)), property, activeTenant || tenantFor(history.find(p => selectedPayments.includes(p.id))), settings || {})}>
                                 <Printer className="w-3.5 h-3.5" /> Recibo
                             </button>
                             <button className="px-2 py-1 rounded-md bg-red-500/80 hover:bg-red-500 flex items-center gap-1"
-                                onClick={() => setConfirmDeletePayments(true)}>
+                                onClick={() => setDeleteIds(selectedPayments)}>
                                 <Trash2 className="w-3.5 h-3.5" /> Eliminar
                             </button>
-                            <button aria-label="Limpiar selección de pagos" onClick={() => setSelectedPayments([])}><X className="w-4 h-4" /></button>
                         </>
                     )}
-                    {selectedMonths.length > 0 && (
-                        <>
-                            {selectedPayments.length > 0 && <span className="opacity-40">|</span>}
-                            <span className="font-semibold">{selectedMonths.length} mes(es)</span>
-                            <button className="px-2 py-1 rounded-md bg-brand-500 hover:bg-brand-400 font-semibold flex items-center gap-1"
-                                onClick={() => { openPayment({ propertyId: property.id, months: selectedMonths }); setSelectedMonths([]) }}>
-                                <Wallet className="w-3.5 h-3.5" /> Pagar seleccionados
-                            </button>
-                            <button aria-label="Limpiar selección de meses" onClick={() => setSelectedMonths([])}><X className="w-4 h-4" /></button>
-                        </>
-                    )}
+                    <button aria-label="Salir de selección múltiple" onClick={exitSelectMode}><X className="w-4 h-4" /></button>
                 </div>
             )}
 
@@ -292,11 +339,11 @@ export default function PropertyDetails({ property, onDeleted }) {
                 isDanger
             />
             <ConfirmModal
-                isOpen={confirmDeletePayments}
-                onClose={() => setConfirmDeletePayments(false)}
+                isOpen={deleteIds.length > 0}
+                onClose={() => setDeleteIds([])}
                 onConfirm={handleDeletePayments}
-                title={selectedPayments.length > 1 ? 'Eliminar pagos' : 'Eliminar pago'}
-                message={`¿Eliminar ${selectedPayments.length} registro(s) de pago? Esta acción no se puede deshacer.`}
+                title={deleteIds.length > 1 ? 'Eliminar pagos' : 'Eliminar pago'}
+                message={`¿Eliminar ${deleteIds.length} registro(s) de pago? Esta acción no se puede deshacer.`}
                 confirmText="Eliminar"
                 isDanger
             />

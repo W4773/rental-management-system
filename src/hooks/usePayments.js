@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 
 export function usePayments() {
     const [payments, setPayments] = useState([])
@@ -13,7 +14,7 @@ export function usePayments() {
         const subscription = supabase
             .channel('payments-channel')
             .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'rent_payments' },
+                { event: '*', schema: 'rental', table: 'rent_payments' },
                 fetchPayments
             )
             .subscribe()
@@ -43,12 +44,12 @@ export function usePayments() {
 
     async function addPayment(paymentData) {
         try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error('No autenticado')
+            const ownerId = await getEffectiveOwnerId()
+            if (!ownerId) throw new Error('No autenticado')
 
             const { data, error: insertError } = await supabase
                 .from('rent_payments')
-                .insert([{ ...paymentData, user_id: user.id }])
+                .insert([{ ...paymentData, user_id: ownerId }])
                 .select()
 
             if (insertError) throw insertError
@@ -123,6 +124,57 @@ export function usePayments() {
         }
     }
 
+    async function generateHistoricalPayments(propertyId, tenantId, startDate, rentAmount) {
+        try {
+            const ownerId = await getEffectiveOwnerId()
+            if (!ownerId) throw new Error('No autenticado')
+
+            const today = new Date()
+            const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+
+            const start = new Date(startDate)
+            start.setDate(1)
+            start.setHours(0, 0, 0, 0)
+
+            const records = []
+            const cursor = new Date(start)
+
+            while (cursor < prevMonthStart) {
+                const y = cursor.getFullYear()
+                const m = String(cursor.getMonth() + 1).padStart(2, '0')
+                records.push({
+                    property_id: propertyId,
+                    tenant_id: tenantId,
+                    payment_month: `${y}-${m}-01`,
+                    rent_amount: rentAmount,
+                    amount_paid: rentAmount,
+                    remaining_balance: 0,
+                    payment_date: `${y}-${m}-01`,
+                    payment_method: 'historical',
+                    payment_type: 'full',
+                    payment_status: 'paid',
+                    auto_generated: true,
+                    user_id: ownerId,
+                    notes: 'Generado automáticamente al registrar'
+                })
+                cursor.setMonth(cursor.getMonth() + 1)
+            }
+
+            if (records.length === 0) return { data: [], error: null }
+
+            const { data, error: insertError } = await supabase
+                .from('rent_payments')
+                .insert(records)
+                .select()
+
+            if (insertError) throw insertError
+            return { data: data || [], error: null }
+        } catch (err) {
+            console.error('Error generating historical payments:', err)
+            return { data: [], error: err.message }
+        }
+    }
+
     return {
         payments,
         loading,
@@ -132,6 +184,7 @@ export function usePayments() {
         deletePayment,
         getPaymentsByProperty,
         getPaymentsByYear,
+        generateHistoricalPayments,
         refresh: fetchPayments
     }
 }

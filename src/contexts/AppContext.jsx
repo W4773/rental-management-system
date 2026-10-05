@@ -1,19 +1,22 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { useProperties } from '../hooks/useProperties'
 import { useTenants } from '../hooks/useTenants'
 import { usePayments } from '../hooks/usePayments'
-import { useGasReadings } from '../hooks/useGasReadings'
+import { useUtilityReadings } from '../hooks/useUtilityReadings'
 import { useBuildings } from '../hooks/useBuildings'
+import { useUserSettings } from '../hooks/useUserSettings'
+import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
+import { useAlerts } from '../hooks/useAlerts'
 import { useToast } from '../components/Common/Toast'
-import { computeMetrics } from '../lib/metrics'
 import RegisterPropertyModal from '../components/Modals/RegisterPropertyModal'
 import RegisterBuildingModal from '../components/Modals/RegisterBuildingModal'
 import AssignTenantModal from '../components/Modals/AssignTenantModal'
 import RegisterPaymentModal from '../components/Modals/RegisterPaymentModal'
-import RegisterGasModal from '../components/Modals/RegisterGasModal'
+import RegisterUtilityModal from '../components/Modals/RegisterUtilityModal'
 import PayGasModal from '../components/Modals/PayGasModal'
 import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
 import ReportModal from '../components/Modals/ReportModal'
+import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
 
 const AppContext = createContext(null)
@@ -25,42 +28,46 @@ export const useApp = () => {
 }
 
 /**
- * Single source of truth for data + every global modal. Pages call openX() instead of
- * mounting modals, and refreshAll() replaces the old window.location.reload().
+ * Single source of truth for data + every global modal. Pages call openX() instead of mounting
+ * modals, and refreshAll() replaces the old window.location.reload().
  */
 export function AppProvider({ children }) {
     const propsHook = useProperties()
     const tenantsHook = useTenants()
     const paymentsHook = usePayments()
-    const gasHook = useGasReadings()
+    const utilityHook = useUtilityReadings()
     const buildingsHook = useBuildings()
+    const { settings } = useUserSettings()
     const toastApi = useToast()
+
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
+    const metrics = useDashboardMetrics(new Date().getFullYear(), refreshTrigger)
 
     const { properties } = propsHook
     const { tenants } = tenantsHook
     const { payments } = paymentsHook
-    const { gasReadings } = gasHook
+    const { readings: utilityReadings } = utilityHook
     const { buildings } = buildingsHook
+    const alerts = useAlerts(payments, tenants, properties)
 
     const [paymentModal, setPaymentModal] = useState({ open: false, initial: null })
     const [propertyModal, setPropertyModal] = useState({ open: false, property: null })
     const [buildingModal, setBuildingModal] = useState({ open: false, building: null })
     const [tenantModal, setTenantModal] = useState({ open: false, property: null, tenant: null })
-    const [gasOpen, setGasOpen] = useState(false)
+    const [utilityType, setUtilityType] = useState(null)
     const [payGas, setPayGas] = useState(null)
     const [reportModal, setReportModal] = useState({ open: false, initial: null })
     const [receipt, setReceipt] = useState(null)
+    const [alertsOpen, setAlertsOpen] = useState(false)
 
-    const refreshAll = () => Promise.all([
-        propsHook.refresh(), tenantsHook.refresh(), paymentsHook.refresh(), gasHook.refresh(), buildingsHook.refresh()
-    ])
+    const refreshAll = () => {
+        setRefreshTrigger(n => n + 1)
+        return Promise.all([
+            propsHook.refresh(), tenantsHook.refresh(), paymentsHook.refresh(), utilityHook.refresh(), buildingsHook.refresh()
+        ])
+    }
 
     const loading = propsHook.loading || tenantsHook.loading || paymentsHook.loading
-
-    const metrics = useMemo(
-        () => computeMetrics({ properties, tenants, payments, gasReadings }),
-        [properties, tenants, payments, gasReadings]
-    )
 
     const onDataChanged = (message) => {
         refreshAll()
@@ -70,8 +77,8 @@ export function AppProvider({ children }) {
     const saveBuilding = async (values, building) => {
         const res = building ? await buildingsHook.updateBuilding(building.id, values) : await buildingsHook.addBuilding(values)
         if (res.error) {
-            return { error: /relation|schema cache|does not exist/i.test(res.error)
-                ? 'Falta ejecutar la migración supabase/migrations/002_buildings.sql en Supabase.'
+            return { error: /relation|schema cache|does not exist|Could not find/i.test(res.error)
+                ? 'Falta ejecutar supabase/migrations/002_buildings.sql en Supabase (esquema rental).'
                 : res.error }
         }
         toastApi.success(building ? 'Edificio actualizado' : 'Edificio creado')
@@ -79,8 +86,9 @@ export function AppProvider({ children }) {
     }
 
     const value = {
-        properties, tenants, payments, gasReadings, buildings, loading, metrics,
+        properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts,
         buildingsAvailable: buildingsHook.available,
+        closeTenant: tenantsHook.closeTenant,
         deletePayment: paymentsHook.deletePayment,
         deleteProperty: propsHook.deleteProperty,
         deleteBuilding: buildingsHook.deleteBuilding,
@@ -91,9 +99,10 @@ export function AppProvider({ children }) {
         openProperty: (property = null) => setPropertyModal({ open: true, property }),
         openBuilding: (building = null) => setBuildingModal({ open: true, building }),
         openTenant: (property = null, tenant = null) => setTenantModal({ open: true, property, tenant }),
-        openGas: () => setGasOpen(true),
+        openUtility: (type) => setUtilityType(type),
         openPayGas: (reading) => setPayGas(reading),
         openReport: (initial = null) => setReportModal({ open: true, initial }),
+        openAlerts: () => setAlertsOpen(true),
         offerReceipt: setReceipt
     }
 
@@ -110,14 +119,14 @@ export function AppProvider({ children }) {
                 onClose={() => setPaymentModal({ open: false, initial: null })}
                 onSuccess={(result) => {
                     onDataChanged('Pago registrado')
-                    setReceipt(result) // optional receipt: user decides in the pop-up
+                    setReceipt(result) // optional receipt: the user decides in the pop-up
                 }}
             />
-            <PrintReceiptPrompt data={receipt} onClose={() => setReceipt(null)} />
+            <PrintReceiptPrompt data={receipt} settings={settings} onClose={() => setReceipt(null)} />
 
             <RegisterPropertyModal
                 isOpen={propertyModal.open}
-                property={propertyModal.property}
+                propertyToEdit={propertyModal.property}
                 buildings={buildings}
                 onNewBuilding={() => setBuildingModal({ open: true, building: null })}
                 onClose={() => setPropertyModal({ open: false, property: null })}
@@ -136,8 +145,13 @@ export function AppProvider({ children }) {
                 onClose={() => setTenantModal({ open: false, property: null, tenant: null })}
                 onSuccess={() => onDataChanged('Inquilino guardado')}
             />
-            <RegisterGasModal isOpen={gasOpen} onClose={() => setGasOpen(false)} onSuccess={() => onDataChanged('Lectura de gas registrada')} />
-            <PayGasModal isOpen={payGas !== null} gasReading={payGas} onClose={() => setPayGas(null)} onSuccess={() => onDataChanged('Gas pagado')} />
+            <RegisterUtilityModal
+                isOpen={utilityType !== null}
+                utilityType={utilityType}
+                onClose={() => setUtilityType(null)}
+                onSuccess={() => onDataChanged('Lectura registrada')}
+            />
+            <PayGasModal isOpen={payGas !== null} gasReading={payGas} onClose={() => setPayGas(null)} onSuccess={() => onDataChanged('Pago registrado')} />
             <ReportModal
                 isOpen={reportModal.open}
                 initial={reportModal.initial}
@@ -145,7 +159,18 @@ export function AppProvider({ children }) {
                 tenants={tenants}
                 payments={payments}
                 buildings={buildings}
+                settings={settings}
                 onClose={() => setReportModal({ open: false, initial: null })}
+            />
+            <AlertDrawer
+                isOpen={alertsOpen}
+                onClose={() => setAlertsOpen(false)}
+                overdue={alerts.overdue}
+                upcoming={alerts.upcoming}
+                onPayClick={(alert) => {
+                    setAlertsOpen(false)
+                    setPaymentModal({ open: true, initial: { propertyId: alert.propertyId, months: [alert.dueMonth] } })
+                }}
             />
 
             <Toast toasts={toastApi.toasts} onRemove={toastApi.removeToast} />

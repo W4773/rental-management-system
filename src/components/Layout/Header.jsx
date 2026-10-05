@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, House, Users, Flame, Bell, Settings, LogOut, AlertTriangle } from 'lucide-react'
+import { Building2, House, Users, Flame, Bell, Settings, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useApp } from '../../contexts/AppContext'
 
@@ -21,17 +21,14 @@ function useOutsideClose(ref, onClose) {
 
 export default function Header() {
     const { user, signOut } = useAuth()
-    const { metrics } = useApp()
+    const { alerts, openAlerts } = useApp()
     const navigate = useNavigate()
-    const [bellOpen, setBellOpen] = useState(false)
     const [menuOpen, setMenuOpen] = useState(false)
-    const bellRef = useRef(null)
     const menuRef = useRef(null)
-    useOutsideClose(bellRef, () => setBellOpen(false))
     useOutsideClose(menuRef, () => setMenuOpen(false))
 
     const initial = (user?.user_metadata?.name || user?.email || 'U').charAt(0).toUpperCase()
-    const alerts = metrics.alerts
+    const alertCount = alerts.total
 
     const handleLogout = async () => {
         await signOut()
@@ -39,7 +36,7 @@ export default function Header() {
     }
 
     return (
-        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-brand-100">
+        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-brand-200">
             <div className="max-w-[1500px] mx-auto px-3 sm:px-5 h-12 flex items-center gap-3">
                 <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Alquiler Pro - ir al inicio">
                     <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white flex items-center justify-center">
@@ -67,37 +64,15 @@ export default function Header() {
                 </nav>
 
                 <div className="flex items-center gap-1.5 shrink-0">
-                    <div className="relative" ref={bellRef}>
-                        <button onClick={() => setBellOpen(o => !o)} aria-label="Alertas"
-                            className="relative w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50">
-                            <Bell className="w-4 h-4 text-gray-600" />
-                            {alerts.length > 0 && (
-                                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center">
-                                    {alerts.length > 99 ? '99+' : alerts.length}
-                                </span>
-                            )}
-                        </button>
-                        {bellOpen && (
-                            <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-                                <p className="px-3 py-2 text-xs font-semibold text-gray-500 border-b">Alertas ({alerts.length})</p>
-                                <ul className="max-h-72 overflow-y-auto divide-y divide-gray-50">
-                                    {alerts.length === 0 && <li className="px-3 py-4 text-sm text-gray-500 text-center">Todo al día</li>}
-                                    {alerts.slice(0, 30).map(a => (
-                                        <li key={a.id}>
-                                            <button className="w-full text-left px-3 py-2 hover:bg-gray-50 flex gap-2"
-                                                onClick={() => { setBellOpen(false); navigate(`/propiedades?p=${a.propertyId}`) }}>
-                                                <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${a.type === 'error' ? 'text-red-500' : 'text-amber-500'}`} />
-                                                <span>
-                                                    <span className="block text-[13px] font-medium text-ink">{a.title}</span>
-                                                    <span className="block text-xs text-gray-500">{a.subtitle}</span>
-                                                </span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                    <button onClick={openAlerts} aria-label={`Alertas de pago (${alertCount})`} title="Alertas de pago"
+                        className={`relative w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-gray-50 ${alertCount > 0 ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}>
+                        <Bell className="w-4 h-4 text-gray-600" />
+                        {alertCount > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                {alertCount > 9 ? '9+' : alertCount}
+                            </span>
                         )}
-                    </div>
+                    </button>
 
                     <Link to="/settings" aria-label="Configuración"
                         className="w-8 h-8 rounded-lg border border-gray-200 hidden sm:flex items-center justify-center hover:bg-gray-50">

@@ -1,163 +1,319 @@
+// src/lib/pdfGenerator.js
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { parseLocalDate } from './pdfHelpers'
 
-export const PDF_COLORS = {
-    brand: [154, 125, 36],
-    brandLight: [245, 236, 201],
-    ink: [38, 34, 28],
-    muted: [120, 113, 100],
-    cream: [248, 246, 240],
-    green: [34, 130, 70],
-    red: [200, 50, 40]
-}
+const GOLD = [184, 150, 46]
+const DARK = [26, 26, 26]
+const GRAY = [90, 79, 58]
+const LIGHT_GRAY = [138, 122, 90]
+const GREEN = [45, 106, 53]
 
-export const money = (n) =>
-    `RD$ ${(parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
-// 'YYYY-MM-DD' -> local Date (avoids timezone shift)
-export const parseLocalDate = (value) => {
-    if (!value) return null
-    if (value instanceof Date) return value
-    const [y, m, d] = value.slice(0, 10).split('-').map(Number)
-    return new Date(y, m - 1, d || 1)
-}
-
-export const monthLabel = (value) => {
-    const d = parseLocalDate(value)
-    return d ? format(d, 'MMMM yyyy', { locale: es }) : '-'
-}
-
-export const dateLabel = (value) => {
-    const d = parseLocalDate(value)
-    return d ? format(d, 'dd/MM/yyyy') : '-'
-}
-
-/** Gold brand band with title/subtitle. Returns the Y where content may start. */
-export function drawHeader(doc, title, subtitle) {
-    const w = doc.internal.pageSize.getWidth()
-    doc.setFillColor(...PDF_COLORS.brand)
-    doc.rect(0, 0, w, 34, 'F')
-    doc.setFillColor(255, 255, 255)
-    doc.roundedRect(14, 9, 16, 16, 3, 3, 'F')
-    doc.setTextColor(...PDF_COLORS.brand)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
-    doc.text('AP', 22, 19.5, { align: 'center' })
-
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(16)
-    doc.text('Alquiler Pro', 36, 16)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.text('Gestión de alquileres', 36, 22)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(15)
-    doc.text(title, w - 14, 16, { align: 'right' })
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    if (subtitle) doc.text(subtitle, w - 14, 22, { align: 'right' })
-    return 44
-}
-
-export function drawFooter(doc, text) {
-    const w = doc.internal.pageSize.getWidth()
-    const h = doc.internal.pageSize.getHeight()
-    const pages = doc.getNumberOfPages()
-    for (let i = 1; i <= pages; i++) {
-        doc.setPage(i)
-        doc.setDrawColor(225, 220, 205)
-        doc.line(14, h - 16, w - 14, h - 16)
-        doc.setFontSize(8)
-        doc.setTextColor(...PDF_COLORS.muted)
-        doc.text(text, 14, h - 10)
-        doc.text(`Página ${i} de ${pages}`, w - 14, h - 10, { align: 'right' })
+async function loadImageAsDataUrl(url) {
+    try {
+        const response = await fetch(url)
+        const blob = await response.blob()
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+        })
+    } catch {
+        return null
     }
 }
 
-/** Labelled info block (small caps label + value). */
-export function drawField(doc, label, value, x, y, maxWidth = 80) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...PDF_COLORS.muted)
-    doc.text(label.toUpperCase(), x, y)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10.5)
-    doc.setTextColor(...PDF_COLORS.ink)
-    doc.text(String(value || '-'), x, y + 5.5, { maxWidth })
-}
-
-const methodLabel = (m) => ({ transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque', other: 'Otro' }[m] || m || '-')
-const typeLabel = (t) => ({ full: 'Pago completo', partial: 'Pago parcial', prepaid: 'Pago + abono' }[t] || t || '-')
+const fmtMoney = (n) => `RD$${(parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+const monthName = (value) => format(parseLocalDate(value), 'MMMM yyyy', { locale: es }).toUpperCase()
 
 /**
- * Receipt for one payment or a consolidated receipt for several.
- * Returns the jsPDF doc and saves it (call only from a user action).
+ * Receipt for one payment, or a consolidated receipt when an array of payments is passed.
+ * Downloads the PDF (no new tab): call it only from a user action (e.g. "Sí, imprimir").
  */
-export const generateReceiptPDF = (paymentOrList, property, tenant) => {
-    const list = (Array.isArray(paymentOrList) ? paymentOrList : [paymentOrList]).filter(Boolean)
-    const doc = new jsPDF()
-    const w = doc.internal.pageSize.getWidth()
-    const first = list[0]
-    const ref = first.id ? first.id.slice(0, 8).toUpperCase() : '-'
+export async function generateReceiptPDF(paymentOrList, property, tenant, userSettings = {}) {
+    const list = (Array.isArray(paymentOrList) ? paymentOrList : [paymentOrList])
+        .filter(Boolean)
+        .sort((a, b) => a.payment_month.localeCompare(b.payment_month))
+    const payment = list[0]
+    const totalPaid = list.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0)
+    const totalRent = list.reduce((sum, p) => sum + (parseFloat(p.rent_amount ?? property.monthly_rent) || 0), 0)
+    const totalRemaining = list.reduce((sum, p) => sum + (parseFloat(p.remaining_balance) || 0), 0)
+    const periodLabel = list.length > 1
+        ? `${monthName(list[0].payment_month)} - ${monthName(list[list.length - 1].payment_month)}`
+        : monthName(payment.payment_month)
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 22
 
-    let y = drawHeader(doc, 'RECIBO DE PAGO', `No. ${ref}${list.length > 1 ? ` (+${list.length - 1})` : ''}`)
+    const businessName = userSettings.business_name || 'AlquilerPro'
+    const landlordName = userSettings.landlord_name || ''
+    const landlordPhone = userSettings.phone || ''
+    const landlordEmail = userSettings.email || 'info@optimard.com'
+    const footerNote = userSettings.invoice_footer || 'Este documento constituye un recibo de pago válido.'
+    const signatureUrl = userSettings.signature_url || null
 
-    doc.setFillColor(...PDF_COLORS.cream)
-    doc.roundedRect(14, y, w - 28, 34, 3, 3, 'F')
-    drawField(doc, 'Recibido de', tenant?.name, 20, y + 8, 80)
-    drawField(doc, 'Cédula', tenant?.identity_number || 'N/A', 20, y + 22, 80)
-    drawField(doc, 'Propiedad', property?.name, 110, y + 8, 80)
-    drawField(doc, 'Dirección', property?.address, 110, y + 22, 80)
-    y += 42
+    // === TOP GOLD RULE ===
+    doc.setDrawColor(...GOLD)
+    doc.setLineWidth(1.2)
+    doc.line(margin, 14, pageWidth - margin, 14)
 
-    autoTable(doc, {
-        startY: y,
-        head: [['Mes pagado', 'Fecha de pago', 'Método', 'Tipo', 'Monto']],
-        body: list.map(p => [
-            monthLabel(p.payment_month).toUpperCase(),
-            dateLabel(p.payment_date),
-            methodLabel(p.payment_method),
-            typeLabel(p.payment_type),
-            money(p.amount_paid)
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: PDF_COLORS.brand, textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: PDF_COLORS.cream },
-        styles: { fontSize: 10, cellPadding: 3.5, textColor: PDF_COLORS.ink },
-        columnStyles: { 4: { halign: 'right', fontStyle: 'bold' } }
-    })
-
-    const total = list.reduce((s, p) => s + (parseFloat(p.amount_paid) || 0), 0)
-    const pending = list.reduce((s, p) => s + (parseFloat(p.remaining_balance) || 0), 0)
-    let ty = doc.lastAutoTable.finalY + 10
-
-    doc.setFillColor(...PDF_COLORS.brandLight)
-    doc.roundedRect(w - 94, ty, 80, pending > 0 ? 28 : 20, 3, 3, 'F')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(...PDF_COLORS.muted)
-    doc.text('TOTAL PAGADO', w - 88, ty + 7)
-    doc.setFontSize(15)
-    doc.setTextColor(...PDF_COLORS.brand)
-    doc.text(money(total), w - 20, ty + 15, { align: 'right' })
-    if (pending > 0) {
-        doc.setFontSize(9)
-        doc.setTextColor(...PDF_COLORS.red)
-        doc.text(`Pendiente: ${money(pending)}`, w - 20, ty + 23, { align: 'right' })
-    }
+    // === CENTERED HEADER ===
+    doc.setFont('times', 'bold')
+    doc.setFontSize(22)
+    doc.setTextColor(...DARK)
+    doc.text(businessName.toUpperCase(), pageWidth / 2, 24, { align: 'center', charSpace: 1.5 })
 
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8.5)
-    doc.setTextColor(...PDF_COLORS.muted)
-    doc.text(`Emitido el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, ty + 8)
-    if (first.reference || first.notes) doc.text(`Ref./Nota: ${first.reference || first.notes}`, 14, ty + 14, { maxWidth: w - 120 })
+    doc.setFontSize(9)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('Gestión de Propiedades', pageWidth / 2, 30, { align: 'center', charSpace: 1 })
 
-    drawFooter(doc, 'Este documento es un comprobante de pago emitido por Alquiler Pro.')
+    // Thin separator
+    doc.setDrawColor(...GOLD)
+    doc.setLineWidth(0.4)
+    doc.line(pageWidth / 2 - 18, 34, pageWidth / 2 + 18, 34)
 
-    const suffix = list.length > 1 ? `${list.length}-meses` : format(parseLocalDate(first.payment_month), 'MMM-yyyy')
-    doc.save(`Recibo_${(tenant?.name || 'inquilino').split(' ')[0]}_${suffix}.pdf`)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(...GRAY)
+    doc.text('RECIBO DE PAGO DE ALQUILER', pageWidth / 2, 40, { align: 'center', charSpace: 0.8 })
+
+    // === META ROW ===
+    let y = 52
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('No. DE RECIBO', margin, y)
+    doc.text('FECHA DE EMISIÓN', 90, y)
+    doc.text('PERIODO PAGADO', 150, y)
+
+    y += 5
+    doc.setFont('times', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(...DARK)
+    doc.text(`#${payment.id.slice(0, 8).toUpperCase()}`, margin, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.text(format(new Date(), 'dd \'de\' MMMM \'de\' yyyy', { locale: es }), 90, y)
+    doc.setFontSize(list.length > 1 ? 8 : 11)
+    doc.text(periodLabel, 150, y, { maxWidth: pageWidth - margin - 150 })
+
+    // Separator line
+    y += 8
+    doc.setDrawColor(220, 210, 190)
+    doc.setLineWidth(0.3)
+    doc.line(margin, y, pageWidth - margin, y)
+
+    // === PARTIES ===
+    y += 8
+    const colMid = pageWidth / 2 + 5
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('ARRENDADOR', margin, y)
+    doc.text('INQUILINO', colMid, y)
+
+    doc.setDrawColor(200, 190, 170)
+    doc.setLineWidth(0.3)
+    doc.line(margin, y + 2, margin + 52, y + 2)
+    doc.line(colMid, y + 2, colMid + 52, y + 2)
+
+    y += 7
+    doc.setFont('times', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(...DARK)
+    doc.text(landlordName || 'Arrendador', margin, y)
+    doc.text(tenant.name, colMid, y)
+
+    y += 6
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(...GRAY)
+    if (landlordPhone) { doc.text(landlordPhone, margin, y); y += 5 }
+    if (landlordEmail) { doc.text(landlordEmail, margin, y) }
+    const tenantY = y - (landlordPhone ? 5 : 0)
+    doc.text(`Cédula: ${tenant.identity_number || 'N/A'}`, colMid, tenantY)
+    doc.text(`${property.name} · ${property.address}`, colMid, tenantY + 5, { maxWidth: 70 })
+
+    // === PAYMENT TABLE ===
+    y += 14
+    doc.setDrawColor(...GOLD)
+    doc.setLineWidth(0.8)
+    doc.line(margin, y, pageWidth - margin, y)
+
+    doc.autoTable({
+        startY: y + 2,
+        margin: { left: margin, right: margin },
+        head: [['CONCEPTO', 'DETALLE', 'MONTO', 'PAGADO']],
+        body: list.map(p => [
+            `Alquiler Mensual\n${monthName(p.payment_month)}`,
+            `${property.name}\n${getPaymentMethodLabel(p.payment_method)}`,
+            fmtMoney(p.rent_amount ?? property.monthly_rent),
+            fmtMoney(p.amount_paid)
+        ]),
+        foot: [['TOTAL', '', fmtMoney(totalRent), fmtMoney(totalPaid)]],
+        theme: 'plain',
+        headStyles: {
+            fillColor: [250, 247, 240],
+            textColor: LIGHT_GRAY,
+            fontSize: 8,
+            fontStyle: 'bold',
+            cellPadding: 4,
+        },
+        bodyStyles: {
+            textColor: DARK,
+            fontSize: 10,
+            fontStyle: 'normal',
+            cellPadding: 5,
+            lineColor: [232, 223, 200],
+            lineWidth: 0.3,
+        },
+        footStyles: {
+            fillColor: [244, 251, 245],
+            textColor: GREEN,
+            fontSize: 11,
+            fontStyle: 'bold',
+            cellPadding: 5,
+            lineColor: GOLD,
+            lineWidth: 0.8,
+        },
+        columnStyles: {
+            0: { cellWidth: 46 },
+            1: { cellWidth: 44 },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+        }
+    })
+
+    y = doc.lastAutoTable.finalY + 6
+    doc.setDrawColor(...GOLD)
+    doc.setLineWidth(0.8)
+    doc.line(margin, y, pageWidth - margin, y)
+
+    // === PAYMENT DETAILS ===
+    y += 10
+    const remaining = totalRemaining
+
+    // Method box
+    doc.setFillColor(250, 247, 240)
+    doc.roundedRect(margin, y, 80, 22, 2, 2, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('MÉTODO DE PAGO', margin + 4, y + 6)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(...DARK)
+    doc.text(getPaymentMethodLabel(payment.payment_method), margin + 4, y + 13)
+    if (payment.reference) {
+        doc.setFontSize(8)
+        doc.setTextColor(...GRAY)
+        doc.text(`Ref: ${payment.reference}`, margin + 4, y + 19)
+    }
+
+    // Balance box
+    const balanceColor = remaining > 0 ? [220, 38, 38] : GREEN
+    doc.setFillColor(remaining > 0 ? 254 : 244, remaining > 0 ? 242 : 251, remaining > 0 ? 242 : 245)
+    doc.roundedRect(pageWidth - margin - 80, y, 80, 22, 2, 2, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('BALANCE PENDIENTE', pageWidth - margin - 76, y + 6)
+    doc.setFont('times', 'bold')
+    doc.setFontSize(16)
+    doc.setTextColor(...balanceColor)
+    doc.text(
+        `RD$${remaining.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        pageWidth - margin - 4, y + 16,
+        { align: 'right' }
+    )
+
+    // === SIGNATURE ===
+    y += 32
+    const sigX = pageWidth - margin - 60
+
+    if (signatureUrl) {
+        const sigDataUrl = await loadImageAsDataUrl(signatureUrl)
+        if (sigDataUrl) {
+            doc.addImage(sigDataUrl, 'PNG', sigX, y, 56, 22)
+            y += 24
+        }
+    }
+
+    doc.setDrawColor(...DARK)
+    doc.setLineWidth(0.5)
+    doc.line(sigX, y, pageWidth - margin, y)
+
+    y += 5
+    if (landlordName) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(10)
+        doc.setTextColor(...DARK)
+        doc.text(landlordName, (sigX + pageWidth - margin) / 2, y, { align: 'center' })
+        y += 5
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('ARRENDADOR', (sigX + pageWidth - margin) / 2, y, { align: 'center', charSpace: 0.8 })
+
+    // === FOOTER ===
+    const footerY = doc.internal.pageSize.getHeight() - 22
+    doc.setDrawColor(220, 210, 190)
+    doc.setLineWidth(0.3)
+    doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text(`${businessName} · ${landlordEmail} · ${landlordPhone}`, pageWidth / 2, footerY, { align: 'center' })
+
+    doc.setFont('times', 'italic')
+    doc.setFontSize(7.5)
+    doc.setTextColor(184, 168, 128)
+    doc.text(footerNote, pageWidth / 2, footerY + 5, { align: 'center' })
+
+    // Verification code
+    const verRaw = payment.id.replace(/-/g, '').toUpperCase()
+    const verCode = `${verRaw.slice(0, 4)}-${verRaw.slice(4, 8)}-${verRaw.slice(8, 12)}`
+    doc.setFont('courier', 'normal')
+    doc.setFontSize(6.5)
+    doc.setTextColor(170, 160, 140)
+    doc.text(
+        `VER: ${verCode} · Válido únicamente con firma original del arrendador · No se acepta copia sin sello`,
+        pageWidth / 2, footerY + 10, { align: 'center' }
+    )
+
+    // Bottom gold rule
+    doc.setDrawColor(...GOLD)
+    doc.setLineWidth(1.2)
+    doc.line(margin, footerY + 15, pageWidth - margin, footerY + 15)
+
+    // === ANTI-FORGERY DIAGONAL WATERMARK ===
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(62)
+    doc.setTextColor(242, 237, 224)
+    doc.text('ALQUILER PRO', pageWidth / 2, doc.internal.pageSize.getHeight() * 0.44, { align: 'center', angle: 45 })
+    doc.setFontSize(28)
+    doc.setTextColor(245, 241, 231)
+    doc.text('DOCUMENTO AUTÉNTICO', pageWidth / 2, doc.internal.pageSize.getHeight() * 0.68, { align: 'center', angle: 45 })
+
+    const suffix = list.length > 1 ? `${list.length}-meses` : format(parseLocalDate(payment.payment_month), 'MMM-yyyy', { locale: es })
+    doc.save(`Recibo_${(tenant.name || 'inquilino').split(' ')[0]}_${suffix}.pdf`)
     return doc
+}
+
+const getPaymentMethodLabel = (method) => {
+    const map = {
+        transfer: 'Transferencia Bancaria',
+        cash: 'Efectivo',
+        check: 'Cheque',
+        pending: 'Pendiente',
+        other: 'Otro'
+    }
+    return map[method] || method || '—'
 }

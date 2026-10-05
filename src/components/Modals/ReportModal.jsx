@@ -9,7 +9,7 @@ import { generatePaymentsReport } from '../../lib/reportGenerator'
  * Payments report PDF.
  * `initial` = { propertyId?, paymentIds? } — paymentIds comes from the multi-select bar.
  */
-export default function ReportModal({ isOpen, onClose, initial, properties, tenants, payments, buildings }) {
+export default function ReportModal({ isOpen, onClose, initial, properties, tenants, payments, buildings, settings }) {
     const currentYear = new Date().getFullYear()
     const [propertyId, setPropertyId] = useState('')
     const [period, setPeriod] = useState(String(currentYear))
@@ -34,7 +34,7 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
         const property = properties.find(p => p.id === propertyId)
         if (!property) return setError('Seleccione una propiedad')
 
-        let rows = payments.filter(p => p.property_id === propertyId)
+        let rows = payments.filter(p => p.property_id === propertyId && !p.auto_generated)
         let periodLabel = 'Historial completo'
         if (period === 'selected') {
             rows = rows.filter(p => selectedIds.includes(p.id))
@@ -46,10 +46,10 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
         rows = rows.filter(p => parseFloat(p.amount_paid) > 0)
         if (rows.length === 0) return setError('No hay pagos para ese período')
 
-        const tenant = tenants.find(t => t.property_id === propertyId && t.end_date === null)
+        const tenant = tenants.find(t => t.property_id === propertyId && !t.end_date)
             || tenants.find(t => t.id === rows[0].tenant_id)
         const building = buildings.find(b => b.id === property.building_id)
-        generatePaymentsReport({ property, tenant, building, payments: rows, periodLabel })
+        generatePaymentsReport({ property, tenant, building, payments: rows, periodLabel, settings: settings || {} })
         onClose()
     }
 

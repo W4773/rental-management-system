@@ -3,7 +3,8 @@ import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
 import { usePayments } from '../../hooks/usePayments'
-import { monthLabel } from '../../lib/pdfGenerator'
+import { monthLabel } from '../../lib/pdfHelpers'
+import { monthKeyOf, hasMoney } from '../../lib/paymentStatus'
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const todayStr = () => new Date().toISOString().split('T')[0]
@@ -52,22 +53,23 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
 
     const selectedProperty = properties.find(p => p.id === formData.property_id) || null
     const activeTenant = useMemo(
-        () => tenants.find(t => t.property_id === formData.property_id && t.end_date === null) || null,
+        () => tenants.find(t => t.property_id === formData.property_id && !t.end_date) || null,
         [tenants, formData.property_id]
     )
-    const propertiesWithTenants = properties.filter(p => tenants.some(t => t.property_id === p.id && t.end_date === null))
+    const propertiesWithTenants = properties.filter(p => tenants.some(t => t.property_id === p.id && !t.end_date))
 
-    const paidForKey = (key) => allPayments
-        .filter(p => p.property_id === formData.property_id && p.payment_month?.slice(0, 7) === key)
-        .reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
+    const rowsForKey = (key) => allPayments
+        .filter(p => p.property_id === formData.property_id && hasMoney(p) && monthKeyOf(p) === key)
+    const paidForKey = (key) => rowsForKey(key).reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
+    // The rent agreed for that month (rows keep it); fall back to the property's current rent
+    const rentForKey = (key) => parseFloat(rowsForKey(key)[0]?.rent_amount || selectedProperty?.monthly_rent || 0)
 
-    const rent = parseFloat(selectedProperty?.monthly_rent || 0)
     const singleKey = `${selectedYear}-${pad(parseInt(selectedMonth))}`
     const paidSoFar = formData.property_id ? paidForKey(singleKey) : 0
-    const remaining = Math.max(0, rent - paidSoFar)
+    const remaining = Math.max(0, rentForKey(singleKey) - paidSoFar)
     const monthPaid = !!selectedProperty && remaining <= 1
 
-    const multiRows = multiMonths.map(key => ({ key, remaining: Math.max(0, rent - paidForKey(key)) }))
+    const multiRows = multiMonths.map(key => ({ key, rent: rentForKey(key), remaining: Math.max(0, rentForKey(key) - paidForKey(key)) }))
     const multiTotal = multiRows.reduce((s, r) => s + r.remaining, 0)
 
     // Auto-fill amount with the remaining balance for full payments
@@ -83,15 +85,15 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
     }
 
-    const buildPayment = (key, amountPaid, alreadyPaid) => {
-        const closing = alreadyPaid + amountPaid >= rent - 1
+    const buildPayment = (key, amountPaid, alreadyPaid, rentAmount) => {
+        const closing = alreadyPaid + amountPaid >= rentAmount - 1
         return {
             property_id: formData.property_id,
             tenant_id: activeTenant.id,
             payment_month: `${key}-01`,
-            rent_amount: rent,
+            rent_amount: rentAmount,
             amount_paid: amountPaid,
-            remaining_balance: Math.max(0, rent - (alreadyPaid + amountPaid)),
+            remaining_balance: Math.max(0, rentAmount - (alreadyPaid + amountPaid)),
             payment_date: formData.payment_date,
             payment_method: formData.payment_method,
             payment_type: closing ? 'full' : 'partial',
@@ -123,8 +125,8 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
         setLoading(true)
         try {
             const toCreate = isMulti
-                ? multiRows.filter(r => r.remaining > 0).map(r => buildPayment(r.key, r.remaining, rent - r.remaining))
-                : [buildPayment(singleKey, parseFloat(formData.amount_paid), paidSoFar)]
+                ? multiRows.filter(r => r.remaining > 0).map(r => buildPayment(r.key, r.remaining, r.rent - r.remaining, r.rent))
+                : [buildPayment(singleKey, parseFloat(formData.amount_paid), paidSoFar, rentForKey(singleKey))]
 
             const created = []
             for (const payment of toCreate) {

@@ -7,21 +7,21 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+                sans: ['Inter', 'system-ui', 'sans-serif'],
             },
             colors: {
-                cream: '#F8F6F0',
-                ink: '#26221C',
+                cream: '#faf7f2',
+                ink: '#1a1a1a',
                 brand: {
-                    50: '#FBF7EA',
-                    100: '#F5ECC9',
-                    200: '#EBD98F',
-                    400: '#D4B94F',
-                    500: '#B8993A',
-                    600: '#9A7D24',
-                    700: '#7D641A',
+                    50: '#fff8ed',
+                    100: '#f6efd9',
+                    200: '#e8dfc8',
+                    400: '#e8c84a',
+                    500: '#b8962e',
+                    600: '#a07f22',
+                    700: '#7d6318',
                 },
-                accent: { 500: '#D2622A', 600: '#B8531F' },
+                accent: { 500: '#d2622a', 600: '#b8531f' },
                 'status-green': '#22C55E',
                 'status-green-light': 'rgba(34, 197, 94, 0.1)',
                 'status-yellow': '#EAB308',

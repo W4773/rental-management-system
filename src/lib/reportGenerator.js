@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format } from 'date-fns'
-import { PDF_COLORS, drawHeader, drawFooter, drawField, money, monthLabel, dateLabel } from './pdfGenerator'
+import { PDF_COLORS, drawHeader, drawFooter, drawField, money, monthLabel, dateLabel } from './pdfHelpers'
 
 const methodLabel = (m) => ({ transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque' }[m] || m || '-')
 
@@ -9,7 +9,7 @@ const methodLabel = (m) => ({ transfer: 'Transferencia', cash: 'Efectivo', check
 export function summarizePayments(payments) {
     const byMonth = {}
     payments.forEach(p => {
-        const key = p.payment_month.slice(0, 7)
+        const key = p.payment_month.split('T')[0].slice(0, 7)
         byMonth[key] = byMonth[key] || { rent: parseFloat(p.rent_amount || 0), paid: 0 }
         byMonth[key].paid += parseFloat(p.amount_paid || 0)
     })
@@ -25,7 +25,8 @@ export function summarizePayments(payments) {
  * Elegant PDF statement of payments to send to a tenant.
  * @param {{property, tenant, building, payments, periodLabel}} opts
  */
-export function generatePaymentsReport({ property, tenant, building, payments, periodLabel }) {
+export function generatePaymentsReport({ property, tenant, building, payments, periodLabel, settings = {} }) {
+    const brand = settings.business_name || 'Alquiler Pro'
     const rows = [...payments]
         .filter(p => parseFloat(p.amount_paid) > 0)
         .sort((a, b) => a.payment_month.localeCompare(b.payment_month))
@@ -33,7 +34,7 @@ export function generatePaymentsReport({ property, tenant, building, payments, p
     const w = doc.internal.pageSize.getWidth()
     const { totalPaid, totalPending, monthsCount } = summarizePayments(rows)
 
-    let y = drawHeader(doc, 'ESTADO DE PAGOS', periodLabel)
+    let y = drawHeader(doc, 'ESTADO DE PAGOS', periodLabel, brand)
 
     doc.setFillColor(...PDF_COLORS.cream)
     doc.roundedRect(14, y, w - 28, 40, 3, 3, 'F')
@@ -90,7 +91,7 @@ export function generatePaymentsReport({ property, tenant, building, payments, p
         margin: { left: 14, right: 14, bottom: 22 }
     })
 
-    drawFooter(doc, `Generado el ${format(new Date(), 'dd/MM/yyyy')} - Alquiler Pro`)
+    drawFooter(doc, `Generado el ${format(new Date(), 'dd/MM/yyyy')} - ${brand}${settings.phone ? ' - ' + settings.phone : ''}`)
     const safe = (property?.name || 'propiedad').replace(/[^\w-]+/g, '_')
     doc.save(`Reporte_${safe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`)
     return doc

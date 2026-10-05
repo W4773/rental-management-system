@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale'
 import { useApp } from '../contexts/AppContext'
 import { formatCurrency } from '../lib/calculations'
 import { usePropertyFilters } from '../hooks/usePropertyFilters'
+import { hasMoney } from '../lib/paymentStatus'
 import PropertyFilters from '../components/Dashboard/PropertyFilters'
 import PropertyList from '../components/Dashboard/PropertyList'
 
@@ -33,11 +34,11 @@ export default function Home() {
     const filters = usePropertyFilters({ properties, tenants, payments })
 
     const recent = useMemo(() => [...payments]
-        .filter(p => parseFloat(p.amount_paid) > 0)
+        .filter(p => hasMoney(p) && !p.auto_generated)
         .sort((a, b) => (b.created_at || b.payment_date || '').localeCompare(a.created_at || a.payment_date || ''))
         .slice(0, 8), [payments])
 
-    if (loading) {
+    if (loading || metrics.loading) {
         return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
     }
 
@@ -68,10 +69,10 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                <Kpi icon={TrendingUp} label={`Cobrado ${new Date().getFullYear()}`} value={formatCurrency(metrics.collected)} tone="brand" />
+                <Kpi icon={TrendingUp} label={`Cobrado este año`} value={formatCurrency(metrics.totalRevenue)} tone="brand" />
                 <Kpi icon={Clock} label="Monto atrasado" value={formatCurrency(metrics.overdueAmount)} tone={metrics.overdueAmount > 0 ? 'red' : 'green'} />
-                <Kpi icon={HomeIcon} label="Ocupación" value={`${metrics.occupancy}%`} tone="green" />
-                <Kpi icon={Percent} label="Tasa de cobro" value={`${metrics.collectionRate}%`} tone={metrics.collectionRate >= 90 ? 'green' : 'amber'} />
+                <Kpi icon={HomeIcon} label="Ocupación" value={`${metrics.occupancyRate}%`} tone={metrics.occupancyRate >= 100 ? 'green' : 'amber'} />
+                <Kpi icon={Percent} label="Tasa de cobro" value={`${metrics.collectionRate}%`} tone={metrics.collectionRate >= 95 ? 'green' : metrics.collectionRate >= 80 ? 'amber' : 'red'} />
             </div>
 
             <div className="bg-white rounded-xl border border-brand-100 shadow-sm p-2.5">
@@ -112,7 +113,7 @@ export default function Home() {
                                         <span className="w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><Wallet className="w-3.5 h-3.5" /></span>
                                         <div className="min-w-0 flex-1 leading-tight">
                                             <p className="text-[13px] font-medium truncate">{tenant?.name || 'Inquilino'}</p>
-                                            <p className="text-[11px] text-gray-500 truncate">{property?.name} · {format(new Date(p.payment_month.slice(0, 7) + '-01T00:00:00'), 'MMM yyyy', { locale: es })}</p>
+                                            <p className="text-[11px] text-gray-500 truncate">{property?.name} · {format(new Date(p.payment_month.split('T')[0].slice(0, 7) + '-01T00:00:00'), 'MMM yyyy', { locale: es })}</p>
                                         </div>
                                         <span className="text-xs font-bold text-green-700">{formatCurrency(p.amount_paid)}</span>
                                     </li>

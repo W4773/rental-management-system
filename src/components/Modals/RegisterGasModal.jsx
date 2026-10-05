@@ -3,12 +3,12 @@ import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
 import { useProperties } from '../../hooks/useProperties'
-import { useGasReadings } from '../../hooks/useGasReadings'
+import { useUtilityReadings } from '../../hooks/useUtilityReadings'
 import { format } from 'date-fns'
 
 export default function RegisterGasModal({ isOpen, onClose, onSuccess }) {
     const { properties } = useProperties()
-    const { addGasReading, getReadingsByProperty } = useGasReadings()
+    const { addGasReading, getReadingsByProperty } = useUtilityReadings('gas')
     const [loading, setLoading] = useState(false)
 
     const [formData, setFormData] = useState({

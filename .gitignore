@@ -38,9 +38,17 @@ lerna-debug.log*
 # Vercel
 .vercel
 
-# SQL scripts (optional - keep local only)
+# SQL scripts: ignored by default, except the versioned migrations
 *.sql
+!supabase/migrations/*.sql
 
 # Temp files
 *.tmp
 *.bak
+
+.vercel
+
+# Local-only / private
+backup_*.json
+.superpowers/
+supabase/.temp/

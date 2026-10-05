@@ -6,35 +6,32 @@ import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, fo
 import { useTenants } from '../../hooks/useTenants'
 import { useProperties } from '../../hooks/useProperties'
 import { usePayments } from '../../hooks/usePayments'
-import { startOfMonth, addMonths } from 'date-fns'
+import { startOfMonth, addMonths } from 'date-fns' // eslint-disable-line no-unused-vars
 
-export default function AssignTenantModal({ isOpen, onClose, onSuccess, property: presetProperty = null, tenantToEdit = null }) {
+const EMPTY_FORM = {
+    property_id: '',
+    name: '',
+    identity_number: '',
+    phone: '',
+    email: '',
+    start_date: new Date().toISOString().split('T')[0]
+}
+
+export default function AssignTenantModal({ isOpen, onClose, onSuccess, property, tenantToEdit }) {
     const { properties } = useProperties()
     const { addTenant, updateTenant, getActiveTenantForProperty, closeTenant } = useTenants()
-    const { addPayment } = usePayments()
+    const { addPayment, generateHistoricalPayments } = usePayments()
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
-    const [step, setStep] = useState(1) // 1: Select property, 2: Enter tenant details
+    const [step, setStep] = useState(1)
+    const [formData, setFormData] = useState(EMPTY_FORM)
 
-    const [formData, setFormData] = useState({
-        property_id: '',
-        name: '',
-        identity_number: '',
-        phone: '',
-        email: '',
-        start_date: new Date().toISOString().split('T')[0]
-    })
-
-    // Filter properties without active tenants
-    const [availableProperties, setAvailableProperties] = useState([])
-
-    // Prefill when opened from a property (skip step 1) or when editing an existing tenant
     useEffect(() => {
         if (!isOpen) return
-        setErrors({})
+
         if (tenantToEdit) {
             setFormData({
-                property_id: tenantToEdit.property_id,
+                property_id: tenantToEdit.property_id || property?.id || '',
                 name: tenantToEdit.name || '',
                 identity_number: tenantToEdit.identity_number || '',
                 phone: tenantToEdit.phone || '',
@@ -42,35 +39,27 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                 start_date: tenantToEdit.start_date || new Date().toISOString().split('T')[0]
             })
             setStep(2)
-        } else if (presetProperty) {
-            setFormData(prev => ({ ...prev, property_id: presetProperty.id, name: '', identity_number: '', phone: '', email: '' }))
+        } else if (property) {
+            setFormData({ ...EMPTY_FORM, property_id: property.id })
             setStep(2)
         } else {
+            setFormData(EMPTY_FORM)
             setStep(1)
         }
-    }, [isOpen, presetProperty, tenantToEdit])
+        setErrors({})
+    }, [isOpen, property, tenantToEdit])
 
     const handleChange = (e) => {
         let { name, value } = e.target
-
-        // Format cédula and phone as user types
-        if (name === 'identity_number') {
-            value = formatCedulaInput(value)
-        } else if (name === 'phone') {
-            value = formatPhoneInput(value)
-        }
+        if (name === 'identity_number') value = formatCedulaInput(value)
+        else if (name === 'phone') value = formatPhoneInput(value)
 
         setFormData(prev => ({ ...prev, [name]: value }))
-
-        // Clear error when user types
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: null }))
-        }
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
     }
 
-    const handlePropertySelect = async (e) => {
-        const propertyId = e.target.value
-        setFormData(prev => ({ ...prev, property_id: propertyId }))
+    const handlePropertySelect = (e) => {
+        setFormData(prev => ({ ...prev, property_id: e.target.value }))
         setErrors({})
     }
 
@@ -82,17 +71,10 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
         setStep(2)
     }
 
-    const handleBackStep = () => {
-        setStep(1)
-        setErrors({})
-    }
-
     const validate = () => {
         const newErrors = {}
 
-        if (!formData.property_id) {
-            newErrors.property_id = 'Debe seleccionar una propiedad'
-        }
+        if (!formData.property_id) newErrors.property_id = 'Debe seleccionar una propiedad'
 
         if (!formData.name || formData.name.trim().length === 0) {
             newErrors.name = 'El nombre es obligatorio'
@@ -118,87 +100,52 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-
         if (!validate()) return
 
         setLoading(true)
 
         try {
             if (tenantToEdit) {
-                const { error: updError } = await updateTenant(tenantToEdit.id, {
+                const { data: updated, error: updateError } = await updateTenant(tenantToEdit.id, {
                     name: formData.name.trim(),
                     identity_number: formData.identity_number,
                     phone: formData.phone,
                     email: formData.email.trim() || null,
-                    start_date: formData.start_date
+                    start_date: formData.start_date,
                 })
-                if (updError) throw new Error(updError)
-                if (onSuccess) onSuccess(tenantToEdit)
-                onClose()
-                return
+                if (updateError) throw new Error(updateError)
+                if (onSuccess) onSuccess(updated)
+            } else {
+                const { data: existingTenant } = await getActiveTenantForProperty(formData.property_id)
+                if (existingTenant) await closeTenant(existingTenant.id, new Date())
+
+                const { data: newTenant, error: tenantError } = await addTenant({
+                    property_id: formData.property_id,
+                    name: formData.name.trim(),
+                    identity_number: formData.identity_number,
+                    phone: formData.phone,
+                    email: formData.email.trim() || null,
+                    start_date: formData.start_date,
+                    end_date: null
+                })
+                if (tenantError) throw new Error(tenantError)
+
+                const selectedProperty = properties.find(p => p.id === formData.property_id)
+                // Auto-generate paid records for all months before the last 2 (current + previous)
+                await generateHistoricalPayments(
+                    formData.property_id,
+                    newTenant.id,
+                    formData.start_date,
+                    selectedProperty.monthly_rent
+                )
+
+                if (onSuccess) onSuccess(newTenant)
             }
 
-            // Check if property already has active tenant
-            const { data: existingTenant } = await getActiveTenantForProperty(formData.property_id)
-
-            if (existingTenant) {
-                // Close existing tenant
-                await closeTenant(existingTenant.id, new Date())
-            }
-
-            // Add new tenant
-            const tenantData = {
-                property_id: formData.property_id,
-                name: formData.name.trim(),
-                identity_number: formData.identity_number,
-                phone: formData.phone,
-                email: formData.email.trim() || null,
-                start_date: formData.start_date,
-                end_date: null
-            }
-
-            const { data: newTenant, error: tenantError } = await addTenant(tenantData)
-
-            if (tenantError) throw new Error(tenantError)
-
-            // Create first payment record as pending for next month
-            const property = properties.find(p => p.id === formData.property_id)
-            const nextMonth = startOfMonth(addMonths(new Date(), 1))
-
-            const paymentData = {
-                property_id: formData.property_id,
-                tenant_id: newTenant.id,
-                payment_month: nextMonth.toISOString().split('T')[0],
-                rent_amount: property.monthly_rent,
-                amount_paid: 0,
-                remaining_balance: property.monthly_rent,
-                payment_date: null,
-                payment_method: 'pending',
-                payment_type: 'full',
-                payment_status: 'pending',
-                reference: null,
-                notes: 'Pago inicial pendiente'
-            }
-
-            await addPayment(paymentData)
-
-            // Reset form
-            setFormData({
-                property_id: '',
-                name: '',
-                identity_number: '',
-                phone: '',
-                email: '',
-                start_date: new Date().toISOString().split('T')[0]
-            })
-            setErrors({})
-            setStep(1)
-
-            if (onSuccess) onSuccess(newTenant)
-            onClose()
+            handleClose()
         } catch (err) {
-            console.error('Error assigning tenant:', err)
-            setErrors({ submit: err.message || 'Error al asignar inquilino' })
+            console.error('Error en AssignTenantModal:', err)
+            setErrors({ submit: err.message || 'Error al guardar inquilino' })
         } finally {
             setLoading(false)
         }
@@ -206,33 +153,29 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
 
     const handleClose = () => {
         if (!loading) {
-            setFormData({
-                property_id: '',
-                name: '',
-                identity_number: '',
-                phone: '',
-                email: '',
-                start_date: new Date().toISOString().split('T')[0]
-            })
+            setFormData(EMPTY_FORM)
             setErrors({})
             setStep(1)
             onClose()
         }
     }
 
-    // Get available properties (without active tenants)
-    // This is a simplified version - in reality we'd need to check tenants table
-    const propertiesWithoutTenants = properties
+    const isEditing = Boolean(tenantToEdit)
+    const selectedPropertyName = properties.find(p => p.id === formData.property_id)?.name || ''
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title={tenantToEdit ? 'Editar Inquilino' : 'Asignar Inquilino'} size="md">
+        <Modal
+            isOpen={isOpen}
+            onClose={handleClose}
+            title={isEditing ? 'Editar Inquilino' : 'Asignar Inquilino'}
+            size="md"
+        >
             <form onSubmit={handleSubmit}>
                 {step === 1 && (
                     <>
                         <p className="text-sm text-gray-600 mb-4">
                             Paso 1 de 2: Seleccione la propiedad a la que desea asignar un inquilino.
                         </p>
-
                         <FormInput
                             label="Propiedad"
                             name="property_id"
@@ -243,37 +186,24 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             required
                         >
                             <option value="">Seleccionar propiedad...</option>
-                            {propertiesWithoutTenants.map(property => (
-                                <option key={property.id} value={property.id}>
-                                    {property.name} - {property.address}
-                                </option>
+                            {properties.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} — {p.address}</option>
                             ))}
                         </FormInput>
-
                         <div className="flex gap-3 justify-end mt-6">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={handleClose}
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="primary"
-                                onClick={handleNextStep}
-                            >
-                                Siguiente
-                            </Button>
+                            <Button type="button" variant="secondary" onClick={handleClose}>Cancelar</Button>
+                            <Button type="button" variant="primary" onClick={handleNextStep}>Siguiente</Button>
                         </div>
                     </>
                 )}
 
                 {step === 2 && (
                     <>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Paso 2 de 2: Ingrese los datos del inquilino.
-                        </p>
+                        {selectedPropertyName && (
+                            <p className="text-sm text-gray-500 mb-4 bg-gray-50 px-3 py-2 rounded-lg">
+                                Propiedad: <span className="font-semibold text-gray-700">{selectedPropertyName}</span>
+                            </p>
+                        )}
 
                         <FormInput
                             label="Nombre Completo"
@@ -285,7 +215,6 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             placeholder="Juan García López"
                             maxLength={255}
                         />
-
                         <FormInput
                             label="Cédula"
                             name="identity_number"
@@ -296,7 +225,6 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             placeholder="123-4567890-1"
                             maxLength={13}
                         />
-
                         <FormInput
                             label="Teléfono"
                             name="phone"
@@ -307,7 +235,6 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             placeholder="(829) 555-1234"
                             maxLength={15}
                         />
-
                         <FormInput
                             label="Email"
                             name="email"
@@ -317,7 +244,6 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             error={errors.email}
                             placeholder="correo@ejemplo.com"
                         />
-
                         <FormInput
                             label="Fecha de Ingreso"
                             name="start_date"
@@ -329,8 +255,6 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             max={new Date().toISOString().split('T')[0]}
                         />
 
-
-
                         {errors.submit && (
                             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                                 {errors.submit}
@@ -338,20 +262,17 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                         )}
 
                         <div className="flex gap-3 justify-end mt-6">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={(tenantToEdit || presetProperty) ? handleClose : handleBackStep}
-                                disabled={loading}
-                            >
-                                {(tenantToEdit || presetProperty) ? 'Cancelar' : 'Atrás'}
-                            </Button>
-                            <Button
-                                type="submit"
-                                variant="primary"
-                                disabled={loading}
-                            >
-                                {loading ? 'Guardando...' : tenantToEdit ? 'Guardar cambios' : 'Asignar Inquilino'}
+                            {!isEditing && !property ? (
+                                <Button type="button" variant="secondary" onClick={() => { setStep(1); setErrors({}) }} disabled={loading}>
+                                    Atrás
+                                </Button>
+                            ) : (
+                                <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
+                                    Cancelar
+                                </Button>
+                            )}
+                            <Button type="submit" variant="primary" disabled={loading}>
+                                {loading ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Asignar Inquilino'}
                             </Button>
                         </div>
                     </>

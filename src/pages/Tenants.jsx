@@ -1,18 +1,21 @@
 import { useMemo, useState } from 'react'
-import { UserPlus, Search, Pencil, FileText, Wallet } from 'lucide-react'
+import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { formatDate } from '../lib/dateUtils'
-import { normalizeText } from '../lib/metrics'
+import { normalizeText, getPaymentStatus } from '../lib/paymentStatus'
+import ConfirmModal from '../components/Common/ConfirmModal'
+import StatusPill from '../components/Dashboard/StatusPill'
 
 export default function Tenants() {
-    const { tenants, properties, buildings, openTenant, openReport, openPayment, loading } = useApp()
+    const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, closeTenant, onDataChanged, toast, loading } = useApp()
     const [query, setQuery] = useState('')
     const [onlyActive, setOnlyActive] = useState(true)
+    const [toUnassign, setToUnassign] = useState(null)
 
     const rows = useMemo(() => {
         const q = normalizeText(query)
         return tenants
-            .filter(t => (!onlyActive || t.end_date === null))
+            .filter(t => (!onlyActive || !t.end_date))
             .map(t => ({ tenant: t, property: properties.find(p => p.id === t.property_id) }))
             .filter(({ tenant, property }) => !q || normalizeText(`${tenant.name} ${tenant.identity_number} ${property?.name || ''}`).includes(q))
             .sort((a, b) => a.tenant.name.localeCompare(b.tenant.name))
@@ -63,7 +66,7 @@ export default function Tenants() {
                     <tbody className="divide-y divide-gray-100">
                         {rows.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-gray-500">No hay inquilinos.</td></tr>}
                         {rows.map(({ tenant, property }) => {
-                            const active = tenant.end_date === null
+                            const active = !tenant.end_date
                             const building = buildings.find(b => b.id === property?.building_id)
                             return (
                                 <tr key={tenant.id} className="hover:bg-gray-50">
@@ -73,9 +76,9 @@ export default function Tenants() {
                                     <td className="px-3 py-1.5">{property?.name}{building && <span className="text-[11px] text-gray-500 block leading-tight">{building.name}</span>}</td>
                                     <td className="px-3 py-1.5 hidden lg:table-cell">{formatDate(tenant.start_date)}</td>
                                     <td className="px-3 py-1.5">
-                                        <span className={`px-1.5 py-px rounded-full text-[10px] font-bold uppercase border ${active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                                            {active ? 'Activo' : 'Histórico'}
-                                        </span>
+                                        {active
+                                            ? <StatusPill status={getPaymentStatus(tenant.property_id, true, payments)} />
+                                            : <span className="px-1.5 py-px rounded-full text-[10px] font-bold uppercase border bg-gray-100 text-gray-500 border-gray-200">Histórico</span>}
                                     </td>
                                     <td className="px-3 py-1.5">
                                         <div className="flex items-center justify-end gap-0.5">
@@ -86,6 +89,9 @@ export default function Tenants() {
                                                 <button aria-label="Reporte PDF" title="Reporte PDF" onClick={() => openReport({ propertyId: property.id })} className="p-1.5 rounded hover:bg-brand-50 text-gray-500 hover:text-brand-700"><FileText className="w-4 h-4" /></button>
                                             )}
                                             <button aria-label="Editar inquilino" title="Editar inquilino" onClick={() => openTenant(property, tenant)} className="p-1.5 rounded hover:bg-brand-50 text-gray-500 hover:text-brand-700"><Pencil className="w-4 h-4" /></button>
+                                            {active && (
+                                                <button aria-label="Desasignar inquilino" title="Desasignar inquilino" onClick={() => setToUnassign(tenant)} className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600"><UserMinus className="w-4 h-4" /></button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -94,6 +100,20 @@ export default function Tenants() {
                     </tbody>
                 </table>
             </div>
+
+            <ConfirmModal
+                isOpen={toUnassign !== null}
+                onClose={() => setToUnassign(null)}
+                onConfirm={async () => {
+                    const { error } = await closeTenant(toUnassign.id, new Date())
+                    if (error) { toast.error('Error al desasignar inquilino'); throw new Error(error) }
+                    onDataChanged('Inquilino desasignado')
+                }}
+                title="Desasignar inquilino"
+                message={`¿Desasignar a ${toUnassign?.name || ''}? Su historial de pagos se conserva.`}
+                confirmText="Sí, desasignar"
+                isDanger
+            />
         </div>
     )
 }

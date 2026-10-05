@@ -1,10 +1,19 @@
 import { useState } from 'react'
+import InvoiceSettings from '../components/Settings/InvoiceSettings'
+import TeamSection from '../components/Settings/TeamSection'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../contexts/AppContext'
 
+const TABS = [
+    { id: 'account', label: 'Cuenta' },
+    { id: 'invoice', label: 'Factura' },
+    { id: 'team', label: 'Equipo' },
+]
+
 export default function Settings() {
     const { user } = useAuth()
+    const [activeTab, setActiveTab] = useState('account')
     const [formData, setFormData] = useState({
         name: user?.user_metadata?.name || user?.email?.split('@')[0] || '',
         email: user?.email || '',
@@ -21,30 +30,19 @@ export default function Settings() {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-
         if (formData.newPassword && formData.newPassword !== formData.confirmPassword) {
             showToast('Las contraseñas no coinciden', 'error')
             return
         }
-
         setLoading(true)
-
         try {
             const updateData = {}
-
-            if (formData.newPassword) {
-                updateData.password = formData.newPassword
-            }
-
-            if (formData.email !== user?.email) {
-                updateData.email = formData.email
-            }
-
+            if (formData.newPassword) updateData.password = formData.newPassword
+            if (formData.email !== user?.email) updateData.email = formData.email
             if (updateData.password || updateData.email) {
                 const { error } = await supabase.auth.updateUser(updateData)
                 if (error) throw error
             }
-
             showToast('Configuración actualizada exitosamente', 'success')
             setFormData({ ...formData, newPassword: '', confirmPassword: '' })
         } catch (error) {
@@ -56,83 +54,98 @@ export default function Settings() {
 
     return (
         <div>
-            <main className="max-w-3xl mx-auto">
-                <div className="bg-white rounded-xl border border-brand-100 shadow-sm p-5">
-                    <h1 className="text-xl font-bold text-ink mb-4">Configuración de cuenta</h1>
+            <main className="max-w-4xl mx-auto w-full">
+                <h1 className="text-xl font-bold text-ink mb-4">Configuración</h1>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Nombre de Usuario
-                            </label>
-                            <input
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Tu nombre"
-                            />
-                        </div>
+                {/* Tabs */}
+                <div className="flex gap-2 border-b-2 border-gray-200 mb-6">
+                    {TABS.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-5 py-3 font-semibold text-[18px] border-b-4 transition ${
+                                activeTab === tab.id
+                                    ? 'border-brand-500 text-brand-700'
+                                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                            }`}
+                            style={{ minHeight: '48px' }}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Correo Electrónico
-                            </label>
-                            <input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="tucorreo@ejemplo.com"
-                            />
-                        </div>
-
-                        <div className="border-t pt-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cambiar Contraseña</h3>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Nueva Contraseña
-                                    </label>
-                                    <input
-                                        type="password"
-                                        name="newPassword"
-                                        value={formData.newPassword}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="Dejar vacío para no cambiar"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Confirmar Nueva Contraseña
-                                    </label>
-                                    <input
-                                        type="password"
-                                        name="confirmPassword"
-                                        value={formData.confirmPassword}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="Confirmar contraseña"
-                                    />
+                <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-8">
+                    {activeTab === 'account' && (
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <h3 className="text-[20px] font-bold text-gray-900 mb-2">Datos de la Cuenta</h3>
+                            <div>
+                                <label className="accessible-label">Nombre de Usuario</label>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    className="accessible-input"
+                                    placeholder="Tu nombre"
+                                />
+                            </div>
+                            <div>
+                                <label className="accessible-label">Correo Electrónico</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    className="accessible-input"
+                                    placeholder="tucorreo@ejemplo.com"
+                                />
+                            </div>
+                            <div className="border-t-2 border-gray-200 pt-6">
+                                <h4 className="text-[18px] font-bold text-gray-900 mb-4">Cambiar Contraseña</h4>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="accessible-label">Nueva Contraseña</label>
+                                        <input
+                                            type="password"
+                                            name="newPassword"
+                                            value={formData.newPassword}
+                                            onChange={handleChange}
+                                            className="accessible-input"
+                                            placeholder="Dejar vacío para no cambiar"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="accessible-label">Confirmar Contraseña</label>
+                                        <input
+                                            type="password"
+                                            name="confirmPassword"
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange}
+                                            className="accessible-input"
+                                            placeholder="Repetir nueva contraseña"
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                            <div className="pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700 transition disabled:opacity-50 text-[18px]"
+                                    style={{ minHeight: '48px' }}
+                                >
+                                    {loading ? 'Guardando...' : 'Guardar Cambios'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
 
-                        <div className="flex gap-4 pt-4">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="bg-brand-600 text-white px-5 py-2 rounded-lg hover:bg-brand-700 transition disabled:opacity-50"
-                            >
-                                {loading ? 'Guardando...' : 'Guardar Cambios'}
-                            </button>
-                        </div>
-                    </form>
+                    {activeTab === 'invoice' && (
+                        <InvoiceSettings showToast={showToast} />
+                    )}
+
+                    {activeTab === 'team' && <TeamSection />}
                 </div>
             </main>
         </div>

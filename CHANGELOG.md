@@ -8,23 +8,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.1.0] - 2026-10-05
 
 ### Agregado
-- Marca "Alquiler Pro"; el logo lleva al Inicio.
-- Navegación por pestañas: Inicio, Propiedades, Inquilinos y Gastos.
-- Edificios (nombre y dirección) con propiedades agrupadas por edificio. Requiere ejecutar `supabase/migrations/002_buildings.sql`.
-- Edición de propiedades e inquilinos.
-- Reporte de pagos en PDF y recibo consolidado.
-- Selección múltiple de pagos (reporte, recibo, eliminar) y de meses (pagar varios a la vez).
+- Navegación por rutas: Inicio, Propiedades, Inquilinos y Gastos; el logo "Alquiler Pro" lleva al Inicio.
+- Edificios (nombre y dirección) con propiedades agrupadas por edificio. Requiere `supabase/migrations/002_buildings.sql` (esquema `rental`).
 - Buscador por inquilino/propiedad con filtros de estado y edificio.
-- Iconos `lucide-react` en lugar de emoji.
+- Selección múltiple: pagos (reporte, recibo, eliminar) y meses (pagar varios a la vez).
+- Reporte de pagos en PDF y recibo consolidado de varios meses.
+- Iconos `lucide-react` en lugar de emoji; diseño más compacto.
+- Ajustes → Equipo: ver, agregar (por correo) y quitar miembros de `rental.workspace_members`. Requiere `supabase/migrations/003_workspace_team.sql`.
 
 ### Cambiado
-- Al registrar un pago se actualiza la vista sin recargar y se pregunta "¿Desea imprimir el recibo?" (Sí / Ahora no); ya no se abre una pestaña nueva ni se descarga automáticamente.
-- Diseño compacto (KPIs bajos, listas densas, detalle en dos columnas).
-- "Dashboard"/"Salpicadero" ahora es "Inicio".
+- Al registrar un pago se actualiza la vista sin recargar y se pregunta "¿Desea imprimir el recibo?" (Sí / Ahora no); ya no se abre una pestaña nueva.
+- "Dashboard" ahora se llama "Inicio".
 
 ### Corregido
-- Comparación de meses sin desfase de zona horaria.
-- Se elimina la dependencia faltante `html2canvas` (la vista /receipt ya no existe).
+- Las suscripciones en tiempo real apuntaban al esquema `public`; ahora usan `rental`.
+- Fechas de recibos sin desfase de zona horaria (mayo 1 ya no sale como abril).
+- Migraciones y guías apuntan al proyecto y esquema correctos; `backup_*.json`, `.superpowers/` y `supabase/.temp/` dejan de versionarse.
 
 ## [1.0.1] - 2026-01-19
 

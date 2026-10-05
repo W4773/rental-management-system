@@ -1,5 +1,5 @@
 import { Search, X } from 'lucide-react'
-import { STATUS_FILTERS } from '../../hooks/usePropertyFilters'
+import { STATUS_FILTERS } from '../../lib/paymentStatus'
 
 /** Search box + status chips + building select, driven by usePropertyFilters(). */
 export default function PropertyFilters({ filters, buildings, compact = false }) {

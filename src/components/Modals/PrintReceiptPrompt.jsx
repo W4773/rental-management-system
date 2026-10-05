@@ -4,14 +4,14 @@ import Button from '../Common/Button'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
 
 /** Shown after a payment is saved. Printing is optional and only happens on "Sí". */
-export default function PrintReceiptPrompt({ data, onClose }) {
+export default function PrintReceiptPrompt({ data, settings, onClose }) {
     if (!data) return null
     const { payments, property, tenant } = data
     const count = payments.length
 
-    const handlePrint = () => {
+    const handlePrint = async () => {
         try {
-            generateReceiptPDF(payments, property, tenant)
+            await generateReceiptPDF(payments, property, tenant, settings || {})
         } catch (err) {
             console.error('PDF Error', err)
         }
