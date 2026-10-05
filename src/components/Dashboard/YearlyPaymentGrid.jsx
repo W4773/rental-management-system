@@ -1,87 +1,72 @@
-import { format, setMonth, startOfMonth } from 'date-fns'
+import { useState } from 'react'
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { format } from 'date-fns'
+import { monthKeyOf, hasMoney } from '../../lib/paymentStatus'
 import { es } from 'date-fns/locale'
 
-export default function YearlyPaymentGrid({ property, payments, year, onMonthClick }) {
-    const months = Array.from({ length: 12 }, (_, i) => i) // 0 to 11
+const STYLES = {
+    paid: 'bg-green-500 text-white',
+    partial: 'bg-amber-400 text-white',
+    pending: 'bg-red-500 text-white',
+    future: 'bg-gray-100 text-gray-400'
+}
+const LABELS = { paid: 'Pagado', partial: 'Parcial', pending: 'Pendiente', future: 'Futuro' }
 
-    // Function to determine the status of the month
-    const getMonthStatus = (monthIndex) => {
-        // Current date check
-        const today = new Date()
-        const currentYear = today.getFullYear()
-        const currentMonth = today.getMonth()
+/** Compact 12-month strip. Unpaid months can be ticked to pay several at once. */
+export default function YearlyPaymentGrid({ property, payments, year, onYearChange, selected = [], onToggle }) {
+    const [hovered, setHovered] = useState(null)
+    const today = new Date()
 
-        // 1. Find all payments for this month/year/property
-        // Note: payments array passed here is ALREADY filtered by property in parent, but good to be safe if parent changes.
-        // Assuming 'payments' prop is all payments for this property.
-
-        const monthPayments = payments.filter(p => {
-            if (!p.payment_month) return false
-            // IGNORE $0 PAYMENTS - these are placeholders or errors
-            if (!p.amount_paid || parseFloat(p.amount_paid) === 0) return false
-            const [pYear, pMonth] = p.payment_month.split('T')[0].split('-').map(Number)
-            return pYear === year && (pMonth - 1) === monthIndex
-        })
-
-        if (monthPayments.length > 0) {
-            // 2. Sum amounts
-            const totalPaid = monthPayments.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
-            const targetRent = monthPayments[0]?.rent_amount || property.monthly_rent
-
-            // 3. Determine Status
-            // If any payment is 'full' OR total >= rent (minus small tolerance)
-            const isPaidFull = monthPayments.some(p => (p.payment_status === 'paid' && p.payment_type === 'full') || p.payment_type === 'full') || (totalPaid >= targetRent - 1)
-
-            if (isPaidFull) return { color: 'bg-status-green', label: 'Pagado' }
-            return { color: 'bg-status-yellow', label: 'Parcial' }
+    const getStatus = (monthIndex) => {
+        const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`
+        const rows = payments.filter(p => hasMoney(p) && monthKeyOf(p) === key)
+        const total = rows.reduce((s, p) => s + parseFloat(p.amount_paid || 0), 0)
+        const rent = parseFloat(rows[0]?.rent_amount || property.monthly_rent)
+        if (total > 0) {
+            const isPaid = rows.some(p => p.payment_type === 'full') || total >= rent - 1
+            return { key, status: isPaid ? 'paid' : 'partial', total }
         }
-
-        // No payments found logic
-
-        // Future year
-        if (year > currentYear) return { color: 'bg-gray-200', label: 'Futuro' }
-
-        // Past year -> Red
-        if (year < currentYear) return { color: 'bg-status-red', label: 'Pendiente' }
-
-        // Current year
-        // Future month
-        if (monthIndex > currentMonth) return { color: 'bg-gray-200', label: 'Futuro' }
-
-        // Current or Past month -> Red
-        return { color: 'bg-status-red', label: 'Pendiente' }
+        const isFuture = year > today.getFullYear() || (year === today.getFullYear() && monthIndex > today.getMonth())
+        return { key, status: isFuture ? 'future' : 'pending', total: 0 }
     }
 
     return (
-        <div className="mt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span>📅</span> ESTADO ANUAL {year}
-            </h3>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                {months.map(monthIndex => {
-                    const status = getMonthStatus(monthIndex)
-                    const monthName = format(new Date(year, monthIndex, 1), 'MMM', { locale: es })
-
-                    const isClickable = status.label === 'Pendiente' && !!onMonthClick
+        <section>
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold tracking-wide text-gray-500 uppercase">Estado anual</h3>
+                <div className="flex items-center gap-1 text-sm font-semibold">
+                    <button onClick={() => onYearChange(year - 1)} aria-label="Año anterior" className="p-0.5 rounded hover:bg-gray-100"><ChevronLeft className="w-4 h-4" /></button>
+                    <span className="w-10 text-center">{year}</span>
+                    <button onClick={() => onYearChange(year + 1)} aria-label="Año siguiente" className="p-0.5 rounded hover:bg-gray-100"><ChevronRight className="w-4 h-4" /></button>
+                </div>
+            </div>
+            <div className="grid grid-cols-6 gap-1.5">
+                {Array.from({ length: 12 }, (_, i) => {
+                    const { key, status } = getStatus(i)
+                    const selectable = onToggle && (status === 'pending' || status === 'partial')
+                    const isSelected = selected.includes(key)
+                    const name = format(new Date(year, i, 1), 'MMM', { locale: es })
                     return (
-                        <div
-                            key={monthIndex}
-                            onClick={() => isClickable && onMonthClick(monthIndex)}
-                            className={`
-                aspect-square rounded-lg flex flex-col items-center justify-center p-2
-                border border-gray-100 shadow-sm transition-all
-                ${isClickable ? 'cursor-pointer hover:scale-110 hover:shadow-md ring-2 ring-transparent hover:ring-white/50' : 'cursor-default hover:scale-105'}
-                ${status.color} ${status.color.includes('gray') ? 'text-gray-500' : 'text-white'}
-              `}
-                            title={`${monthName}: ${status.label}${isClickable ? ' — Clic para registrar pago' : ''}`}
+                        <button
+                            key={key}
+                            type="button"
+                            disabled={!selectable}
+                            onClick={() => onToggle(key)}
+                            onMouseEnter={() => setHovered(i)}
+                            onMouseLeave={() => setHovered(null)}
+                            title={`${name} ${year}: ${LABELS[status]}${selectable ? ' (clic para seleccionar)' : ''}`}
+                            aria-pressed={isSelected}
+                            className={`relative h-11 rounded-lg flex flex-col items-center justify-center leading-none transition ${STYLES[status]} ${
+                                selectable ? 'cursor-pointer hover:brightness-95' : 'cursor-default'} ${
+                                isSelected ? 'ring-2 ring-offset-1 ring-ink' : ''} ${hovered === i && selectable ? 'scale-[1.04]' : ''}`}
                         >
-                            <span className="text-xs font-bold uppercase">{monthName}</span>
-                            <span className="text-[10px] opacity-90 mt-1">{status.label}</span>
-                            {isClickable && <span className="text-[8px] opacity-75 mt-0.5">💳</span>}
-                        </div>
+                            <span className="text-[11px] font-bold uppercase">{name}</span>
+                            <span className="text-[9px] opacity-90 mt-0.5">{LABELS[status]}</span>
+                            {isSelected && <Check className="w-3 h-3 absolute top-0.5 right-0.5" />}
+                        </button>
                     )
                 })}
             </div>
-        </div>
+        </section>
     )
 }

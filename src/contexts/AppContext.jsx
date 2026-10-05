@@ -1,0 +1,179 @@
+import { createContext, useContext, useState } from 'react'
+import { useProperties } from '../hooks/useProperties'
+import { useTenants } from '../hooks/useTenants'
+import { usePayments } from '../hooks/usePayments'
+import { useUtilityReadings } from '../hooks/useUtilityReadings'
+import { useBuildings } from '../hooks/useBuildings'
+import { useUserSettings } from '../hooks/useUserSettings'
+import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
+import { useAlerts } from '../hooks/useAlerts'
+import { useToast } from '../components/Common/Toast'
+import RegisterPropertyModal from '../components/Modals/RegisterPropertyModal'
+import RegisterBuildingModal from '../components/Modals/RegisterBuildingModal'
+import AssignTenantModal from '../components/Modals/AssignTenantModal'
+import RegisterPaymentModal from '../components/Modals/RegisterPaymentModal'
+import RegisterUtilityModal from '../components/Modals/RegisterUtilityModal'
+import PayGasModal from '../components/Modals/PayGasModal'
+import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
+import ReportModal from '../components/Modals/ReportModal'
+import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
+import Toast from '../components/Common/Toast'
+
+const AppContext = createContext(null)
+
+export const useApp = () => {
+    const ctx = useContext(AppContext)
+    if (!ctx) throw new Error('useApp must be used inside AppProvider')
+    return ctx
+}
+
+/**
+ * Single source of truth for data + every global modal. Pages call openX() instead of mounting
+ * modals, and refreshAll() replaces the old window.location.reload().
+ */
+export function AppProvider({ children }) {
+    const propsHook = useProperties()
+    const tenantsHook = useTenants()
+    const paymentsHook = usePayments()
+    const utilityHook = useUtilityReadings()
+    const buildingsHook = useBuildings()
+    const { settings } = useUserSettings()
+    const toastApi = useToast()
+
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
+    const metrics = useDashboardMetrics(new Date().getFullYear(), refreshTrigger)
+
+    const { properties } = propsHook
+    const { tenants } = tenantsHook
+    const { payments } = paymentsHook
+    const { readings: utilityReadings } = utilityHook
+    const { buildings } = buildingsHook
+    const alerts = useAlerts(payments, tenants, properties)
+
+    const [paymentModal, setPaymentModal] = useState({ open: false, initial: null })
+    const [propertyModal, setPropertyModal] = useState({ open: false, property: null })
+    const [buildingModal, setBuildingModal] = useState({ open: false, building: null })
+    const [tenantModal, setTenantModal] = useState({ open: false, property: null, tenant: null })
+    const [utilityType, setUtilityType] = useState(null)
+    const [payGas, setPayGas] = useState(null)
+    const [reportModal, setReportModal] = useState({ open: false, initial: null })
+    const [receipt, setReceipt] = useState(null)
+    const [alertsOpen, setAlertsOpen] = useState(false)
+
+    const refreshAll = () => {
+        setRefreshTrigger(n => n + 1)
+        return Promise.all([
+            propsHook.refresh(), tenantsHook.refresh(), paymentsHook.refresh(), utilityHook.refresh(), buildingsHook.refresh()
+        ])
+    }
+
+    const loading = propsHook.loading || tenantsHook.loading || paymentsHook.loading
+
+    const onDataChanged = (message) => {
+        refreshAll()
+        if (message) toastApi.success(message)
+    }
+
+    const saveBuilding = async (values, building) => {
+        const res = building ? await buildingsHook.updateBuilding(building.id, values) : await buildingsHook.addBuilding(values)
+        if (res.error) {
+            return { error: /relation|schema cache|does not exist|Could not find/i.test(res.error)
+                ? 'Falta ejecutar supabase/migrations/002_buildings.sql en Supabase (esquema rental).'
+                : res.error }
+        }
+        toastApi.success(building ? 'Edificio actualizado' : 'Edificio creado')
+        return { error: null }
+    }
+
+    const value = {
+        properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts,
+        buildingsAvailable: buildingsHook.available,
+        closeTenant: tenantsHook.closeTenant,
+        deletePayment: paymentsHook.deletePayment,
+        deleteProperty: propsHook.deleteProperty,
+        deleteBuilding: buildingsHook.deleteBuilding,
+        toast: toastApi,
+        refreshAll,
+        onDataChanged,
+        openPayment: (initial = null) => setPaymentModal({ open: true, initial }),
+        openProperty: (property = null) => setPropertyModal({ open: true, property }),
+        openBuilding: (building = null) => setBuildingModal({ open: true, building }),
+        openTenant: (property = null, tenant = null) => setTenantModal({ open: true, property, tenant }),
+        openUtility: (type) => setUtilityType(type),
+        openPayGas: (reading) => setPayGas(reading),
+        openReport: (initial = null) => setReportModal({ open: true, initial }),
+        openAlerts: () => setAlertsOpen(true),
+        offerReceipt: setReceipt
+    }
+
+    return (
+        <AppContext.Provider value={value}>
+            {children}
+
+            <RegisterPaymentModal
+                isOpen={paymentModal.open}
+                initial={paymentModal.initial}
+                properties={properties}
+                tenants={tenants}
+                payments={payments}
+                onClose={() => setPaymentModal({ open: false, initial: null })}
+                onSuccess={(result) => {
+                    onDataChanged('Pago registrado')
+                    setReceipt(result) // optional receipt: the user decides in the pop-up
+                }}
+            />
+            <PrintReceiptPrompt data={receipt} settings={settings} onClose={() => setReceipt(null)} />
+
+            <RegisterPropertyModal
+                isOpen={propertyModal.open}
+                propertyToEdit={propertyModal.property}
+                buildings={buildings}
+                onNewBuilding={() => setBuildingModal({ open: true, building: null })}
+                onClose={() => setPropertyModal({ open: false, property: null })}
+                onSuccess={() => onDataChanged(propertyModal.property ? 'Propiedad actualizada' : 'Propiedad registrada')}
+            />
+            <RegisterBuildingModal
+                isOpen={buildingModal.open}
+                building={buildingModal.building}
+                onSave={saveBuilding}
+                onClose={() => setBuildingModal({ open: false, building: null })}
+            />
+            <AssignTenantModal
+                isOpen={tenantModal.open}
+                property={tenantModal.property}
+                tenantToEdit={tenantModal.tenant}
+                onClose={() => setTenantModal({ open: false, property: null, tenant: null })}
+                onSuccess={() => onDataChanged('Inquilino guardado')}
+            />
+            <RegisterUtilityModal
+                isOpen={utilityType !== null}
+                utilityType={utilityType}
+                onClose={() => setUtilityType(null)}
+                onSuccess={() => onDataChanged('Lectura registrada')}
+            />
+            <PayGasModal isOpen={payGas !== null} gasReading={payGas} onClose={() => setPayGas(null)} onSuccess={() => onDataChanged('Pago registrado')} />
+            <ReportModal
+                isOpen={reportModal.open}
+                initial={reportModal.initial}
+                properties={properties}
+                tenants={tenants}
+                payments={payments}
+                buildings={buildings}
+                settings={settings}
+                onClose={() => setReportModal({ open: false, initial: null })}
+            />
+            <AlertDrawer
+                isOpen={alertsOpen}
+                onClose={() => setAlertsOpen(false)}
+                overdue={alerts.overdue}
+                upcoming={alerts.upcoming}
+                onPayClick={(alert) => {
+                    setAlertsOpen(false)
+                    setPaymentModal({ open: true, initial: { propertyId: alert.propertyId, months: [alert.dueMonth] } })
+                }}
+            />
+
+            <Toast toasts={toastApi.toasts} onRemove={toastApi.removeToast} />
+        </AppContext.Provider>
+    )
+}

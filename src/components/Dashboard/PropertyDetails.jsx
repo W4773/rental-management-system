@@ -1,328 +1,315 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus } from 'lucide-react'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
-import { usePayments } from '../../hooks/usePayments'
-import { useProperties } from '../../hooks/useProperties'
-import { useUtilityReadings } from '../../hooks/useUtilityReadings'
-import ConfirmModal from '../Common/ConfirmModal'
-import PayGasModal from '../Modals/PayGasModal'
-import YearlyPaymentGrid from './YearlyPaymentGrid'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
-import { useUserSettings } from '../../hooks/useUserSettings'
+import { monthLabel } from '../../lib/pdfHelpers'
+import { hasMoney } from '../../lib/paymentStatus'
+import { useApp } from '../../contexts/AppContext'
+import ConfirmModal from '../Common/ConfirmModal'
+import YearlyPaymentGrid from './YearlyPaymentGrid'
 
-export default function PropertyDetails({ property, activeTenant, onEditTenant, onChangeTenant, onMonthClick, onEditProperty }) {
-    const { settings: userSettings } = useUserSettings()
-    const { getPaymentsByProperty, deletePayment } = usePayments()
-    const { deleteProperty } = useProperties()
-    const { getReadingsByProperty } = useUtilityReadings()
+const VISIBLE_PAYMENTS = 4
+const UTILITY_META = {
+    gas: { label: 'Gas', unit: 'GL', icon: Flame },
+    electricity: { label: 'Luz', unit: 'kWh', icon: Zap },
+    water: { label: 'Agua', unit: 'm³', icon: Droplets }
+}
 
-    const [allPayments, setAllPayments] = useState([])
-    const [gasReadings, setGasReadings] = useState([])
-    const [showAllPayments, setShowAllPayments] = useState(false)
+const IconBtn = ({ label, onClick, danger, children }) => (
+    <button
+        onClick={onClick}
+        aria-label={label}
+        title={label}
+        className={`p-1.5 rounded-md border transition ${danger
+            ? 'border-red-100 text-red-500 hover:bg-red-50'
+            : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+    >
+        {children}
+    </button>
+)
 
-    // Modals
-    const [deletePropertyModal, setDeletePropertyModal] = useState(false)
-    const [deletePaymentModal, setDeletePaymentModal] = useState(null)
-    const [payGasModal, setPayGasModal] = useState(null) // stores gas reading to pay
+const Section = ({ title, icon: Icon, right, children }) => (
+    <section>
+        <div className="flex items-center justify-between mb-1.5">
+            <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-gray-500 uppercase">
+                {Icon && <Icon className="w-3.5 h-3.5" />}{title}
+            </h3>
+            {right}
+        </div>
+        {children}
+    </section>
+)
 
-    const currentYear = new Date().getFullYear()
+export default function PropertyDetails({ property, onDeleted }) {
+    const {
+        payments: allPayments, tenants, utilityReadings, buildings, settings,
+        openPayment, openProperty, openTenant, openReport, openPayGas,
+        deletePayment, deleteProperty, refreshAll, toast
+    } = useApp()
 
-    // Calculate pending gas amount
-    const pendingGas = useMemo(() => {
-        return gasReadings
-            .filter(g => !g.paid)
-            .reduce((sum, g) => sum + (parseFloat(g.total_cost) || 0), 0)
-    }, [gasReadings])
+    const [year, setYear] = useState(new Date().getFullYear())
+    const [showAll, setShowAll] = useState(false)
+    const [selectedPayments, setSelectedPayments] = useState([])
+    const [selectedMonths, setSelectedMonths] = useState([])
+    const [confirmDeleteProperty, setConfirmDeleteProperty] = useState(false)
+    const [confirmDeletePayments, setConfirmDeletePayments] = useState(false)
 
-    const realPayments = useMemo(
-        () => allPayments.filter(p => !p.auto_generated && p.amount_paid > 0),
-        [allPayments]
-    )
-    const displayedPayments = showAllPayments ? realPayments : realPayments.slice(0, 3)
-
-    const refreshData = useCallback(() => {
-        if (property) {
-            getPaymentsByProperty(property.id).then(({ data }) => setAllPayments(data || []))
-            getReadingsByProperty(property.id).then(({ data }) => setGasReadings(data || []))
-        }
-    }, [property])
-
+    // Reset local selections when switching property
     useEffect(() => {
-        if (property) {
-            refreshData()
-            setShowAllPayments(false)
-        } else {
-            setAllPayments([])
-            setGasReadings([])
-        }
-    }, [property])
+        setSelectedPayments([]); setSelectedMonths([]); setShowAll(false)
+    }, [property?.id])
 
-    const handleDownloadReceipt = async (payment) => {
-        let tenantInfo = { name: 'Inquilino Histórico', identity_number: '' }
-        if (activeTenant && activeTenant.id === payment.tenant_id) {
-            tenantInfo = activeTenant
-        }
-        await generateReceiptPDF(payment, property, tenantInfo, userSettings || {})
-    }
-
-    const confirmDeletePayment = async () => {
-        const { error } = await deletePayment(deletePaymentModal)
-        if (error) {
-            alert('Error al eliminar pago: ' + error)
-            throw error
-        } else {
-            refreshData()
-        }
-    }
-
-    const confirmDeleteProperty = async () => {
-        const { error } = await deleteProperty(property.id)
-        if (error) {
-            alert('Error al eliminar propiedad: ' + error)
-            throw error
-        } else {
-            window.location.reload()
-        }
-    }
-
-    const handlePayGasSuccess = () => {
-        refreshData()
-        // Also reload to update global pending
-        setTimeout(() => window.location.reload(), 500)
-    }
+    const propertyPayments = useMemo(
+        () => property ? allPayments.filter(p => p.property_id === property.id) : [],
+        [allPayments, property?.id]
+    )
+    const history = useMemo(
+        () => propertyPayments
+            .filter(p => hasMoney(p) && !p.auto_generated)
+            .sort((a, b) => b.payment_month.localeCompare(a.payment_month) || (b.payment_date || '').localeCompare(a.payment_date || '')),
+        [propertyPayments]
+    )
+    const utilities = useMemo(
+        () => property ? utilityReadings.filter(g => g.property_id === property.id) : [],
+        [utilityReadings, property?.id]
+    )
+    const pendingUtilities = utilities.filter(g => !g.paid).reduce((s, g) => s + (parseFloat(g.total_cost) || 0), 0)
+    const activeTenant = property ? tenants.find(t => t.property_id === property.id && !t.end_date) : null
+    const building = property ? buildings.find(b => b.id === property.building_id) : null
 
     if (!property) {
         return (
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-8 text-center h-full flex flex-col items-center justify-center text-gray-400">
-                <span className="text-4xl mb-4">👈</span>
-                <p>Seleccione una propiedad para ver los detalles</p>
+            <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-gray-400 gap-2">
+                <Building2 className="w-10 h-10" />
+                <p className="text-sm">Seleccione una propiedad para ver los detalles</p>
             </div>
         )
     }
 
+    const visible = showAll ? history : history.slice(0, VISIBLE_PAYMENTS)
+    const toggle = (list, setList, id) => setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id])
+    const allSelected = history.length > 0 && selectedPayments.length === history.length
+
+    const tenantFor = (payment) => tenants.find(t => t.id === payment.tenant_id)
+        || (activeTenant && activeTenant.id === payment.tenant_id ? activeTenant : { name: 'Inquilino histórico', identity_number: '' })
+
+    const handleDeletePayments = async () => {
+        for (const id of selectedPayments) {
+            const { error } = await deletePayment(id)
+            if (error) { toast.error('Error al eliminar pago: ' + error); throw new Error(error) }
+        }
+        toast.success(`${selectedPayments.length} pago(s) eliminado(s)`)
+        setSelectedPayments([])
+        refreshAll()
+    }
+
+    const handleDeleteProperty = async () => {
+        const { error } = await deleteProperty(property.id)
+        if (error) { toast.error('Error al eliminar propiedad: ' + error); throw new Error(error) }
+        toast.success('Propiedad eliminada')
+        refreshAll()
+        onDeleted?.()
+    }
+
     return (
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 h-full overflow-y-auto">
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">{property.name}</h2>
-                    <p className="text-gray-500">{property.address}</p>
+        <div className="p-4 space-y-4">
+            {/* Header */}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h2 className="text-xl font-bold text-ink leading-tight">{property.name}</h2>
+                    <p className="text-sm text-gray-500">
+                        {building ? `${building.name} · ` : ''}{property.address}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
+                        <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5" />{property.bedrooms} Hab</span>
+                        <span className="flex items-center gap-1"><ShowerHead className="w-3.5 h-3.5" />{property.bathrooms} Baños</span>
+                    </div>
                 </div>
-                <div className="text-right flex flex-col items-end">
-                    <p className="text-xl font-bold" style={{ color: 'var(--wp-gold)' }}>{formatCurrency(property.monthly_rent)}</p>
-                    <p className="text-xs text-gray-500 mb-2">mensual</p>
-                    <div className="flex gap-2 justify-end">
-                        <button
-                            onClick={() => onEditProperty(property)}
-                            className="text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-1.5 rounded-md transition font-bold"
-                        >
-                            ✏️ Editar Propiedad
-                        </button>
-                        <button
-                            onClick={() => setDeletePropertyModal(true)}
-                            className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-md transition font-medium"
-                        >
-                            🗑️ Eliminar
-                        </button>
+                <div className="text-right">
+                    <p className="text-xl font-bold text-brand-700 leading-tight">{formatCurrency(property.monthly_rent)}</p>
+                    <p className="text-[11px] text-gray-500 mb-1.5">mensual</p>
+                    <div className="flex items-center gap-1.5 justify-end">
+                        {activeTenant && (
+                            <button onClick={() => openPayment({ propertyId: property.id })}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">
+                                <Wallet className="w-3.5 h-3.5" /> Pagar
+                            </button>
+                        )}
+                        <IconBtn label="Reporte PDF" onClick={() => openReport({ propertyId: property.id })}><FileText className="w-4 h-4" /></IconBtn>
+                        <IconBtn label="Editar propiedad" onClick={() => openProperty(property)}><Pencil className="w-4 h-4" /></IconBtn>
+                        <IconBtn label="Eliminar propiedad" danger onClick={() => setConfirmDeleteProperty(true)}><Trash2 className="w-4 h-4" /></IconBtn>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                    <span>🛏️</span> {property.bedrooms} Hab
-                </div>
-                <div className="flex items-center gap-2">
-                    <span>🚿</span> {property.bathrooms} Baños
-                </div>
-            </div>
-
-            <hr className="my-6 border-gray-100" />
-
-            {/* Tenant Info */}
-            <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <span>👤</span> INQUILINO ACTUAL
-                </h3>
+            {/* Tenant */}
+            <Section title="Inquilino actual" icon={User}>
                 {activeTenant ? (
-                    <div className="rounded-lg p-4 animate-fade-in" style={{ background: 'var(--wp-amber-bg)', border: '1px solid var(--wp-border)' }}>
-                        <div className="space-y-2 text-sm text-gray-700">
-                            <p><span className="font-semibold">Nombre:</span> {activeTenant.name}</p>
-                            <p><span className="font-semibold">Cédula:</span> {activeTenant.identity_number}</p>
-                            <p><span className="font-semibold">Teléfono:</span> {activeTenant.phone}</p>
-                            <p><span className="font-semibold">Email:</span> {activeTenant.email || '-'}</p>
-                            <p><span className="font-semibold">Fecha Entrada:</span> {formatDate(activeTenant.start_date)}</p>
-                        </div>
-                        <div className="mt-4 flex gap-2">
-                            <button
-                                onClick={() => onEditTenant(activeTenant)}
-                                className="flex-1 wp-btn-primary py-2 rounded-md font-medium text-sm"
-                            >
-                                Editar Inquilino
-                            </button>
-                            <button
-                                onClick={() => onChangeTenant(activeTenant)}
-                                className="flex-1 bg-orange-600 text-white py-2 rounded-md hover:bg-orange-700 transition font-medium text-sm"
-                            >
-                                Cambiar Inquilino
-                            </button>
+                    <div className="rounded-lg bg-brand-50 border border-brand-100 p-3">
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[13px]">
+                            <div><dt className="inline font-semibold">Nombre: </dt><dd className="inline">{activeTenant.name}</dd></div>
+                            <div><dt className="inline font-semibold">Cédula: </dt><dd className="inline">{activeTenant.identity_number}</dd></div>
+                            <div><dt className="inline font-semibold">Teléfono: </dt><dd className="inline">{activeTenant.phone}</dd></div>
+                            <div><dt className="inline font-semibold">Email: </dt><dd className="inline">{activeTenant.email || '-'}</dd></div>
+                            <div><dt className="inline font-semibold">Entrada: </dt><dd className="inline">{formatDate(activeTenant.start_date)}</dd></div>
+                        </dl>
+                        <div className="mt-2.5 flex gap-2">
+                            <button onClick={() => openTenant(property, activeTenant)}
+                                className="flex-1 bg-brand-600 text-white py-1.5 rounded-md hover:bg-brand-700 text-xs font-semibold">Editar inquilino</button>
+                            <button onClick={() => openTenant(property, null)}
+                                className="flex-1 bg-accent-500 text-white py-1.5 rounded-md hover:bg-accent-600 text-xs font-semibold">Cambiar inquilino</button>
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-gray-50 rounded-lg p-6 text-center border border-gray-200 border-dashed">
-                        <p className="text-gray-500 mb-2">No hay inquilino activo</p>
-                        <button
-                            onClick={() => onChangeTenant(null)}
-                            className="font-medium hover:underline text-sm"
-                            style={{ color: 'var(--wp-gold)' }}
-                        >
-                            + Asignar Nuevo Inquilino
+                    <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center">
+                        <p className="text-sm text-gray-500 mb-1">No hay inquilino activo</p>
+                        <button onClick={() => openTenant(property, null)} className="inline-flex items-center gap-1 text-brand-700 font-medium text-sm hover:underline">
+                            <UserPlus className="w-4 h-4" /> Asignar inquilino
                         </button>
                     </div>
                 )}
+            </Section>
+
+            {/* Payments + yearly grid side by side on wide screens */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <Section
+                    title="Historial de pagos"
+                    right={history.length > 0 && (
+                        <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                            <input type="checkbox" checked={allSelected}
+                                onChange={() => setSelectedPayments(allSelected ? [] : history.map(p => p.id))} />
+                            Todos
+                        </label>
+                    )}
+                >
+                    {history.length === 0 ? (
+                        <p className="text-sm italic text-gray-500 py-2">No hay pagos registrados.</p>
+                    ) : (
+                        <ul className="space-y-1">
+                            {visible.map(payment => (
+                                <li key={payment.id}
+                                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${selectedPayments.includes(payment.id) ? 'bg-brand-50 border-brand-300' : 'bg-white border-gray-100'}`}>
+                                    <input type="checkbox" aria-label={`Seleccionar ${monthLabel(payment.payment_month)}`}
+                                        checked={selectedPayments.includes(payment.id)}
+                                        onChange={() => toggle(selectedPayments, setSelectedPayments, payment.id)} />
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${payment.payment_status === 'paid' ? 'bg-green-500' : 'bg-amber-400'}`} />
+                                    <div className="min-w-0 flex-1 leading-tight">
+                                        <p className="text-[13px] font-medium capitalize">{monthLabel(payment.payment_month)}</p>
+                                        <p className="text-[11px] text-gray-500">{formatDate(payment.payment_date)}</p>
+                                    </div>
+                                    <span className={`text-[13px] font-semibold ${payment.payment_status === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>
+                                        {formatCurrency(payment.amount_paid)}
+                                    </span>
+                                    <button onClick={() => generateReceiptPDF(payment, property, tenantFor(payment), settings || {})}
+                                        aria-label="Imprimir recibo" title="Imprimir recibo"
+                                        className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Printer className="w-4 h-4" /></button>
+                                    <button onClick={() => { setSelectedPayments([payment.id]); setConfirmDeletePayments(true) }}
+                                        aria-label="Eliminar pago" title="Eliminar pago"
+                                        className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {history.length > VISIBLE_PAYMENTS && (
+                        <button onClick={() => setShowAll(s => !s)}
+                            className="mt-1.5 w-full flex items-center justify-center gap-1 py-1 rounded-md bg-brand-50 text-brand-700 text-xs font-medium hover:bg-brand-100">
+                            {showAll ? <><ChevronUp className="w-3.5 h-3.5" />Ver menos</> : <><ChevronDown className="w-3.5 h-3.5" />Ver más ({history.length - VISIBLE_PAYMENTS} ocultos)</>}
+                        </button>
+                    )}
+                </Section>
+
+                <YearlyPaymentGrid
+                    property={property}
+                    payments={propertyPayments}
+                    year={year}
+                    onYearChange={setYear}
+                    selected={selectedMonths}
+                    onToggle={activeTenant ? (key) => toggle(selectedMonths, setSelectedMonths, key) : undefined}
+                />
             </div>
 
-            {/* GAS PENDING SECTION (NEW) */}
-            {pendingGas > 0 && (
-                <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h4 className="font-semibold text-yellow-900">⚠️ Gas Pendiente</h4>
-                            <p className="text-2xl font-bold text-yellow-800 mt-2">{formatCurrency(pendingGas)}</p>
-                        </div>
-                        <p className="text-xs text-yellow-700">Por pagar</p>
-                    </div>
+            {/* Utilities: gas / luz / agua */}
+            <Section title="Servicios (gas, luz, agua)" icon={Flame}
+                right={pendingUtilities > 0 && <span className="text-xs font-semibold text-amber-700">Pendiente: {formatCurrency(pendingUtilities)}</span>}>
+                {utilities.length === 0 ? (
+                    <p className="text-sm italic text-gray-500 py-1.5 text-center bg-gray-50 rounded-lg">No hay lecturas registradas</p>
+                ) : (
+                    <ul className="space-y-1">
+                        {utilities.map(reading => {
+                            const meta = UTILITY_META[reading.utility_type] || UTILITY_META.gas
+                            return (
+                                <li key={reading.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[13px] ${reading.paid ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
+                                    <meta.icon className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                                    <div className="flex-1 min-w-0 leading-tight">
+                                        <span className="font-medium">{meta.label} · {formatDate(reading.reading_date)}</span>
+                                        <span className="text-[11px] text-gray-600 ml-2">Lectura {reading.current_reading} · {reading.consumption_volume} {meta.unit}</span>
+                                        {reading.paid && <span className="text-[11px] text-green-700 ml-2">Pagado {formatDate(reading.payment_date)}</span>}
+                                    </div>
+                                    <span className="font-bold">{formatCurrency(reading.total_cost)}</span>
+                                    {!reading.paid && (
+                                        <button onClick={() => openPayGas(reading)}
+                                            className="px-2 py-0.5 rounded bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700">Pagar</button>
+                                    )}
+                                </li>
+                            )
+                        })}
+                    </ul>
+                )}
+            </Section>
+
+            {/* Floating multi-select action bar */}
+            {(selectedPayments.length > 0 || selectedMonths.length > 0) && (
+                <div className="sticky bottom-2 z-20 mx-auto w-fit max-w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-ink text-white shadow-xl text-xs">
+                    {selectedPayments.length > 0 && (
+                        <>
+                            <span className="font-semibold">{selectedPayments.length} pago(s)</span>
+                            <button className="px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 flex items-center gap-1"
+                                onClick={() => openReport({ propertyId: property.id, paymentIds: selectedPayments })}>
+                                <FileText className="w-3.5 h-3.5" /> Reporte
+                            </button>
+                            <button className="px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 flex items-center gap-1"
+                                onClick={() => generateReceiptPDF(history.filter(p => selectedPayments.includes(p.id)), property, activeTenant || tenantFor(history.find(p => selectedPayments.includes(p.id))), settings || {})}>
+                                <Printer className="w-3.5 h-3.5" /> Recibo
+                            </button>
+                            <button className="px-2 py-1 rounded-md bg-red-500/80 hover:bg-red-500 flex items-center gap-1"
+                                onClick={() => setConfirmDeletePayments(true)}>
+                                <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                            </button>
+                            <button aria-label="Limpiar selección de pagos" onClick={() => setSelectedPayments([])}><X className="w-4 h-4" /></button>
+                        </>
+                    )}
+                    {selectedMonths.length > 0 && (
+                        <>
+                            {selectedPayments.length > 0 && <span className="opacity-40">|</span>}
+                            <span className="font-semibold">{selectedMonths.length} mes(es)</span>
+                            <button className="px-2 py-1 rounded-md bg-brand-500 hover:bg-brand-400 font-semibold flex items-center gap-1"
+                                onClick={() => { openPayment({ propertyId: property.id, months: selectedMonths }); setSelectedMonths([]) }}>
+                                <Wallet className="w-3.5 h-3.5" /> Pagar seleccionados
+                            </button>
+                            <button aria-label="Limpiar selección de meses" onClick={() => setSelectedMonths([])}><X className="w-4 h-4" /></button>
+                        </>
+                    )}
                 </div>
             )}
 
-            {/* Payment History */}
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <span>📋</span> HISTORIAL PAGOS
-                </h3>
-                <ul className="space-y-3">
-                    {displayedPayments.length === 0 ? (
-                        <li className="text-gray-500 text-sm italic">No hay pagos registrados.</li>
-                    ) : (
-                        displayedPayments.map(payment => (
-                            <li key={payment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${payment.payment_status === 'paid' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-800 capitalize">
-                                            {format(new Date(payment.payment_month), 'MMMM yyyy', { locale: es })}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                            {formatDate(payment.payment_date)}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className={`font-semibold text-sm ${payment.payment_status === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>
-                                        {formatCurrency(payment.amount_paid)}
-                                    </span>
-                                    <button
-                                        onClick={() => handleDownloadReceipt(payment)}
-                                        className="p-2 hover:bg-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition font-medium text-[16px]"
-                                        title="Descargar Recibo PDF"
-                                        style={{ minHeight: '40px', minWidth: '40px' }}
-                                    >
-                                        🖨️
-                                    </button>
-                                    <button
-                                        onClick={() => setDeletePaymentModal(payment.id)}
-                                        className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-600 transition"
-                                        title="Eliminar Pago"
-                                    >
-                                        🗑️
-                                    </button>
-                                </div>
-                            </li>
-                        ))
-                    )}
-                </ul>
-                {realPayments.length > 3 && (
-                    <button
-                        onClick={() => setShowAllPayments(prev => !prev)}
-                        className="mt-3 w-full text-sm font-medium py-2 rounded-lg transition"
-                        style={{ color: 'var(--wp-gold)', background: 'var(--wp-amber-bg)', border: '1px solid var(--wp-border)' }}
-                    >
-                        {showAllPayments ? '▲ Ver menos' : `▼ Ver más (${realPayments.length - 3} ocultos)`}
-                    </button>
-                )}
-            </div>
-
-            {/* Yearly Grid */}
-            <YearlyPaymentGrid
-                property={property}
-                payments={allPayments}
-                year={currentYear}
-                onMonthClick={onMonthClick ? (monthIndex) => onMonthClick(property.id, monthIndex, currentYear) : undefined}
-            />
-
-            {/* Gas Consumption (ENHANCED WITH PAY BUTTON) */}
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <span>🔷</span> CONSUMO DE GAS
-                </h3>
-                <ul className="space-y-3">
-                    {gasReadings.length === 0 ? (
-                        <li className="text-gray-500 text-sm italic py-2 bg-gray-50 rounded-lg text-center">No hay lecturas de gas registradas</li>
-                    ) : (
-                        gasReadings.map(reading => (
-                            <li key={reading.id} className={`p-3 rounded-lg border flex justify-between items-center ${reading.paid ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
-                                }`}>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{formatDate(reading.reading_date)}</p>
-                                    <p className="text-xs text-gray-600">Lectura: {reading.current_reading} | Consumo: {reading.consumption_volume} GL</p>
-                                    {reading.paid && <p className="text-xs text-green-700 mt-1">✅ Pagado: {formatDate(reading.payment_date)}</p>}
-                                </div>
-                                <div className="text-right flex items-center gap-2">
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-900">{formatCurrency(reading.total_cost)}</p>
-                                        {!reading.paid && (
-                                            <button
-                                                onClick={() => setPayGasModal(reading)}
-                                                className="wp-btn-primary mt-1 text-xs px-3 py-1 rounded font-medium"
-                                            >
-                                                💳 Pagar
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </li>
-                        ))
-                    )}
-                </ul>
-            </div>
-
-            {/* Confirmation Modals */}
             <ConfirmModal
-                isOpen={deletePropertyModal}
-                onClose={() => setDeletePropertyModal(false)}
-                onConfirm={confirmDeleteProperty}
+                isOpen={confirmDeleteProperty}
+                onClose={() => setConfirmDeleteProperty(false)}
+                onConfirm={handleDeleteProperty}
                 title="Eliminar Propiedad"
-                message="⚠️ ADVERTENCIA: Esto eliminará la propiedad y TODO su historial (inquilinos, pagos, gas, etc). Esta acción es IRREVERSIBLE. ¿Desea continuar?"
-                confirmText="Sí, Eliminar Todo"
-                isDanger={true}
+                message="ADVERTENCIA: Esto eliminará la propiedad y TODO su historial (inquilinos, pagos, gas). Esta acción es IRREVERSIBLE. ¿Desea continuar?"
+                confirmText="Sí, eliminar todo"
+                isDanger
             />
-
             <ConfirmModal
-                isOpen={deletePaymentModal !== null}
-                onClose={() => setDeletePaymentModal(null)}
-                onConfirm={confirmDeletePayment}
-                title="Eliminar Pago"
-                message="¿Está seguro de eliminar este registro de pago? Esta acción no se puede deshacer."
+                isOpen={confirmDeletePayments}
+                onClose={() => setConfirmDeletePayments(false)}
+                onConfirm={handleDeletePayments}
+                title={selectedPayments.length > 1 ? 'Eliminar pagos' : 'Eliminar pago'}
+                message={`¿Eliminar ${selectedPayments.length} registro(s) de pago? Esta acción no se puede deshacer.`}
                 confirmText="Eliminar"
-                isDanger={true}
-            />
-
-            <PayGasModal
-                isOpen={payGasModal !== null}
-                onClose={() => setPayGasModal(null)}
-                onSuccess={handlePayGasSuccess}
-                gasReading={payGasModal}
+                isDanger
             />
         </div>
     )

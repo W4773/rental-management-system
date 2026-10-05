@@ -5,6 +5,25 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.0] - 2026-10-05
+
+### Agregado
+- Navegación por rutas: Inicio, Propiedades, Inquilinos y Gastos; el logo "Alquiler Pro" lleva al Inicio.
+- Edificios (nombre y dirección) con propiedades agrupadas por edificio. Requiere `supabase/migrations/002_buildings.sql` (esquema `rental`).
+- Buscador por inquilino/propiedad con filtros de estado y edificio.
+- Selección múltiple: pagos (reporte, recibo, eliminar) y meses (pagar varios a la vez).
+- Reporte de pagos en PDF y recibo consolidado de varios meses.
+- Iconos `lucide-react` en lugar de emoji; diseño más compacto.
+
+### Cambiado
+- Al registrar un pago se actualiza la vista sin recargar y se pregunta "¿Desea imprimir el recibo?" (Sí / Ahora no); ya no se abre una pestaña nueva.
+- "Dashboard" ahora se llama "Inicio".
+
+### Corregido
+- Las suscripciones en tiempo real apuntaban al esquema `public`; ahora usan `rental`.
+- Fechas de recibos sin desfase de zona horaria (mayo 1 ya no sale como abril).
+- Migraciones y guías apuntan al proyecto y esquema correctos; `backup_*.json`, `.superpowers/` y `supabase/.temp/` dejan de versionarse.
+
 ## [1.0.1] - 2026-01-19
 
 ### Agregado

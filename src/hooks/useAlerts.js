@@ -16,7 +16,7 @@ export function useAlerts(payments = [], tenants = [], properties = []) {
         const overdue = [], upcoming = []
 
         for (const p of payments.filter(p => p.payment_status !== 'paid')) {
-            const dueDate = new Date(p.payment_month); dueDate.setHours(0, 0, 0, 0)
+            const dueDate = new Date(p.payment_month.split('T')[0] + 'T00:00:00')
             const tenant = tenants.find(t => t.property_id === p.property_id && !t.end_date)
             const property = properties.find(pr => pr.id === p.property_id)
             const alert = {
@@ -26,6 +26,7 @@ export function useAlerts(payments = [], tenants = [], properties = []) {
                 propertyName: property?.name ?? 'Propiedad desconocida',
                 amount: p.rent_amount ?? property?.monthly_rent ?? 0,
                 dueDate,
+                dueMonth: p.payment_month?.split('T')[0].slice(0, 7),
                 paymentId: p.id,
             }
             if (dueDate < today) {

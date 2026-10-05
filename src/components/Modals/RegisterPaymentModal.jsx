@@ -1,133 +1,83 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
-import { useProperties } from '../../hooks/useProperties'
-import { useTenants } from '../../hooks/useTenants'
 import { usePayments } from '../../hooks/usePayments'
-import { startOfMonth, addMonths, format, setMonth, setYear } from 'date-fns'
-import { es } from 'date-fns/locale'
-import { generateReceiptPDF } from '../../lib/pdfGenerator'
-import { useUserSettings } from '../../hooks/useUserSettings'
+import { monthLabel } from '../../lib/pdfHelpers'
+import { monthKeyOf, hasMoney } from '../../lib/paymentStatus'
 
-export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, prefill }) {
-    const { settings: userSettings } = useUserSettings()
-    const { properties } = useProperties()
-    const { tenants, getActiveTenantForProperty } = useTenants()
-    const { addPayment, getPaymentsByProperty, payments: allPayments } = usePayments()
+const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const todayStr = () => new Date().toISOString().split('T')[0]
+const pad = (n) => String(n + 1).padStart(2, '0')
+
+/**
+ * Register a rent payment.
+ * `initial` = { propertyId?, months?: ['YYYY-MM', ...] }. With 2+ months the modal pays the
+ * remaining balance of every selected month in one go (multi mode).
+ * onSuccess receives { payments, property, tenant } so the caller can offer a receipt.
+ */
+export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initial, properties, tenants, payments: allPayments }) {
+    const { addPayment } = usePayments()
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
 
-    const currentYear = new Date().getFullYear()
-    const currentMonth = new Date().getMonth()
-
-    const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString())
-    const [selectedYear, setSelectedYear] = useState(currentYear.toString())
-
+    const now = new Date()
+    const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth()))
+    const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()))
+    const [multiMonths, setMultiMonths] = useState([])
     const [formData, setFormData] = useState({
-        property_id: '',
-        payment_type: 'full',
-        amount_paid: '',
-        advance_amount: '',
-        payment_date: new Date().toISOString().split('T')[0],
-        payment_method: 'transfer',
-        reference: '',
-        notes: ''
+        property_id: '', payment_type: 'full', amount_paid: '', payment_date: todayStr(),
+        payment_method: 'transfer', reference: '', notes: ''
     })
 
-    const [selectedProperty, setSelectedProperty] = useState(null)
-    const [activeTenant, setActiveTenant] = useState(null)
-    const [monthStatus, setMonthStatus] = useState(null) // 'paid', 'partial', 'none'
-    const [paidSoFar, setPaidSoFar] = useState(0)
-
-    // Apply prefill when modal opens
-    useEffect(() => {
-        if (isOpen && prefill) {
-            setFormData(prev => ({ ...prev, property_id: prefill.propertyId || '' }))
-            if (prefill.month !== undefined) setSelectedMonth(prefill.month.toString())
-            if (prefill.year !== undefined) setSelectedYear(prefill.year.toString())
-        }
-    }, [isOpen, prefill])
+    const isMulti = multiMonths.length > 1
+    const currentYear = now.getFullYear()
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i)
 
     useEffect(() => {
-        if (formData.property_id) {
-            const property = properties.find(p => p.id === formData.property_id)
-            setSelectedProperty(property)
-
-            getActiveTenantForProperty(formData.property_id).then(({ data }) => {
-                setActiveTenant(data)
-            })
+        if (!isOpen) return
+        const months = initial?.months || []
+        setErrors({})
+        setMultiMonths(months.length > 1 ? [...months].sort() : [])
+        if (months.length === 1) {
+            const [y, m] = months[0].split('-').map(Number)
+            setSelectedYear(String(y)); setSelectedMonth(String(m - 1))
         } else {
-            setSelectedProperty(null)
-            setActiveTenant(null)
+            setSelectedYear(String(currentYear)); setSelectedMonth(String(now.getMonth()))
         }
-    }, [formData.property_id, properties])
-
-    useEffect(() => {
-        if (formData.property_id && selectedMonth && selectedYear) {
-            checkMonthStatus()
-        } else {
-            setMonthStatus(null)
-            setPaidSoFar(0)
-        }
-    }, [formData.property_id, selectedMonth, selectedYear, allPayments])
-
-    const checkMonthStatus = async () => {
-        const existing = allPayments.filter(p => {
-            if (!p.payment_month) return false;
-            if (!p.amount_paid || parseFloat(p.amount_paid) === 0) return false;
-            const [pYear, pMonth] = p.payment_month.split('T')[0].split('-').map(Number);
-            return p.property_id === formData.property_id &&
-                (pMonth - 1) === parseInt(selectedMonth) &&
-                pYear === parseInt(selectedYear);
+        setFormData({
+            property_id: initial?.propertyId || '', payment_type: 'full', amount_paid: '', payment_date: todayStr(),
+            payment_method: 'transfer', reference: '', notes: ''
         })
+    }, [isOpen, initial])
 
-        if (existing.length > 0) {
-            const totalPaid = existing.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
-            setPaidSoFar(totalPaid)
+    const selectedProperty = properties.find(p => p.id === formData.property_id) || null
+    const activeTenant = useMemo(
+        () => tenants.find(t => t.property_id === formData.property_id && !t.end_date) || null,
+        [tenants, formData.property_id]
+    )
+    const propertiesWithTenants = properties.filter(p => tenants.some(t => t.property_id === p.id && !t.end_date))
 
-            const isFull = existing.some(p => p.payment_status === 'paid' && p.payment_type === 'full')
+    const rowsForKey = (key) => allPayments
+        .filter(p => p.property_id === formData.property_id && hasMoney(p) && monthKeyOf(p) === key)
+    const paidForKey = (key) => rowsForKey(key).reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
+    // The rent agreed for that month (rows keep it); fall back to the property's current rent
+    const rentForKey = (key) => parseFloat(rowsForKey(key)[0]?.rent_amount || selectedProperty?.monthly_rent || 0)
 
-            // If total paid is close to monthly rent
-            const targetRent = existing[0]?.rent_amount || selectedProperty?.monthly_rent || 0;
-            if (isFull || totalPaid >= targetRent - 1) {
-                setMonthStatus('paid')
-            } else {
-                setMonthStatus('partial')
-                // Remove the error setting here, it's just info now
-                setErrors(prev => {
-                    const newErr = { ...prev }
-                    delete newErr.duplicate
-                    return newErr
-                })
-            }
-        } else {
-            setMonthStatus('none')
-            setPaidSoFar(0)
-            setErrors(prev => {
-                const newErr = { ...prev }
-                delete newErr.duplicate
-                return newErr
-            })
-        }
-    }
+    const singleKey = `${selectedYear}-${pad(parseInt(selectedMonth))}`
+    const paidSoFar = formData.property_id ? paidForKey(singleKey) : 0
+    const remaining = Math.max(0, rentForKey(singleKey) - paidSoFar)
+    const monthPaid = !!selectedProperty && remaining <= 1
 
-    // Auto-fill logic smart
+    const multiRows = multiMonths.map(key => ({ key, rent: rentForKey(key), remaining: Math.max(0, rentForKey(key) - paidForKey(key)) }))
+    const multiTotal = multiRows.reduce((s, r) => s + r.remaining, 0)
+
+    // Auto-fill amount with the remaining balance for full payments
     useEffect(() => {
-        if (selectedProperty && formData.payment_type === 'full') {
-            const remaining = selectedProperty.monthly_rent - paidSoFar
-            setFormData(prev => ({
-                ...prev,
-                amount_paid: Math.max(0, remaining).toString()
-            }))
+        if (!isMulti && selectedProperty && formData.payment_type === 'full') {
+            setFormData(prev => ({ ...prev, amount_paid: String(remaining) }))
         }
-    }, [selectedProperty, formData.payment_type, paidSoFar])
-
-    const propertiesWithTenants = properties.filter(property => {
-        return tenants.some(tenant =>
-            tenant.property_id === property.id && tenant.end_date === null
-        )
-    })
+    }, [selectedProperty?.id, formData.payment_type, remaining, isMulti])
 
     const handleChange = (e) => {
         const { name, value } = e.target
@@ -135,224 +85,148 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, prefi
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
     }
 
-    const validate = () => {
-        const newErrors = {}
-
-        if (!formData.property_id) newErrors.property_id = 'Debe seleccionar una propiedad'
-        if (!activeTenant) newErrors.submit = 'Error: No se ha cargado el inquilino activo. Revise la conexión o asigne un inquilino.'
-        if (monthStatus === 'paid') newErrors.submit = 'Este mes ya está pagado completamente.'
-
-        const amountPaid = parseFloat(formData.amount_paid)
-        if (!formData.amount_paid || isNaN(amountPaid) || amountPaid <= 0) {
-            newErrors.amount_paid = 'El monto debe ser mayor a 0'
+    const buildPayment = (key, amountPaid, alreadyPaid, rentAmount) => {
+        const closing = alreadyPaid + amountPaid >= rentAmount - 1
+        return {
+            property_id: formData.property_id,
+            tenant_id: activeTenant.id,
+            payment_month: `${key}-01`,
+            rent_amount: rentAmount,
+            amount_paid: amountPaid,
+            remaining_balance: Math.max(0, rentAmount - (alreadyPaid + amountPaid)),
+            payment_date: formData.payment_date,
+            payment_method: formData.payment_method,
+            payment_type: closing ? 'full' : 'partial',
+            payment_status: closing ? 'paid' : 'partial',
+            reference: formData.reference,
+            notes: formData.notes
         }
-
-        if (selectedProperty) {
-            const remaining = selectedProperty.monthly_rent - paidSoFar
-            // Allow small tolerence or exact check?
-            if (amountPaid > remaining + 1 && formData.payment_type !== 'prepaid') {
-                newErrors.amount_paid = `El monto excede la deuda restante (${remaining})`
-            }
-        }
-
-        setErrors(newErrors)
-        return Object.keys(newErrors).length === 0
     }
 
-    const handleSubmit = async (e) => {
-        e.preventDefault()
+    const validate = () => {
+        const e = {}
+        if (!formData.property_id) e.property_id = 'Debe seleccionar una propiedad'
+        else if (!activeTenant) e.submit = 'La propiedad no tiene inquilino activo.'
+        if (isMulti) {
+            if (multiTotal <= 0) e.submit = 'Los meses seleccionados ya están pagados.'
+        } else {
+            const amount = parseFloat(formData.amount_paid)
+            if (monthPaid) e.submit = 'Este mes ya está pagado completamente.'
+            if (!formData.amount_paid || isNaN(amount) || amount <= 0) e.amount_paid = 'El monto debe ser mayor a 0'
+            else if (amount > remaining + 1) e.amount_paid = `El monto excede la deuda restante (${remaining})`
+        }
+        setErrors(e)
+        return Object.keys(e).length === 0
+    }
+
+    const handleSubmit = async (ev) => {
+        ev.preventDefault()
         if (!validate()) return
-
         setLoading(true)
-
         try {
-            const paymentDateMonth = format(new Date(parseInt(selectedYear), parseInt(selectedMonth), 1), 'yyyy-MM-dd')
-            const rentAmount = selectedProperty.monthly_rent
-            const amountPaid = parseFloat(formData.amount_paid)
-            let finalPayment = null
+            const toCreate = isMulti
+                ? multiRows.filter(r => r.remaining > 0).map(r => buildPayment(r.key, r.remaining, r.rent - r.remaining, r.rent))
+                : [buildPayment(singleKey, parseFloat(formData.amount_paid), paidSoFar, rentForKey(singleKey))]
 
-            // Determine if this payment completes the rent
-            const isClosingPayment = (paidSoFar + amountPaid) >= (rentAmount - 1)
-            const type = formData.payment_type === 'full' || isClosingPayment ? 'full' : 'partial'
-            const status = isClosingPayment ? 'paid' : 'partial'
-
-            if (formData.payment_type === 'full' || formData.payment_type === 'partial') {
-                const paymentData = {
-                    property_id: formData.property_id,
-                    tenant_id: activeTenant.id,
-                    payment_month: paymentDateMonth,
-                    rent_amount: rentAmount,
-                    amount_paid: amountPaid,
-                    remaining_balance: Math.max(0, rentAmount - (paidSoFar + amountPaid)),
-                    payment_date: formData.payment_date,
-                    payment_method: formData.payment_method,
-                    payment_type: type, // 'full' or 'partial' determined by math not just user selection
-                    payment_status: status,
-                    reference: formData.reference,
-                    notes: formData.notes
-                }
-                const { data, error } = await addPayment(paymentData)
-                if (error) throw new Error(error.message || error)
-                finalPayment = data
-            } else if (formData.payment_type === 'prepaid') {
-                // Logic for prepaid...
-                // Simplify: Just record as full for current + extra as partial next month
-                // (Existing logic preserved if it works, or simplified)
-                // ... reusing existing logic just updating error handling ...
-                // Assuming existing logic was OK.
-                const currentMonthPayment = {
-                    property_id: formData.property_id,
-                    tenant_id: activeTenant.id,
-                    payment_month: paymentDateMonth,
-                    rent_amount: rentAmount,
-                    amount_paid: rentAmount - paidSoFar, // Pay remaining
-                    remaining_balance: 0,
-                    payment_date: formData.payment_date,
-                    payment_method: formData.payment_method,
-                    payment_type: 'full',
-                    payment_status: 'paid',
-                    reference: formData.reference,
-                    notes: 'Pago completo'
-                }
-                const { data, error } = await addPayment(currentMonthPayment)
-                if (error) throw new Error(error.message)
-                finalPayment = data
-
-                // Advance logic...
+            const created = []
+            for (const payment of toCreate) {
+                const { data, error } = await addPayment(payment)
+                if (error) throw new Error(error)
+                created.push(data)
             }
-
-            if (finalPayment && selectedProperty && activeTenant) {
-                try {
-                    // Handle array or single object
-                    const payObj = Array.isArray(finalPayment) ? finalPayment[0] : finalPayment
-                    await generateReceiptPDF(payObj, selectedProperty, activeTenant, userSettings || {})
-                } catch (e) { console.error('PDF Error', e) }
-            }
-
-            if (onSuccess) onSuccess()
+            onSuccess?.({ payments: created, property: selectedProperty, tenant: activeTenant })
             onClose()
-
         } catch (err) {
             console.error(err)
-            setErrors({ submit: "Error al registrar: " + (err.message || "Fallo de red") })
+            setErrors({ submit: 'Error al registrar: ' + (err.message || 'Fallo de red') })
         } finally {
             setLoading(false)
         }
     }
 
-    const months = [
-        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ]
-
-    const years = Array.from({ length: 5 }, (_, i) => currentYear - 1 + i)
+    const fmt = (n) => `RD$ ${n.toLocaleString('en-US')}`
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Registrar Pago" size="lg">
+        <Modal isOpen={isOpen} onClose={onClose} title={isMulti ? `Pagar ${multiMonths.length} meses` : 'Registrar Pago'} size="md">
             <form onSubmit={handleSubmit}>
-                <FormInput
-                    label="Propiedad"
-                    name="property_id"
-                    type="select"
-                    value={formData.property_id}
-                    onChange={handleChange}
-                    error={errors.property_id}
-                    required
-                >
+                <FormInput label="Propiedad" name="property_id" type="select" value={formData.property_id}
+                    onChange={handleChange} error={errors.property_id} required disabled={!!initial?.propertyId && isMulti}>
                     <option value="">Seleccionar propiedad...</option>
-                    {propertiesWithTenants.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
+                    {propertiesWithTenants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </FormInput>
 
-                <div className="flex gap-4 mb-4">
-                    <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Mes a Pagar</label>
-                        <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                        >
-                            {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                        </select>
+                {isMulti ? (
+                    <div className="mb-3 rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm">
+                        <ul className="divide-y divide-brand-100">
+                            {multiRows.map(r => (
+                                <li key={r.key} className="flex justify-between py-1">
+                                    <span className="capitalize">{monthLabel(`${r.key}-01`)}</span>
+                                    <span className="font-medium">{fmt(r.remaining)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="flex justify-between pt-2 mt-1 border-t border-brand-200 font-semibold">
+                            <span>Total a pagar</span><span>{fmt(multiTotal)}</span>
+                        </div>
                     </div>
-                    <div className="w-1/3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
-                        <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(e.target.value)}
-                        >
-                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                    </div>
-                </div>
-
-                {monthStatus === 'paid' && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm flex items-center gap-2">
-                        <span>✅</span> Este mes ya ha sido pagado completamente.
-                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Mes a pagar</label>
+                                <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+                                    value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
+                                <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+                                    value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        {selectedProperty && monthPaid && (
+                            <p className="mt-2 mb-1 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">Este mes ya está pagado completamente.</p>
+                        )}
+                        {selectedProperty && !monthPaid && paidSoFar > 0 && (
+                            <p className="mt-2 mb-1 p-2 bg-brand-50 border border-brand-200 rounded text-brand-700 text-xs">
+                                Ya se pagó {fmt(paidSoFar)}. Restan {fmt(remaining)}.
+                            </p>
+                        )}
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                            <FormInput label="Tipo de pago" name="payment_type" type="select" value={formData.payment_type} onChange={handleChange}>
+                                <option value="full">Completo (restante)</option>
+                                <option value="partial">Parcial</option>
+                            </FormInput>
+                            <FormInput label="Monto (RD$)" name="amount_paid" type="number" value={formData.amount_paid}
+                                onChange={handleChange} error={errors.amount_paid} required />
+                        </div>
+                    </>
                 )}
 
-                {monthStatus === 'partial' && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-                        ℹ️ Ya se ha pagado RD$ {paidSoFar.toLocaleString()}. Restan: RD$ {(selectedProperty ? selectedProperty.monthly_rent - paidSoFar : 0).toLocaleString()}
-                    </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                    <FormInput
-                        label="Fecha de Pago"
-                        name="payment_date"
-                        type="date"
-                        value={formData.payment_date}
-                        onChange={handleChange}
-                        max={new Date().toISOString().split('T')[0]}
-                        required
-                    />
-                    <FormInput
-                        label="Tipo de Pago"
-                        name="payment_type"
-                        type="select"
-                        value={formData.payment_type}
-                        onChange={handleChange}
-                    >
-                        <option value="full">Pago Completo (Restante)</option>
-                        <option value="partial">Pago Parcial</option>
-                        {/* Remove prepaid for now simplicity or keep? Keep but careful */}
+                <div className="grid grid-cols-2 gap-3">
+                    <FormInput label="Fecha de pago" name="payment_date" type="date" value={formData.payment_date}
+                        onChange={handleChange} max={todayStr()} required />
+                    <FormInput label="Método" name="payment_method" type="select" value={formData.payment_method} onChange={handleChange}>
+                        <option value="transfer">Transferencia</option>
+                        <option value="cash">Efectivo</option>
+                        <option value="check">Cheque</option>
                     </FormInput>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <FormInput label="Referencia" name="reference" value={formData.reference} onChange={handleChange} />
+                    <FormInput label="Notas" name="notes" value={formData.notes} onChange={handleChange} />
+                </div>
 
-                <FormInput
-                    label="Monto Pagado (RD$)"
-                    name="amount_paid"
-                    type="number"
-                    value={formData.amount_paid}
-                    onChange={handleChange}
-                    error={errors.amount_paid}
-                    required
-                />
+                {errors.submit && <div className="text-red-600 text-sm mb-3">{errors.submit}</div>}
 
-                <FormInput
-                    label="Método de Pago"
-                    name="payment_method"
-                    type="select"
-                    value={formData.payment_method}
-                    onChange={handleChange}
-                >
-                    <option value="transfer">Transferencia</option>
-                    <option value="cash">Efectivo</option>
-                    <option value="check">Cheque</option>
-                </FormInput>
-
-                <FormInput label="Referencia" name="reference" value={formData.reference} onChange={handleChange} />
-                <FormInput label="Notas" name="notes" value={formData.notes} onChange={handleChange} />
-
-                {errors.submit && <div className="text-red-600 text-sm mb-4">{errors.submit}</div>}
-
-                <div className="flex justify-end gap-2 mt-4">
-                    <Button variant="secondary" onClick={onClose} type="button">Cancelar</Button>
-                    <Button variant="primary" type="submit" disabled={loading || monthStatus === 'paid' || !activeTenant}>Registrar Pago</Button>
+                <div className="flex justify-end gap-2 mt-2">
+                    <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+                    <Button type="submit" size="sm" disabled={loading || (!isMulti && monthPaid) || !activeTenant}>
+                        {loading ? 'Registrando...' : isMulti ? `Pagar ${fmt(multiTotal)}` : 'Registrar Pago'}
+                    </Button>
                 </div>
             </form>
         </Modal>

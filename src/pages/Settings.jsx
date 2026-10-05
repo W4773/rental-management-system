@@ -1,14 +1,12 @@
 import { useState } from 'react'
-import Header from '../components/Common/Header'
-import Footer from '../components/Common/Footer'
 import InvoiceSettings from '../components/Settings/InvoiceSettings'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
-import Toast, { useToast } from '../components/Common/Toast'
+import { useApp } from '../contexts/AppContext'
 
 const TABS = [
-    { id: 'account', label: '👤 Cuenta' },
-    { id: 'invoice', label: '🧾 Factura' },
+    { id: 'account', label: 'Cuenta' },
+    { id: 'invoice', label: 'Factura' },
 ]
 
 export default function Settings() {
@@ -21,7 +19,8 @@ export default function Settings() {
         confirmPassword: ''
     })
     const [loading, setLoading] = useState(false)
-    const { toast, showToast, hideToast } = useToast()
+    const { toast: toastApi } = useApp()
+    const showToast = (msg, type) => toastApi.showToast(msg, type)
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -52,10 +51,9 @@ export default function Settings() {
     }
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] flex flex-col">
-            <Header />
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
-                <h1 className="text-[24px] font-bold text-gray-900 mb-6">⚙️ Configuración</h1>
+        <div>
+            <main className="max-w-4xl mx-auto w-full">
+                <h1 className="text-xl font-bold text-ink mb-4">Configuración</h1>
 
                 {/* Tabs */}
                 <div className="flex gap-2 border-b-2 border-gray-200 mb-6">
@@ -65,7 +63,7 @@ export default function Settings() {
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-5 py-3 font-semibold text-[18px] border-b-4 transition ${
                                 activeTab === tab.id
-                                    ? 'border-blue-600 text-blue-700'
+                                    ? 'border-brand-500 text-brand-700'
                                     : 'border-transparent text-gray-600 hover:text-gray-900'
                             }`}
                             style={{ minHeight: '48px' }}
@@ -132,7 +130,7 @@ export default function Settings() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-[18px]"
+                                    className="bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700 transition disabled:opacity-50 text-[18px]"
                                     style={{ minHeight: '48px' }}
                                 >
                                     {loading ? 'Guardando...' : 'Guardar Cambios'}
@@ -146,8 +144,6 @@ export default function Settings() {
                     )}
                 </div>
             </main>
-            <Footer />
-            {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
         </div>
     )
 }

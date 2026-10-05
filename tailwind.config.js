@@ -10,6 +10,18 @@ export default {
                 sans: ['Inter', 'system-ui', 'sans-serif'],
             },
             colors: {
+                cream: '#faf7f2',
+                ink: '#1a1a1a',
+                brand: {
+                    50: '#fff8ed',
+                    100: '#f6efd9',
+                    200: '#e8dfc8',
+                    400: '#e8c84a',
+                    500: '#b8962e',
+                    600: '#a07f22',
+                    700: '#7d6318',
+                },
+                accent: { 500: '#d2622a', 600: '#b8531f' },
                 'status-green': '#22C55E',
                 'status-green-light': 'rgba(34, 197, 94, 0.1)',
                 'status-yellow': '#EAB308',

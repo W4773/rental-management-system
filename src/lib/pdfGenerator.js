@@ -3,6 +3,7 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { parseLocalDate } from './pdfHelpers'
 
 const GOLD = [184, 150, 46]
 const DARK = [26, 26, 26]
@@ -25,7 +26,24 @@ async function loadImageAsDataUrl(url) {
     }
 }
 
-export async function generateReceiptPDF(payment, property, tenant, userSettings = {}) {
+const fmtMoney = (n) => `RD$${(parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+const monthName = (value) => format(parseLocalDate(value), 'MMMM yyyy', { locale: es }).toUpperCase()
+
+/**
+ * Receipt for one payment, or a consolidated receipt when an array of payments is passed.
+ * Downloads the PDF (no new tab): call it only from a user action (e.g. "Sí, imprimir").
+ */
+export async function generateReceiptPDF(paymentOrList, property, tenant, userSettings = {}) {
+    const list = (Array.isArray(paymentOrList) ? paymentOrList : [paymentOrList])
+        .filter(Boolean)
+        .sort((a, b) => a.payment_month.localeCompare(b.payment_month))
+    const payment = list[0]
+    const totalPaid = list.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0)
+    const totalRent = list.reduce((sum, p) => sum + (parseFloat(p.rent_amount ?? property.monthly_rent) || 0), 0)
+    const totalRemaining = list.reduce((sum, p) => sum + (parseFloat(p.remaining_balance) || 0), 0)
+    const periodLabel = list.length > 1
+        ? `${monthName(list[0].payment_month)} - ${monthName(list[list.length - 1].payment_month)}`
+        : monthName(payment.payment_month)
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 22
@@ -80,10 +98,8 @@ export async function generateReceiptPDF(payment, property, tenant, userSettings
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(11)
     doc.text(format(new Date(), 'dd \'de\' MMMM \'de\' yyyy', { locale: es }), 90, y)
-    doc.text(
-        format(new Date(payment.payment_month), 'MMMM yyyy', { locale: es }).toUpperCase(),
-        150, y
-    )
+    doc.setFontSize(list.length > 1 ? 8 : 11)
+    doc.text(periodLabel, 150, y, { maxWidth: pageWidth - margin - 150 })
 
     // Separator line
     y += 8
@@ -133,15 +149,13 @@ export async function generateReceiptPDF(payment, property, tenant, userSettings
         startY: y + 2,
         margin: { left: margin, right: margin },
         head: [['CONCEPTO', 'DETALLE', 'MONTO', 'PAGADO']],
-        body: [
-            [
-                `Alquiler Mensual\n${format(new Date(payment.payment_month), 'MMMM yyyy', { locale: es }).toUpperCase()}`,
-                `${property.name}\n${getPaymentMethodLabel(payment.payment_method)}`,
-                `RD$${parseFloat(property.monthly_rent || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-                `RD$${parseFloat(payment.amount_paid).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-            ]
-        ],
-        foot: [['TOTAL', '', `RD$${parseFloat(property.monthly_rent || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, `RD$${parseFloat(payment.amount_paid).toLocaleString('en-US', { minimumFractionDigits: 2 })}`]],
+        body: list.map(p => [
+            `Alquiler Mensual\n${monthName(p.payment_month)}`,
+            `${property.name}\n${getPaymentMethodLabel(p.payment_method)}`,
+            fmtMoney(p.rent_amount ?? property.monthly_rent),
+            fmtMoney(p.amount_paid)
+        ]),
+        foot: [['TOTAL', '', fmtMoney(totalRent), fmtMoney(totalPaid)]],
         theme: 'plain',
         headStyles: {
             fillColor: [250, 247, 240],
@@ -168,8 +182,8 @@ export async function generateReceiptPDF(payment, property, tenant, userSettings
             lineWidth: 0.8,
         },
         columnStyles: {
-            0: { cellWidth: 55 },
-            1: { cellWidth: 55 },
+            0: { cellWidth: 46 },
+            1: { cellWidth: 44 },
             2: { halign: 'right' },
             3: { halign: 'right' },
         }
@@ -182,9 +196,7 @@ export async function generateReceiptPDF(payment, property, tenant, userSettings
 
     // === PAYMENT DETAILS ===
     y += 10
-    const remaining = typeof payment.remaining_balance === 'string'
-        ? parseFloat(payment.remaining_balance)
-        : (payment.remaining_balance || 0)
+    const remaining = totalRemaining
 
     // Method box
     doc.setFillColor(250, 247, 240)
@@ -290,10 +302,9 @@ export async function generateReceiptPDF(payment, property, tenant, userSettings
     doc.setTextColor(245, 241, 231)
     doc.text('DOCUMENTO AUTÉNTICO', pageWidth / 2, doc.internal.pageSize.getHeight() * 0.68, { align: 'center', angle: 45 })
 
-    // Open in new browser tab instead of downloading
-    const blob = doc.output('blob')
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank')
+    const suffix = list.length > 1 ? `${list.length}-meses` : format(parseLocalDate(payment.payment_month), 'MMM-yyyy', { locale: es })
+    doc.save(`Recibo_${(tenant.name || 'inquilino').split(' ')[0]}_${suffix}.pdf`)
+    return doc
 }
 
 const getPaymentMethodLabel = (method) => {

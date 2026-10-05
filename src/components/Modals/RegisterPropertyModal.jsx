@@ -18,13 +18,16 @@ const EMPTY_FORM = {
     contract_start_date: '',
     deposit_amount: '',
     annual_increase_pct: '',
-    increase_type: 'percentage'
+    increase_type: 'percentage',
+    building_id: ''
 }
 
-export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, propertyToEdit = null }) {
+export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, propertyToEdit = null, buildings = [], onNewBuilding }) {
     const { addProperty, updateProperty } = useProperties()
     const [errors, setErrors] = useState({})
     const [formData, setFormData] = useState(EMPTY_FORM)
+    const [saving, setSaving] = useState(false)
+    const selectedBuilding = buildings.find(b => b.id === formData.building_id)
 
 
 
@@ -43,7 +46,8 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                 contract_start_date: propertyToEdit.contract_start_date || '',
                 deposit_amount: propertyToEdit.deposit_amount || '',
                 annual_increase_pct: propertyToEdit.annual_increase_pct || '',
-                increase_type: propertyToEdit.increase_type || 'percentage'
+                increase_type: propertyToEdit.increase_type || 'percentage',
+                building_id: propertyToEdit.building_id || ''
             })
         } else if (isOpen) {
             setFormData(EMPTY_FORM)
@@ -52,6 +56,10 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
 
     const handleChange = (e) => {
         const { name, value } = e.target
+        if (name === 'building_id' && value === '__new__') {
+            onNewBuilding?.()
+            return
+        }
         setFormData(prev => ({ ...prev, [name]: value }))
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
     }
@@ -62,8 +70,8 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         const nameError = validatePropertyName(formData.name)
         if (nameError) newErrors.name = nameError
 
-        if (!formData.address || formData.address.trim().length === 0) {
-            newErrors.address = 'La dirección es obligatoria'
+        if ((!formData.address || formData.address.trim().length === 0) && !selectedBuilding?.address) {
+            newErrors.address = 'La dirección es obligatoria (o elija un edificio con dirección)'
         } else if (formData.address.length > 255) {
             newErrors.address = 'La dirección no puede exceder 255 caracteres'
         }
@@ -85,7 +93,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
 
         const propertyData = {
             name: formData.name.trim(),
-            address: formData.address.trim(),
+            address: formData.address.trim() || selectedBuilding?.address || '',
             monthly_rent: parseFloat(formData.monthly_rent),
             bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : 1,
             bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : 1,
@@ -99,11 +107,19 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             increase_type: formData.increase_type || 'percentage',
         }
 
-        // Ejecutar en segundo plano para una experiencia instantánea (Optimistic UI approach)
-        if (propertyToEdit) {
-            updateProperty(propertyToEdit.id, propertyData);
-        } else {
-            addProperty(propertyData);
+        // building_id only travels when relevant, so saving keeps working before migration 002 is applied
+        if (formData.building_id) propertyData.building_id = formData.building_id
+        else if (propertyToEdit?.building_id) propertyData.building_id = null
+
+        setSaving(true)
+        const { error } = propertyToEdit
+            ? await updateProperty(propertyToEdit.id, propertyData)
+            : await addProperty(propertyData)
+        setSaving(false)
+        if (error) {
+            const duplicate = /duplicate|unique/i.test(error)
+            setErrors(duplicate ? { name: 'Ya existe una propiedad con este nombre' } : { submit: error })
+            return
         }
 
         setFormData(EMPTY_FORM)
@@ -138,13 +154,24 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                     maxLength={50}
                                 />
                                 <FormInput
-                                    label="Dirección Completa"
+                                    label="Edificio"
+                                    name="building_id"
+                                    type="select"
+                                    value={formData.building_id}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Sin edificio</option>
+                                    {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    {onNewBuilding && <option value="__new__">+ Nuevo edificio...</option>}
+                                </FormInput>
+                                <FormInput
+                                    label={selectedBuilding ? 'Dirección (opcional: usa la del edificio)' : 'Dirección Completa'}
                                     name="address"
                                     value={formData.address}
                                     onChange={handleChange}
                                     error={errors.address}
-                                    required
-                                    placeholder="Ej: Calle Principal #123, Santo Domingo"
+                                    required={!selectedBuilding?.address}
+                                    placeholder={selectedBuilding?.address || 'Ej: Calle Principal #123, Santo Domingo'}
                                     maxLength={255}
                                 />
                             </div>
@@ -263,7 +290,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                             onClick={() => setFormData(prev => ({ ...prev, increase_type: 'percentage' }))}
                                             className={`flex-1 font-semibold text-[16px] transition ${
                                                 formData.increase_type === 'percentage'
-                                                    ? 'bg-blue-600 text-white'
+                                                    ? 'bg-brand-600 text-white'
                                                     : 'bg-white text-gray-700 hover:bg-gray-50'
                                             }`}
                                         >
@@ -274,7 +301,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                             onClick={() => setFormData(prev => ({ ...prev, increase_type: 'fixed' }))}
                                             className={`flex-1 font-semibold text-[16px] transition ${
                                                 formData.increase_type === 'fixed'
-                                                    ? 'bg-blue-600 text-white'
+                                                    ? 'bg-brand-600 text-white'
                                                     : 'bg-white text-gray-700 hover:bg-gray-50'
                                             }`}
                                         >
@@ -323,7 +350,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                     placeholder="Características especiales, observaciones, etc."
                                     maxLength={500}
                                     rows={3}
-                                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${errors.notes ? 'border-red-500' : 'border-gray-300'}`}
+                                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none ${errors.notes ? 'border-red-500' : 'border-gray-300'}`}
                                 />
                                 {errors.notes && <p className="mt-1 text-xs text-red-600">{errors.notes}</p>}
                                 <p className="mt-1 text-xs text-gray-400 text-right">{formData.notes.length}/500</p>
@@ -342,8 +369,8 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                     <Button type="button" variant="secondary" onClick={handleClose}>
                         Cancelar
                     </Button>
-                    <Button type="submit" variant="primary">
-                        {propertyToEdit ? 'Guardar Cambios' : 'Registrar Propiedad'}
+                    <Button type="submit" variant="primary" disabled={saving}>
+                        {saving ? 'Guardando...' : propertyToEdit ? 'Guardar Cambios' : 'Registrar Propiedad'}
                     </Button>
                 </div>
             </form>
