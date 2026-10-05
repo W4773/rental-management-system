@@ -5,6 +5,7 @@ import { formatDate } from '../../lib/dateUtils'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
 import { monthLabel } from '../../lib/pdfHelpers'
 import { hasMoney, getMonthStatus, getPaymentStatus } from '../../lib/paymentStatus'
+import { nextIncrease } from '../../lib/rentIncrease'
 import StatusPill from './StatusPill'
 import { useApp } from '../../contexts/AppContext'
 import ConfirmModal from '../Common/ConfirmModal'
@@ -91,6 +92,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     }
 
     const rentStatus = getPaymentStatus(property, activeTenant, propertyPayments)
+    const increase = nextIncrease(property)
     const visible = showAll ? history : history.slice(0, VISIBLE_PAYMENTS)
     const toggle = (list, setList, id) => setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id])
     const allSelected = history.length > 0 && selectedPayments.length === history.length
@@ -143,6 +145,14 @@ export default function PropertyDetails({ property, onDeleted }) {
                         <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5" />{property.bedrooms} Hab</span>
                         <span className="flex items-center gap-1"><ShowerHead className="w-3.5 h-3.5" />{property.bathrooms} Baños</span>
                     </div>
+                    {increase && (
+                        <p className="mt-1 text-xs text-gray-600">
+                            Aumento anual: <span className="font-semibold">{increase.label}</span>
+                            {increase.date
+                                ? <> · próximo el <span className="font-semibold">{formatDate(increase.date)}</span> → {formatCurrency(increase.newRent)}</>
+                                : <> · sin fecha definida</>}
+                        </p>
+                    )}
                     {activeTenant && (
                         <div className="mt-1.5"><StatusPill status={rentStatus} showDetail align="left" /></div>
                     )}

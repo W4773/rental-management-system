@@ -24,6 +24,7 @@ from pg_proc where pronamespace = 'rental'::regnamespace and proname = 'effectiv
 |---|---|
 | `supabase/migrations/002_buildings.sql` | Crea `rental.buildings` (nombre, dirección) con RLS del workspace y agrega `rental.properties.building_id`. Solo depende de `rental.properties` y `rental.workspace_members`. |
 | `supabase/migrations/004_activity_log.sql` | Tabla `rental.activity_log` (quién hizo qué) para el "Registro de actividad" de Inicio. Ejecutar después de la 002 (usa `rental.my_workspace_owner_ids()`). Sin ella Inicio muestra solo los pagos recientes. |
+| `supabase/migrations/005_increase_start_date.sql` | Agrega `rental.properties.increase_start_date` (fecha del primer aumento anual). Sin ella la app funciona; solo falla al guardar una propiedad con esa fecha y lo avisa. |
 | `supabase/migrations/003_workspace_team.sql` | Funciones `list/invite/remove_workspace_member` para la pestaña Equipo de Ajustes (usa `rental.workspace_members`, no la modifica). |
 
 - Cada archivo es idempotente y no usa bloques `DO`: copia **todo** el archivo y pégalo de una vez.

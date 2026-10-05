@@ -5,7 +5,7 @@ import PropertyPicker, { PropertyInfo } from '../Common/PropertyPicker'
 import Button from '../Common/Button'
 import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
 import { useTenants } from '../../hooks/useTenants'
-import { useProperties } from '../../hooks/useProperties'
+import { useApp } from '../../contexts/AppContext'
 import { usePayments } from '../../hooks/usePayments'
 import { startOfMonth, addMonths } from 'date-fns' // eslint-disable-line no-unused-vars
 
@@ -19,7 +19,8 @@ const EMPTY_FORM = {
 }
 
 export default function AssignTenantModal({ isOpen, onClose, onSuccess, property, tenantToEdit }) {
-    const { properties } = useProperties()
+    // Context list is refreshed after every change; a private hook instance went stale and missed new properties
+    const { properties } = useApp()
     const { addTenant, updateTenant, getActiveTenantForProperty, closeTenant } = useTenants()
     const { addPayment, generateHistoricalPayments } = usePayments()
     const [loading, setLoading] = useState(false)
@@ -117,6 +118,13 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                 if (updateError) throw new Error(updateError)
                 if (onSuccess) onSuccess(updated)
             } else {
+                // Resolve the property BEFORE touching any data, so a failure never leaves a half-created tenant
+                const selectedProperty = properties.find(p => p.id === formData.property_id)
+                    || (property?.id === formData.property_id ? property : null)
+                if (!selectedProperty) {
+                    throw new Error('No se encontró la propiedad seleccionada. Recarga la página e inténtalo de nuevo.')
+                }
+
                 const { data: existingTenant } = await getActiveTenantForProperty(formData.property_id)
                 if (existingTenant) await closeTenant(existingTenant.id, new Date())
 
@@ -131,7 +139,6 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                 })
                 if (tenantError) throw new Error(tenantError)
 
-                const selectedProperty = properties.find(p => p.id === formData.property_id)
                 // Auto-generate paid records for all months before the last 2 (current + previous)
                 await generateHistoricalPayments(
                     formData.property_id,

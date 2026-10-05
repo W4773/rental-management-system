@@ -5,7 +5,7 @@ import FormInput from '../Common/FormInput'
 import PropertyPicker from '../Common/PropertyPicker'
 import Button from '../Common/Button'
 import { useUtilityReadings } from '../../hooks/useUtilityReadings'
-import { useProperties } from '../../hooks/useProperties'
+import { useApp } from '../../contexts/AppContext'
 
 const UTILITY_CONFIG = {
     gas: {
@@ -43,7 +43,7 @@ const EMPTY_FORM = {
 }
 
 export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onSuccess }) {
-    const { properties } = useProperties()
+    const { properties } = useApp()
     const { addReading, getLatestReadingForProperty } = useUtilityReadings(utilityType)
     const [formData, setFormData] = useState(EMPTY_FORM)
     const [loading, setLoading] = useState(false)
