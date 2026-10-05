@@ -48,3 +48,20 @@ export const STATUS_FILTERS = [
 
 export const normalizeText = (s = '') =>
     s.toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+
+/**
+ * Status of one month of a property's rent: 'paid' | 'partial' | 'pending' | 'future'.
+ * `payments` = rent_payments of that property (any extra rows are ignored by property filter upstream).
+ */
+export function getMonthStatus(payments, property, year, monthIndex, today = new Date()) {
+    const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`
+    const rows = payments.filter(p => hasMoney(p) && monthKeyOf(p) === key)
+    const total = rows.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
+    const rent = parseFloat(rows[0]?.rent_amount || property.monthly_rent)
+    if (total > 0) {
+        const isPaid = rows.some(p => p.payment_type === 'full') || total >= rent - 1
+        return { key, status: isPaid ? 'paid' : 'partial', total }
+    }
+    const isFuture = year > today.getFullYear() || (year === today.getFullYear() && monthIndex > today.getMonth())
+    return { key, status: isFuture ? 'future' : 'pending', total: 0 }
+}
