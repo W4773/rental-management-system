@@ -14,7 +14,7 @@ export function usePayments() {
         const subscription = supabase
             .channel('payments-channel')
             .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'rent_payments' },
+                { event: '*', schema: 'rental', table: 'rent_payments' },
                 fetchPayments
             )
             .subscribe()

@@ -14,7 +14,7 @@ export function useTenants() {
         const subscription = supabase
             .channel('tenants-channel')
             .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'tenants' },
+                { event: '*', schema: 'rental', table: 'tenants' },
                 fetchTenants
             )
             .subscribe()

@@ -1,51 +1,41 @@
-# 📋 Instrucciones de Migración al Nuevo Proyecto Supabase
+# Migraciones de Supabase (esquema `rental`)
 
-## Pasos a Seguir (EN ORDEN):
+La app usa **el esquema `rental`** del proyecto Supabase `cfcssfwxdfgqpvyuepjo` (no `public`).
+El cliente ya lo declara en `src/lib/supabase.js` (`db: { schema: 'rental' }`).
 
-### 1. Limpiar Proyecto Viejo (OPCIONAL)
-Si quieres eliminar las tablas del proyecto anterior:
-- Ve al proyecto viejo en Supabase Dashboard
-- SQL Editor → Ejecuta `000_cleanup_old_project.sql`
-- Esto eliminará solo las tablas de rental, sin tocar otros datos
+Tablas existentes: `properties`, `tenants`, `rent_payments`, `gas_consumption`, `user_settings`, `workspace_members`
+y la función `rental.effective_owner_id()` (a nombre de quién se guardan los datos del workspace).
 
-### 2. Configurar Proyecto Nuevo (OBLIGATORIO)
-- Ve al NUEVO proyecto: https://supabase.com/dashboard/project/gmbxkyejsfexisrszpvc
-- SQL Editor → Ejecuta `001_complete_setup.sql`
-- Este script crea:
-  - ✅ Tablas (properties, tenants, rent_payments, gas_consumption)
-  - ✅ Índices para performance
-  - ✅ RLS habilitado en todas las tablas
-  - ✅ Políticas de seguridad user-based
+## Antes de ejecutar nada: verificar (solo lectura)
 
-### 3. Habilitar Auth en Supabase
-- En el nuevo proyecto, ve a: Authentication → Settings
-- Email Auth: Asegúrate que esté habilitado
-- Email Confirmations: Puedes deshabilitarlo para testing rápido (o dejarlo habilitado para producción)
+Pega esto en el SQL Editor del proyecto y confirma que ves las tablas en `rental`:
 
-### 4. Actualizar App Local
-- El archivo `.env` ya fue actualizado con las nuevas credenciales
-- Para el dev server (`Ctrl+C`)
-- Ejecuta: `npm run dev`
-- Abre: http://localhost:5173
+```sql
+select table_schema, table_name from information_schema.tables
+where table_schema = 'rental' order by table_name;
 
-### 5. Primera Prueba
-1. Crea una cuenta nueva (Register)
-2. Login
-3. Registra una propiedad
-4. Verifica que se guarda correctamente
-5. Abre otra sesión en navegador privado
-6. Crea OTRA cuenta
-7. Verifica que NO veas las propiedades del primer usuario
+select proname, pg_get_function_result(oid) as devuelve
+from pg_proc where pronamespace = 'rental'::regnamespace and proname = 'effective_owner_id';
+```
 
-## ✅ Verificación Exitosa
-Si cada usuario ve solo SUS datos → RLS está funcionando correctamente
+## Migraciones (en orden, cada archivo completo)
 
-## 🔐 Seguridad
-- La `service_role` key NO está en `.env` visible
-- Solo se usa para scripts admin si es necesario
-- La app solo usa `anon_key` que es segura
+| Archivo | Qué hace |
+|---|---|
+| `supabase/migrations/002_buildings.sql` | Crea `rental.buildings` (nombre, dirección) con RLS del workspace y agrega `rental.properties.building_id`. |
 
-## 🚀 Siguiente: Deploy
-Una vez todo funcione localmente, procedemos con:
-- Subir a GitHub
-- Deploy en Vercel
+- Cada archivo es idempotente y no usa bloques `DO`: copia **todo** el archivo y pégalo de una vez.
+- Sin esta migración la app funciona igual; solo no se podrán crear edificios (la pantalla lo avisa).
+- La sección **Equipo** usa `rental.workspace_members`, que ya existe: no hay migración de equipo.
+
+## Variables de entorno (Vercel y `.env` local)
+
+```
+VITE_SUPABASE_URL=https://cfcssfwxdfgqpvyuepjo.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key del proyecto>
+```
+
+## Seguridad
+
+- La app solo usa la `anon key`; nunca pongas la `service_role` en el front ni en el repo.
+- `backup_*.json`, `.superpowers/` y `supabase/.temp/` están en `.gitignore`: no subas copias de datos reales.

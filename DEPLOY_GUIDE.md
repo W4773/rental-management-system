@@ -63,8 +63,8 @@ Git no está instalado en tu sistema. Aquí está la guía paso a paso para subi
 Antes de hacer deploy, en la sección "Environment Variables":
 
 ```
-VITE_SUPABASE_URL = https://gmbxkyejsfexisrszpvc.supabase.co
-VITE_SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtYnhreWVqc2ZleGlzcnN6cHZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3ODU0NzYsImV4cCI6MjA4NDM2MTQ3Nn0.tG9waatlzuMEeedifXRar5hrMz-uHThu6UzTi2UQGbM
+VITE_SUPABASE_URL = https://cfcssfwxdfgqpvyuepjo.supabase.co
+VITE_SUPABASE_ANON_KEY = <anon key del proyecto cfcssfwxdfgqpvyuepjo>
 ```
 
 8. Click "Deploy"
