@@ -1,4 +1,7 @@
-import { startOfMonth, subMonths, differenceInMonths } from 'date-fns'
+import { startOfMonth, subMonths, format } from 'date-fns'
+
+// payment_month is stored as 'YYYY-MM-DD'; compare by 'YYYY-MM' key to avoid timezone drift
+export const monthKey = (value) => (typeof value === 'string' ? value.slice(0, 7) : format(value, 'yyyy-MM'))
 
 /**
  * Calculate payment status color for a property
@@ -25,14 +28,12 @@ export function getPaymentStatusColor(property, activeTenant, payments, currentD
     const expectedPaymentMonth = startOfMonth(subMonths(currentDate, 1))
 
     // Check if payment exists and is complete for expected month
-    const hasCompletedPayment = payments.some(payment => {
-        const paymentMonth = new Date(payment.payment_month)
-        return (
-            payment.property_id === property.id &&
-            paymentMonth.getTime() === expectedPaymentMonth.getTime() &&
-            payment.payment_status === 'paid'
-        )
-    })
+    const expectedKey = monthKey(expectedPaymentMonth)
+    const hasCompletedPayment = payments.some(payment => (
+        payment.property_id === property.id &&
+        monthKey(payment.payment_month) === expectedKey &&
+        payment.payment_status === 'paid'
+    ))
 
     if (hasCompletedPayment) {
         return {
@@ -78,21 +79,19 @@ export function getPaymentStatusColor(property, activeTenant, payments, currentD
  */
 function countMonthsOverdue(property, tenant, payments, currentDate) {
     let count = 0
-    const tenantStartDate = new Date(tenant.start_date)
+    const tenantStartKey = monthKey(tenant.start_date)
 
     // Start from previous month (most recent expected payment)
     let checkMonth = startOfMonth(subMonths(currentDate, 1))
 
     // Check backwards until we find a paid month or reach tenant start
-    while (checkMonth >= tenantStartDate) {
-        const hasPaidForMonth = payments.some(payment => {
-            const paymentMonth = new Date(payment.payment_month)
-            return (
-                payment.property_id === property.id &&
-                paymentMonth.getTime() === checkMonth.getTime() &&
-                payment.payment_status === 'paid'
-            )
-        })
+    while (monthKey(checkMonth) >= tenantStartKey) {
+        const checkKey = monthKey(checkMonth)
+        const hasPaidForMonth = payments.some(payment => (
+            payment.property_id === property.id &&
+            monthKey(payment.payment_month) === checkKey &&
+            payment.payment_status === 'paid'
+        ))
 
         if (hasPaidForMonth) {
             break // Found a paid month, stop counting

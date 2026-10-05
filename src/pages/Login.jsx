@@ -49,7 +49,7 @@ export default function Login() {
             {/* Glassmorphism container */}
             <div className="login-container">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">🏠 Rental Manager</h1>
+                    <h1 className="text-3xl font-bold text-white mb-2">Alquiler Pro</h1>
                     <p className="text-gray-300">Inicia sesión para continuar</p>
                 </div>
 
