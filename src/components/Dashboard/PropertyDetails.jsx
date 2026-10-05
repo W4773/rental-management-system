@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, CheckSquare, ListChecks } from 'lucide-react'
+import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, UserMinus, CheckSquare, ListChecks } from 'lucide-react'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
 import { monthLabel } from '../../lib/pdfHelpers'
-import { hasMoney, getMonthStatus } from '../../lib/paymentStatus'
+import { hasMoney, getMonthStatus, getPaymentStatus } from '../../lib/paymentStatus'
+import StatusPill from './StatusPill'
 import { useApp } from '../../contexts/AppContext'
 import ConfirmModal from '../Common/ConfirmModal'
 import YearlyPaymentGrid from './YearlyPaymentGrid'
@@ -45,7 +46,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     const {
         payments: allPayments, tenants, utilityReadings, buildings, settings,
         openPayment, openProperty, openTenant, openReport, openPayGas,
-        deletePayment, deleteProperty, refreshAll, toast
+        deletePayment, deleteProperty, closeTenant, onDataChanged, refreshAll, toast
     } = useApp()
 
     const [year, setYear] = useState(new Date().getFullYear())
@@ -54,6 +55,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     const [selectedMonths, setSelectedMonths] = useState([])
     const [confirmDeleteProperty, setConfirmDeleteProperty] = useState(false)
     const [deleteIds, setDeleteIds] = useState([])
+    const [confirmUnlink, setConfirmUnlink] = useState(false)
     const [selectMode, setSelectMode] = useState(false)
 
     // Reset local selections when switching property
@@ -88,6 +90,7 @@ export default function PropertyDetails({ property, onDeleted }) {
         )
     }
 
+    const rentStatus = getPaymentStatus(property, activeTenant, propertyPayments)
     const visible = showAll ? history : history.slice(0, VISIBLE_PAYMENTS)
     const toggle = (list, setList, id) => setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id])
     const allSelected = history.length > 0 && selectedPayments.length === history.length
@@ -113,6 +116,12 @@ export default function PropertyDetails({ property, onDeleted }) {
         refreshAll()
     }
 
+    const handleUnlinkTenant = async () => {
+        const { error } = await closeTenant(activeTenant.id, new Date())
+        if (error) { toast.error('Error al desvincular inquilino'); throw new Error(error) }
+        onDataChanged('Inquilino desvinculado. Quedó en Inquilinos → Antiguos con su historial de pagos.')
+    }
+
     const handleDeleteProperty = async () => {
         const { error } = await deleteProperty(property.id)
         if (error) { toast.error('Error al eliminar propiedad: ' + error); throw new Error(error) }
@@ -134,6 +143,9 @@ export default function PropertyDetails({ property, onDeleted }) {
                         <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5" />{property.bedrooms} Hab</span>
                         <span className="flex items-center gap-1"><ShowerHead className="w-3.5 h-3.5" />{property.bathrooms} Baños</span>
                     </div>
+                    {activeTenant && (
+                        <div className="mt-1.5"><StatusPill status={rentStatus} showDetail align="left" /></div>
+                    )}
                 </div>
                 <div className="text-right">
                     <p className="text-xl font-bold text-brand-700 leading-tight">{formatCurrency(property.monthly_rent)}</p>
@@ -168,6 +180,10 @@ export default function PropertyDetails({ property, onDeleted }) {
                                 className="flex-1 bg-brand-600 text-white py-1.5 rounded-md hover:bg-brand-700 text-xs font-semibold">Editar inquilino</button>
                             <button onClick={() => openTenant(property, null)}
                                 className="flex-1 bg-accent-500 text-white py-1.5 rounded-md hover:bg-accent-600 text-xs font-semibold">Cambiar inquilino</button>
+                            <button onClick={() => setConfirmUnlink(true)} aria-label="Desvincular inquilino"
+                                className="flex items-center justify-center gap-1 px-3 bg-white text-red-600 border border-red-200 py-1.5 rounded-md hover:bg-red-50 text-xs font-semibold">
+                                <UserMinus className="w-3.5 h-3.5" /> Desvincular
+                            </button>
                         </div>
                     </div>
                 ) : (
@@ -329,6 +345,15 @@ export default function PropertyDetails({ property, onDeleted }) {
                 </div>
             )}
 
+            <ConfirmModal
+                isOpen={confirmUnlink}
+                onClose={() => setConfirmUnlink(false)}
+                onConfirm={handleUnlinkTenant}
+                title="Desvincular inquilino"
+                message={`¿Desvincular a ${activeTenant?.name || ''} de ${property.name}? La propiedad quedará vacante y el inquilino pasa a "Antiguos" con todo su historial de pagos.`}
+                confirmText="Sí, desvincular"
+                isDanger
+            />
             <ConfirmModal
                 isOpen={confirmDeleteProperty}
                 onClose={() => setConfirmDeleteProperty(false)}

@@ -1,14 +1,13 @@
-import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wallet, Building2, UserPlus, Plus, TrendingUp, Clock, Home as HomeIcon, Percent, Receipt } from 'lucide-react'
+import { Wallet, Building2, UserPlus, Plus, TrendingUp, Clock, Home as HomeIcon, Percent } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useApp } from '../contexts/AppContext'
 import { formatCurrency } from '../lib/calculations'
 import { usePropertyFilters } from '../hooks/usePropertyFilters'
-import { hasMoney } from '../lib/paymentStatus'
 import PropertyFilters from '../components/Dashboard/PropertyFilters'
 import PropertyList from '../components/Dashboard/PropertyList'
+import ActivityLog from '../components/Dashboard/ActivityLog'
 
 function Kpi({ icon: Icon, label, value, tone }) {
     const tones = {
@@ -30,13 +29,8 @@ function Kpi({ icon: Icon, label, value, tone }) {
 
 export default function Home() {
     const navigate = useNavigate()
-    const { properties, tenants, payments, buildings, metrics, loading, openPayment, openProperty, openTenant, openBuilding } = useApp()
+    const { properties, tenants, payments, buildings, metrics, loading, openPayment, openProperty, openTenant, openBuilding, activity, activityAvailable } = useApp()
     const filters = usePropertyFilters({ properties, tenants, payments })
-
-    const recent = useMemo(() => [...payments]
-        .filter(p => hasMoney(p) && !p.auto_generated)
-        .sort((a, b) => (b.created_at || b.payment_date || '').localeCompare(a.created_at || a.payment_date || ''))
-        .slice(0, 8), [payments])
 
     if (loading || metrics.loading) {
         return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
@@ -97,31 +91,10 @@ export default function Home() {
                     </div>
                 </section>
 
-                <section className="lg:col-span-2 bg-white rounded-xl border border-brand-100 shadow-sm overflow-hidden">
-                    <header className="px-3 py-2 border-b border-gray-100">
-                        <h2 className="flex items-center gap-1.5 text-sm font-bold"><Receipt className="w-4 h-4 text-brand-600" />Actividad reciente</h2>
-                    </header>
-                    {recent.length === 0 ? (
-                        <p className="p-6 text-center text-sm text-gray-500">Aún no hay pagos registrados.</p>
-                    ) : (
-                        <ul className="divide-y divide-gray-100 max-h-[calc(100vh-330px)] min-h-[260px] overflow-y-auto">
-                            {recent.map(p => {
-                                const property = properties.find(x => x.id === p.property_id)
-                                const tenant = tenants.find(t => t.id === p.tenant_id)
-                                return (
-                                    <li key={p.id} className="flex items-center gap-2 px-3 py-1.5">
-                                        <span className="w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><Wallet className="w-3.5 h-3.5" /></span>
-                                        <div className="min-w-0 flex-1 leading-tight">
-                                            <p className="text-[13px] font-medium truncate">{tenant?.name || 'Inquilino'}</p>
-                                            <p className="text-[11px] text-gray-500 truncate">{property?.name} · {format(new Date(p.payment_month.split('T')[0].slice(0, 7) + '-01T00:00:00'), 'MMM yyyy', { locale: es })}</p>
-                                        </div>
-                                        <span className="text-xs font-bold text-green-700">{formatCurrency(p.amount_paid)}</span>
-                                    </li>
-                                )
-                            })}
-                        </ul>
-                    )}
-                </section>
+                <div className="lg:col-span-2">
+                    <ActivityLog entries={activity} available={activityAvailable} properties={properties}
+                        tenants={tenants} buildings={buildings} payments={payments} />
+                </div>
             </div>
         </div>
     )

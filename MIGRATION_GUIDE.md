@@ -18,11 +18,12 @@ select proname, pg_get_function_result(oid) as devuelve
 from pg_proc where pronamespace = 'rental'::regnamespace and proname = 'effective_owner_id';
 ```
 
-## Migraciones (en orden, cada archivo completo)
+## Migraciones (cada archivo completo; orden recomendado: 002, 003, 004)
 
 | Archivo | Qué hace |
 |---|---|
 | `supabase/migrations/002_buildings.sql` | Crea `rental.buildings` (nombre, dirección) con RLS del workspace y agrega `rental.properties.building_id`. Solo depende de `rental.properties` y `rental.workspace_members`. |
+| `supabase/migrations/004_activity_log.sql` | Tabla `rental.activity_log` (quién hizo qué) para el "Registro de actividad" de Inicio. Ejecutar después de la 002 (usa `rental.my_workspace_owner_ids()`). Sin ella Inicio muestra solo los pagos recientes. |
 | `supabase/migrations/003_workspace_team.sql` | Funciones `list/invite/remove_workspace_member` para la pestaña Equipo de Ajustes (usa `rental.workspace_members`, no la modifica). |
 
 - Cada archivo es idempotente y no usa bloques `DO`: copia **todo** el archivo y pégalo de una vez.

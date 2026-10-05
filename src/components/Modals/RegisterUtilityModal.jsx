@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
+import PropertyPicker from '../Common/PropertyPicker'
 import Button from '../Common/Button'
 import { useUtilityReadings } from '../../hooks/useUtilityReadings'
 import { useProperties } from '../../hooks/useProperties'
@@ -68,8 +69,7 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
         setPrevReadingInfo(null)
     }, [isOpen, utilityType])
 
-    const handlePropertyChange = async (e) => {
-        const propertyId = e.target.value
+    const handlePropertyChange = async (propertyId) => {
         setFormData(prev => ({ ...prev, property_id: propertyId, previous_reading: '' }))
         setPrevReadingInfo(null)
         if (propertyId) {
@@ -135,20 +135,13 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`${config.icon} Registrar ${config.label}`} size="md">
             <form onSubmit={handleSubmit}>
-                <FormInput
-                    label="Propiedad"
-                    name="property_id"
-                    type="select"
+                <PropertyPicker
+                    properties={safeProperties}
                     value={formData.property_id}
                     onChange={handlePropertyChange}
                     error={errors.property_id}
                     required
-                >
-                    <option value="">Seleccionar propiedad...</option>
-                    {safeProperties.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} — {p.address}</option>
-                    ))}
-                </FormInput>
+                />
 
                 <FormInput
                     label="Fecha de Lectura"

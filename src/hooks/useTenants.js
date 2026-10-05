@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
+import { logActivity } from '../lib/activityLog'
 
 export function useTenants() {
     const [tenants, setTenants] = useState([])
@@ -53,6 +54,7 @@ export function useTenants() {
                 .select()
 
             if (insertError) throw insertError
+            logActivity({ action: 'tenant.assign', entityType: 'tenant', entityId: data?.[0]?.id, meta: { name: tenantData.name, property_id: tenantData.property_id } })
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding tenant:', err)
@@ -69,6 +71,13 @@ export function useTenants() {
                 .select()
 
             if (updateError) throw updateError
+            const known = tenants.find(t => t.id === id) || data?.[0]
+            logActivity({
+                action: updates.end_date ? 'tenant.unassign' : 'tenant.update',
+                entityType: 'tenant',
+                entityId: id,
+                meta: { name: updates.name || known?.name, property_id: known?.property_id }
+            })
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error updating tenant:', err)

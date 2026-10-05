@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
+import PropertyPicker from '../Common/PropertyPicker'
 import Button from '../Common/Button'
 import { usePayments } from '../../hooks/usePayments'
+import { logActivity } from '../../lib/activityLog'
 import { monthLabel } from '../../lib/pdfHelpers'
 import { monthKeyOf, hasMoney } from '../../lib/paymentStatus'
 
@@ -130,10 +132,21 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
 
             const created = []
             for (const payment of toCreate) {
-                const { data, error } = await addPayment(payment)
+                const { data, error } = await addPayment(payment, { silent: true })
                 if (error) throw new Error(error)
                 created.push(data)
             }
+            logActivity({
+                action: 'payment.create',
+                entityType: 'payment',
+                entityId: created[0]?.id,
+                meta: {
+                    property_id: selectedProperty.id,
+                    tenant_id: activeTenant.id,
+                    months: toCreate.map(p => p.payment_month.slice(0, 7)),
+                    amount: toCreate.reduce((sum, p) => sum + p.amount_paid, 0)
+                }
+            })
             onSuccess?.({ payments: created, property: selectedProperty, tenant: activeTenant })
             onClose()
         } catch (err) {
@@ -149,11 +162,14 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={isMulti ? `Pagar ${multiMonths.length} meses` : 'Registrar Pago'} size="md">
             <form onSubmit={handleSubmit}>
-                <FormInput label="Propiedad" name="property_id" type="select" value={formData.property_id}
-                    onChange={handleChange} error={errors.property_id} required disabled={!!initial?.propertyId && isMulti}>
-                    <option value="">Seleccionar propiedad...</option>
-                    {propertiesWithTenants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </FormInput>
+                <PropertyPicker
+                    properties={propertiesWithTenants}
+                    value={formData.property_id}
+                    onChange={(id) => { setFormData(prev => ({ ...prev, property_id: id })); setErrors(prev => ({ ...prev, property_id: null })) }}
+                    error={errors.property_id}
+                    required
+                    disabled={!!initial?.propertyId && isMulti}
+                />
 
                 {isMulti ? (
                     <div className="mb-3 rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm">

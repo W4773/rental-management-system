@@ -2,6 +2,7 @@ import { Printer, CheckCircle2 } from 'lucide-react'
 import Modal from '../Common/Modal'
 import Button from '../Common/Button'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
+import { logActivity } from '../../lib/activityLog'
 
 /** Shown after a payment is saved. Printing is optional and only happens on "Sí". */
 export default function PrintReceiptPrompt({ data, settings, onClose }) {
@@ -12,6 +13,7 @@ export default function PrintReceiptPrompt({ data, settings, onClose }) {
     const handlePrint = async () => {
         try {
             await generateReceiptPDF(payments, property, tenant, settings || {})
+            logActivity({ action: 'document.receipt', entityType: 'document', entityId: payments[0]?.id, meta: { property_id: property?.id, tenant_id: tenant?.id, months: payments.map(p => p.payment_month?.slice(0, 7)) } })
         } catch (err) {
             console.error('PDF Error', err)
         }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
+import { logActivity } from '../lib/activityLog'
 
 export function usePayments() {
     const [payments, setPayments] = useState([])
@@ -42,7 +43,8 @@ export function usePayments() {
         }
     }
 
-    async function addPayment(paymentData) {
+    // `silent`: the caller logs its own (aggregated) activity entry, e.g. paying several months at once
+    async function addPayment(paymentData, { silent = false } = {}) {
         try {
             const ownerId = await getEffectiveOwnerId()
             if (!ownerId) throw new Error('No autenticado')
@@ -53,6 +55,9 @@ export function usePayments() {
                 .select()
 
             if (insertError) throw insertError
+            if (!silent && parseFloat(paymentData.amount_paid) > 0) {
+                logActivity({ action: 'payment.create', entityType: 'payment', entityId: data?.[0]?.id, meta: { property_id: paymentData.property_id, tenant_id: paymentData.tenant_id, months: [paymentData.payment_month?.slice(0, 7)], amount: paymentData.amount_paid } })
+            }
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding payment:', err)
@@ -84,6 +89,8 @@ export function usePayments() {
                 .eq('id', id)
 
             if (deleteError) throw deleteError
+            const old = payments.find(p => p.id === id)
+            logActivity({ action: 'payment.delete', entityType: 'payment', entityId: id, meta: { property_id: old?.property_id, tenant_id: old?.tenant_id, months: [old?.payment_month?.slice(0, 7)], amount: old?.amount_paid } })
             return { error: null }
         } catch (err) {
             console.error('Error deleting payment:', err)
