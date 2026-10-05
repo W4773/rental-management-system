@@ -5,6 +5,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.2.2] - 2026-10-05
+
+### Agregado
+- Incremento anual: campo **Fecha del primer aumento** (cuándo entra en vigor por primera vez; luego se repite cada año). El detalle de la propiedad muestra el próximo aumento y el monto resultante. Requiere `supabase/migrations/005_increase_start_date.sql`.
+
+### Corregido
+- Asignar inquilino fallaba con "Cannot read properties of undefined (reading 'monthly_rent')" en propiedades recién creadas, y dejaba el inquilino a medio crear. El modal usaba una copia desactualizada de la lista de propiedades; ahora usa la lista compartida y valida la propiedad antes de crear nada. Lo mismo en el modal de lecturas de servicios.
+
 ## [1.2.1] - 2026-10-05
 
 ### Cambiado
