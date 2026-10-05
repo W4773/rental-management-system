@@ -6,7 +6,7 @@ import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, fo
 import { useTenants } from '../../hooks/useTenants'
 import { useProperties } from '../../hooks/useProperties'
 import { usePayments } from '../../hooks/usePayments'
-import { startOfMonth, addMonths } from 'date-fns'
+import { startOfMonth, addMonths } from 'date-fns' // eslint-disable-line no-unused-vars
 
 const EMPTY_FORM = {
     property_id: '',
@@ -20,7 +20,7 @@ const EMPTY_FORM = {
 export default function AssignTenantModal({ isOpen, onClose, onSuccess, property, tenantToEdit }) {
     const { properties } = useProperties()
     const { addTenant, updateTenant, getActiveTenantForProperty, closeTenant } = useTenants()
-    const { addPayment } = usePayments()
+    const { addPayment, generateHistoricalPayments } = usePayments()
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
     const [step, setStep] = useState(1)
@@ -131,21 +131,13 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                 if (tenantError) throw new Error(tenantError)
 
                 const selectedProperty = properties.find(p => p.id === formData.property_id)
-                const nextMonth = startOfMonth(addMonths(new Date(), 1))
-                await addPayment({
-                    property_id: formData.property_id,
-                    tenant_id: newTenant.id,
-                    payment_month: nextMonth.toISOString().split('T')[0],
-                    rent_amount: selectedProperty.monthly_rent,
-                    amount_paid: 0,
-                    remaining_balance: selectedProperty.monthly_rent,
-                    payment_date: null,
-                    payment_method: 'pending',
-                    payment_type: 'full',
-                    payment_status: 'pending',
-                    reference: null,
-                    notes: 'Pago inicial pendiente'
-                })
+                // Auto-generate paid records for all months before the last 2 (current + previous)
+                await generateHistoricalPayments(
+                    formData.property_id,
+                    newTenant.id,
+                    formData.start_date,
+                    selectedProperty.monthly_rent
+                )
 
                 if (onSuccess) onSuccess(newTenant)
             }

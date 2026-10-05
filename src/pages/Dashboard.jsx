@@ -27,15 +27,18 @@ export default function Dashboard() {
     const { gasReadings, refresh: refreshGas } = useUtilityReadings()
 
     const [selectedYear] = useState(new Date().getFullYear())
-    const metrics = useDashboardMetrics(selectedYear)
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
+    const metrics = useDashboardMetrics(selectedYear, refreshTrigger)
 
     const [activeSection, setActiveSection] = useState('resumen')
     const [selectedProperty, setSelectedProperty] = useState(null)
     const [isAlertDrawerOpen, setIsAlertDrawerOpen] = useState(false)
 
     const [isRegisterPropertyOpen, setIsRegisterPropertyOpen] = useState(false)
+    const [propertyToEdit, setPropertyToEdit] = useState(null)
     const [isAssignTenantOpen, setIsAssignTenantOpen] = useState(false)
     const [isRegisterPaymentOpen, setIsRegisterPaymentOpen] = useState(false)
+    const [paymentPrefill, setPaymentPrefill] = useState(null)
     const [utilityModalType, setUtilityModalType] = useState(null)
 
     const [paramTenantProperty, setParamTenantProperty] = useState(null)
@@ -56,8 +59,8 @@ export default function Dashboard() {
         refreshTenants()
         refreshPayments()
         refreshGas()
+        setRefreshTrigger(prev => prev + 1)
         showToast('Datos actualizados', 'success')
-        setTimeout(() => window.location.reload(), 800)
     }
 
     const openAssignModal = (property = null, tenantToEdit = null) => {
@@ -149,6 +152,7 @@ export default function Dashboard() {
                             payments={payments}
                             onSelectProperty={(p) => { setSelectedProperty(p); setActiveSection('propiedades') }}
                             onAddProperty={() => setIsRegisterPropertyOpen(true)}
+                            onEditProperty={(property) => { setPropertyToEdit(property); setIsRegisterPropertyOpen(true); }}
                         />
                         <ActivityFeed payments={payments} tenants={tenants} properties={properties} />
                     </div>
@@ -181,6 +185,11 @@ export default function Dashboard() {
                                 activeTenant={activeTenantForSelected}
                                 onEditTenant={(tenant) => openAssignModal(selectedProperty, tenant)}
                                 onChangeTenant={() => openAssignModal(selectedProperty, null)}
+                                onEditProperty={(property) => { setPropertyToEdit(property); setIsRegisterPropertyOpen(true); }}
+                                onMonthClick={(propertyId, monthIndex, year) => {
+                                    setPaymentPrefill({ propertyId, month: monthIndex, year })
+                                    setIsRegisterPaymentOpen(true)
+                                }}
                             />
                         </div>
                     </div>
@@ -220,8 +229,9 @@ export default function Dashboard() {
             {/* Modales */}
             <RegisterPropertyModal
                 isOpen={isRegisterPropertyOpen}
-                onClose={() => setIsRegisterPropertyOpen(false)}
-                onSuccess={handleDataUpdate}
+                propertyToEdit={propertyToEdit}
+                onClose={() => { setIsRegisterPropertyOpen(false); setPropertyToEdit(null); }}
+                onSuccess={() => { handleDataUpdate(); setPropertyToEdit(null); }}
             />
             <AssignTenantModal
                 isOpen={isAssignTenantOpen}
@@ -232,8 +242,9 @@ export default function Dashboard() {
             />
             <RegisterPaymentModal
                 isOpen={isRegisterPaymentOpen}
-                onClose={() => setIsRegisterPaymentOpen(false)}
+                onClose={() => { setIsRegisterPaymentOpen(false); setPaymentPrefill(null) }}
                 onSuccess={handleDataUpdate}
+                prefill={paymentPrefill}
             />
             <RegisterUtilityModal
                 isOpen={utilityModalType !== null}

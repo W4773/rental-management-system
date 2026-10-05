@@ -10,7 +10,7 @@ export default function AppLayout({ activeSection, onSectionChange, alertCount =
                 alertCount={alertCount}
                 onAlertClick={onAlertClick}
             />
-            <main style={{ flex: 1, padding: '24px 20px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+            <main style={{ flex: 1, padding: '24px 3%', maxWidth: '100%', margin: '0 auto', width: '100%' }}>
                 {children}
             </main>
         </div>

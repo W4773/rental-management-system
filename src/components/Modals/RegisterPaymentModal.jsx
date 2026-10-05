@@ -10,7 +10,7 @@ import { es } from 'date-fns/locale'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
 import { useUserSettings } from '../../hooks/useUserSettings'
 
-export default function RegisterPaymentModal({ isOpen, onClose, onSuccess }) {
+export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, prefill }) {
     const { settings: userSettings } = useUserSettings()
     const { properties } = useProperties()
     const { tenants, getActiveTenantForProperty } = useTenants()
@@ -40,6 +40,15 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess }) {
     const [monthStatus, setMonthStatus] = useState(null) // 'paid', 'partial', 'none'
     const [paidSoFar, setPaidSoFar] = useState(0)
 
+    // Apply prefill when modal opens
+    useEffect(() => {
+        if (isOpen && prefill) {
+            setFormData(prev => ({ ...prev, property_id: prefill.propertyId || '' }))
+            if (prefill.month !== undefined) setSelectedMonth(prefill.month.toString())
+            if (prefill.year !== undefined) setSelectedYear(prefill.year.toString())
+        }
+    }, [isOpen, prefill])
+
     useEffect(() => {
         if (formData.property_id) {
             const property = properties.find(p => p.id === formData.property_id)
@@ -65,20 +74,23 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess }) {
 
     const checkMonthStatus = async () => {
         const existing = allPayments.filter(p => {
-            const pDate = new Date(p.payment_month)
+            if (!p.payment_month) return false;
+            if (!p.amount_paid || parseFloat(p.amount_paid) === 0) return false;
+            const [pYear, pMonth] = p.payment_month.split('T')[0].split('-').map(Number);
             return p.property_id === formData.property_id &&
-                pDate.getMonth() === parseInt(selectedMonth) &&
-                pDate.getFullYear() === parseInt(selectedYear)
+                (pMonth - 1) === parseInt(selectedMonth) &&
+                pYear === parseInt(selectedYear);
         })
 
         if (existing.length > 0) {
-            const totalPaid = existing.reduce((sum, p) => sum + p.amount_paid, 0)
+            const totalPaid = existing.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
             setPaidSoFar(totalPaid)
 
             const isFull = existing.some(p => p.payment_status === 'paid' && p.payment_type === 'full')
 
             // If total paid is close to monthly rent
-            if (isFull || (selectedProperty && totalPaid >= selectedProperty.monthly_rent - 1)) {
+            const targetRent = existing[0]?.rent_amount || selectedProperty?.monthly_rent || 0;
+            if (isFull || totalPaid >= targetRent - 1) {
                 setMonthStatus('paid')
             } else {
                 setMonthStatus('partial')
@@ -277,8 +289,8 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess }) {
                 </div>
 
                 {monthStatus === 'paid' && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                        ⚠️ Este mes ya ha sido pagado completamente.
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm flex items-center gap-2">
+                        <span>✅</span> Este mes ya ha sido pagado completamente.
                     </div>
                 )}
 

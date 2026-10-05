@@ -26,7 +26,7 @@ function getPaymentStatus(property, tenants, payments) {
     return { label: 'PENDIENTE', badgeClass: 'wp-badge-amber' }
 }
 
-export default function PropertiesList({ properties = [], tenants = [], payments = [], onSelectProperty, onAddProperty }) {
+export default function PropertiesList({ properties = [], tenants = [], payments = [], onSelectProperty, onAddProperty, onEditProperty }) {
     return (
         <div className="wp-card" style={{ overflow: 'hidden' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--wp-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -51,11 +51,22 @@ export default function PropertiesList({ properties = [], tenants = [], payments
                                 {tenant ? tenant.name : 'Sin inquilino'}
                             </div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--wp-gold)' }}>
-                                RD${Number(property.monthly_rent ?? 0).toLocaleString('es-DO')}
+                        <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div>
+                                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--wp-gold)' }}>
+                                    RD${Number(property.monthly_rent ?? 0).toLocaleString('es-DO')}
+                                </div>
+                                {badgeClass && <span className={badgeClass} style={{ marginTop: 3, display: 'inline-block', fontSize: 9 }}>{label}</span>}
                             </div>
-                            {badgeClass && <span className={badgeClass} style={{ marginTop: 3, display: 'inline-block', fontSize: 9 }}>{label}</span>}
+                            {onEditProperty && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onEditProperty(property); }}
+                                    className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-blue-600 transition"
+                                    title="Editar Propiedad"
+                                >
+                                    ✏️
+                                </button>
+                            )}
                         </div>
                     </div>
                 )

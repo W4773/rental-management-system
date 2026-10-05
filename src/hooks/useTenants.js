@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 
 export function useTenants() {
     const [tenants, setTenants] = useState([])
@@ -43,12 +44,12 @@ export function useTenants() {
 
     async function addTenant(tenantData) {
         try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error('No autenticado')
+            const ownerId = await getEffectiveOwnerId()
+            if (!ownerId) throw new Error('No autenticado')
 
             const { data, error: insertError } = await supabase
                 .from('tenants')
-                .insert([{ ...tenantData, user_id: user.id }])
+                .insert([{ ...tenantData, user_id: ownerId }])
                 .select()
 
             if (insertError) throw insertError

@@ -1,0 +1,60 @@
+<h2>¿Cómo quieres agregar tu firma a las facturas?</h2>
+<p class="subtitle">Esta opción estará en Ajustes → Plantilla de Factura</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Subir imagen de firma</h3>
+      <div style="margin-top:10px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:20px; text-align:center;">
+        <div style="font-size:28px; margin-bottom:6px;">🖼️</div>
+        <div style="font-size:13px; font-weight:700; color:#374151;">Arrastra tu imagen aquí</div>
+        <div style="font-size:11px; color:#94a3b8; margin-top:4px;">PNG o JPG · Fondo transparente recomendado</div>
+        <button style="margin-top:10px; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer;">Seleccionar archivo</button>
+      </div>
+      <p style="margin-top:8px; font-size:13px; color:#64748b;">Subes una foto de tu firma escaneada. Simple y la firma queda exactamente como la tienes en papel.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Dibujar firma en pantalla</h3>
+      <div style="margin-top:10px; background:#fff; border:2px solid #e2e8f0; border-radius:8px; padding:10px;">
+        <div style="font-size:10px; font-weight:700; color:#94a3b8; margin-bottom:4px; text-transform:uppercase;">Dibuja tu firma aquí:</div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; height:60px; display:flex; align-items:center; padding:0 12px; position:relative; overflow:hidden;">
+          <!-- Simulated signature stroke -->
+          <svg viewBox="0 0 200 50" style="width:100%; height:100%;" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10,35 C20,10 30,40 45,25 C55,15 65,35 80,20 C90,10 100,30 115,25 C125,20 135,35 150,25 C160,18 170,30 185,28" stroke="#1e293b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:6px;">
+          <button style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; border-radius:4px; padding:4px 10px; font-size:10px; font-weight:600;">Borrar</button>
+          <button style="background:#2563eb; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:10px; font-weight:600;">Guardar firma</button>
+        </div>
+      </div>
+      <p style="margin-top:8px; font-size:13px; color:#64748b;">Dibuja directamente en la pantalla con el mouse o dedo (táctil). Sin necesidad de escanear nada.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Ambas opciones disponibles</h3>
+      <div style="margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+        <div style="display:flex; gap:0; border:2px solid #e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:10px;">
+          <div style="flex:1; padding:6px; background:#2563eb; color:#fff; font-size:11px; font-weight:700; text-align:center;">✏️ Dibujar</div>
+          <div style="flex:1; padding:6px; background:#fff; color:#374151; font-size:11px; font-weight:600; text-align:center;">🖼️ Subir imagen</div>
+        </div>
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; height:48px; display:flex; align-items:center; padding:0 12px;">
+          <svg viewBox="0 0 200 40" style="width:100%; height:100%;" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10,28 C20,8 30,32 45,18 C55,10 65,28 80,15 C90,5 100,24 115,18 C125,14 135,28 150,18" stroke="#1e293b" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <p style="margin-top:8px; font-size:13px; color:#64748b;">El usuario elige cómo prefiere agregar su firma. Más flexible — si tiene una firma escaneada la sube, si no la dibuja en pantalla.</p>
+    </div>
+  </div>
+
+</div>

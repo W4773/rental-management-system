@@ -6,6 +6,9 @@ export default {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
             colors: {
                 'status-green': '#22C55E',
                 'status-green-light': 'rgba(34, 197, 94, 0.1)',

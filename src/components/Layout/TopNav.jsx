@@ -13,7 +13,7 @@ export default function TopNav({ activeSection, onSectionChange, alertCount = 0,
                 {/* Brand */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginRight: 28 }}>
                     <div style={{ width: 32, height: 32, background: 'var(--wp-gold-gradient)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🏠</div>
-                    <span style={{ fontFamily: 'Georgia, serif', fontWeight: 800, fontSize: 14, color: 'var(--wp-text)' }}>Alquiler Pro</span>
+                    <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--wp-text)' }}>Alquiler Pro</span>
                 </div>
 
                 {/* Nav links */}

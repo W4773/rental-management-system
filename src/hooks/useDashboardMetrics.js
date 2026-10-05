@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 
-export const useDashboardMetrics = (year = new Date().getFullYear()) => {
+export const useDashboardMetrics = (year = new Date().getFullYear(), refreshTrigger = 0) => {
     const [metrics, setMetrics] = useState({
         totalRevenue: 0,
         collectionRate: 0,
@@ -19,13 +20,15 @@ export const useDashboardMetrics = (year = new Date().getFullYear()) => {
 
         const fetchMetrics = async () => {
             try {
-                setMetrics(prev => ({ ...prev, loading: true, error: null }))
+                setMetrics(prev => ({ ...prev, error: null }))
 
-                // Fetch all properties
+                const ownerId = await getEffectiveOwnerId()
+
+                // Fetch all properties (RLS already scopes to the workspace; ownerId filter is defensive)
                 const { data: properties, error: propsError } = await supabase
                     .from('properties')
                     .select('*')
-                    .eq('user_id', user.id)
+                    .eq('user_id', ownerId)
 
                 if (propsError) throw propsError
 
@@ -33,25 +36,78 @@ export const useDashboardMetrics = (year = new Date().getFullYear()) => {
                 const { data: tenants, error: tenantsError } = await supabase
                     .from('tenants')
                     .select('*')
-                    .eq('user_id', user.id)
+                    .eq('user_id', ownerId)
 
                 if (tenantsError) throw tenantsError
 
-                // Fetch payments for current year
-                const { data: payments, error: paymentsError } = await supabase
+                // Fetch ALL payments
+                const { data: allPayments, error: paymentsError } = await supabase
                     .from('rent_payments')
                     .select('*, properties(*)')
-                    .eq('user_id', user.id)
-                    .gte('payment_month', `${year}-01-01`)
-                    .lte('payment_month', `${year}-12-31`)
+                    .eq('user_id', ownerId)
 
                 if (paymentsError) throw paymentsError
+
+                // --- BACKFILL HISTORICAL PAYMENTS FOR OLD TENANTS ---
+                const today = new Date()
+                const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+
+                const activeTenants = tenants.filter(t => t.end_date === null)
+                
+                for (const tenant of activeTenants) {
+                    const start = new Date(tenant.start_date)
+                    start.setDate(1)
+                    start.setHours(0, 0, 0, 0)
+                    
+                    if (start < prevMonthStart) {
+                        const oldPayments = allPayments.filter(p => p.tenant_id === tenant.id && new Date(p.payment_month) < prevMonthStart)
+                        
+                        if (oldPayments.length === 0) {
+                            const property = properties.find(p => p.id === tenant.property_id)
+                            if (property) {
+                                const records = []
+                                const cursor = new Date(start)
+
+                                while (cursor < prevMonthStart) {
+                                    const y = cursor.getFullYear()
+                                    const m = String(cursor.getMonth() + 1).padStart(2, '0')
+                                    records.push({
+                                        property_id: tenant.property_id,
+                                        tenant_id: tenant.id,
+                                        payment_month: `${y}-${m}-01`,
+                                        rent_amount: property.monthly_rent,
+                                        amount_paid: property.monthly_rent,
+                                        remaining_balance: 0,
+                                        payment_date: `${y}-${m}-01`,
+                                        payment_method: 'historical',
+                                        payment_type: 'full',
+                                        payment_status: 'paid',
+                                        auto_generated: true,
+                                        user_id: ownerId,
+                                        notes: 'Generado automáticamente (backfill)'
+                                    })
+                                    cursor.setMonth(cursor.getMonth() + 1)
+                                }
+
+                                if (records.length > 0) {
+                                    const { data: inserted } = await supabase.from('rent_payments').insert(records).select('*, properties(*)')
+                                    if (inserted) {
+                                        allPayments.push(...inserted)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Filter payments for current year calculations (revenue, collection rate)
+                const payments = allPayments.filter(p => p.payment_month.startsWith(`${year}-`))
 
                 // Fetch unpaid gas consumption
                 const { data: unpaidGas, error: gasError } = await supabase
                     .from('gas_consumption')
                     .select('*, properties(*)')
-                    .eq('user_id', user.id)
+                    .eq('user_id', ownerId)
                     .eq('paid', false)
 
                 if (gasError) throw gasError
@@ -110,7 +166,7 @@ export const useDashboardMetrics = (year = new Date().getFullYear()) => {
                             const checkMonth = checkDate.getMonth()
 
                             // Check if payment exists for this past month
-                            const monthPayment = payments.find(p => {
+                            const monthPayment = allPayments.find(p => {
                                 const pDate = new Date(p.payment_month)
                                 return p.property_id === property.id &&
                                     pDate.getMonth() === checkMonth &&
@@ -203,7 +259,7 @@ export const useDashboardMetrics = (year = new Date().getFullYear()) => {
         }
 
         fetchMetrics()
-    }, [user, year])
+    }, [user, year, refreshTrigger])
 
     return metrics
 }

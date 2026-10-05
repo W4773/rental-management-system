@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { usePayments } from '../../hooks/usePayments'
@@ -12,15 +12,15 @@ import { es } from 'date-fns/locale'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
 import { useUserSettings } from '../../hooks/useUserSettings'
 
-export default function PropertyDetails({ property, activeTenant, onEditTenant, onChangeTenant }) {
+export default function PropertyDetails({ property, activeTenant, onEditTenant, onChangeTenant, onMonthClick, onEditProperty }) {
     const { settings: userSettings } = useUserSettings()
     const { getPaymentsByProperty, deletePayment } = usePayments()
     const { deleteProperty } = useProperties()
     const { getReadingsByProperty } = useUtilityReadings()
 
-    const [payments, setPayments] = useState([])
     const [allPayments, setAllPayments] = useState([])
     const [gasReadings, setGasReadings] = useState([])
+    const [showAllPayments, setShowAllPayments] = useState(false)
 
     // Modals
     const [deletePropertyModal, setDeletePropertyModal] = useState(false)
@@ -36,23 +36,24 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
             .reduce((sum, g) => sum + (parseFloat(g.total_cost) || 0), 0)
     }, [gasReadings])
 
-    const refreshData = () => {
+    const realPayments = useMemo(
+        () => allPayments.filter(p => !p.auto_generated && p.amount_paid > 0),
+        [allPayments]
+    )
+    const displayedPayments = showAllPayments ? realPayments : realPayments.slice(0, 3)
+
+    const refreshData = useCallback(() => {
         if (property) {
-            getPaymentsByProperty(property.id).then(({ data }) => {
-                setAllPayments(data || [])
-                setPayments((data || []).slice(0, 3))
-            })
-            getReadingsByProperty(property.id).then(({ data }) => {
-                setGasReadings(data || [])
-            })
+            getPaymentsByProperty(property.id).then(({ data }) => setAllPayments(data || []))
+            getReadingsByProperty(property.id).then(({ data }) => setGasReadings(data || []))
         }
-    }
+    }, [property])
 
     useEffect(() => {
         if (property) {
             refreshData()
+            setShowAllPayments(false)
         } else {
-            setPayments([])
             setAllPayments([])
             setGasReadings([])
         }
@@ -111,12 +112,20 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                 <div className="text-right flex flex-col items-end">
                     <p className="text-xl font-bold" style={{ color: 'var(--wp-gold)' }}>{formatCurrency(property.monthly_rent)}</p>
                     <p className="text-xs text-gray-500 mb-2">mensual</p>
-                    <button
-                        onClick={() => setDeletePropertyModal(true)}
-                        className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1 rounded-md transition font-medium"
-                    >
-                        🗑️ Eliminar Propiedad
-                    </button>
+                    <div className="flex gap-2 justify-end">
+                        <button
+                            onClick={() => onEditProperty(property)}
+                            className="text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-1.5 rounded-md transition font-bold"
+                        >
+                            ✏️ Editar Propiedad
+                        </button>
+                        <button
+                            onClick={() => setDeletePropertyModal(true)}
+                            className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-md transition font-medium"
+                        >
+                            🗑️ Eliminar
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -193,10 +202,10 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                     <span>📋</span> HISTORIAL PAGOS
                 </h3>
                 <ul className="space-y-3">
-                    {payments.length === 0 ? (
-                        <li className="text-gray-500 text-sm italic">No hay pagos registrados reciente.</li>
+                    {displayedPayments.length === 0 ? (
+                        <li className="text-gray-500 text-sm italic">No hay pagos registrados.</li>
                     ) : (
-                        payments.filter(p => p.amount_paid > 0).map(payment => (
+                        displayedPayments.map(payment => (
                             <li key={payment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-2 h-2 rounded-full ${payment.payment_status === 'paid' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
@@ -213,30 +222,35 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                                     <span className={`font-semibold text-sm ${payment.payment_status === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>
                                         {formatCurrency(payment.amount_paid)}
                                     </span>
-                                    {payment.amount_paid > 0 && (
-                                        <>
-                                            <button
-                                                onClick={() => handleDownloadReceipt(payment)}
-                                                className="p-2 hover:bg-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition font-medium text-[16px]"
-                                                title="Descargar Recibo PDF"
-                                                style={{ minHeight: '40px', minWidth: '40px' }}
-                                            >
-                                                🖨️
-                                            </button>
-                                            <button
-                                                onClick={() => setDeletePaymentModal(payment.id)}
-                                                className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-600 transition"
-                                                title="Eliminar Pago"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </>
-                                    )}
+                                    <button
+                                        onClick={() => handleDownloadReceipt(payment)}
+                                        className="p-2 hover:bg-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition font-medium text-[16px]"
+                                        title="Descargar Recibo PDF"
+                                        style={{ minHeight: '40px', minWidth: '40px' }}
+                                    >
+                                        🖨️
+                                    </button>
+                                    <button
+                                        onClick={() => setDeletePaymentModal(payment.id)}
+                                        className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-600 transition"
+                                        title="Eliminar Pago"
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
                             </li>
                         ))
                     )}
                 </ul>
+                {realPayments.length > 3 && (
+                    <button
+                        onClick={() => setShowAllPayments(prev => !prev)}
+                        className="mt-3 w-full text-sm font-medium py-2 rounded-lg transition"
+                        style={{ color: 'var(--wp-gold)', background: 'var(--wp-amber-bg)', border: '1px solid var(--wp-border)' }}
+                    >
+                        {showAllPayments ? '▲ Ver menos' : `▼ Ver más (${realPayments.length - 3} ocultos)`}
+                    </button>
+                )}
             </div>
 
             {/* Yearly Grid */}
@@ -244,6 +258,7 @@ export default function PropertyDetails({ property, activeTenant, onEditTenant, 
                 property={property}
                 payments={allPayments}
                 year={currentYear}
+                onMonthClick={onMonthClick ? (monthIndex) => onMonthClick(property.id, monthIndex, currentYear) : undefined}
             />
 
             {/* Gas Consumption (ENHANCED WITH PAY BUTTON) */}

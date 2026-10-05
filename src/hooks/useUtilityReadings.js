@@ -1,6 +1,7 @@
 // src/hooks/useUtilityReadings.js
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 
 export function useUtilityReadings(utilityType = null) {
     const [readings, setReadings] = useState([])
@@ -41,11 +42,11 @@ export function useUtilityReadings(utilityType = null) {
 
     async function addReading(readingData) {
         try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error('No autenticado')
+            const ownerId = await getEffectiveOwnerId()
+            if (!ownerId) throw new Error('No autenticado')
             const payload = {
                 ...readingData,
-                user_id: user.id,
+                user_id: ownerId,
                 utility_type: utilityType || readingData.utility_type || 'gas'
             }
             const { data, error: insertError } = await supabase

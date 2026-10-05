@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { clearEffectiveOwnerCache } from '../lib/effectiveOwner'
 
 const AuthContext = createContext({})
 
@@ -22,8 +23,9 @@ export const AuthProvider = ({ children }) => {
             setLoading(false)
         })
 
-        // Listen for auth changes
+        // Listen for auth changes — clear the workspace-owner cache on any session change
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            clearEffectiveOwnerCache()
             setUser(session?.user ?? null)
         })
 
@@ -61,6 +63,7 @@ export const AuthProvider = ({ children }) => {
 
     const signOut = async () => {
         try {
+            clearEffectiveOwnerCache()
             const { error } = await supabase.auth.signOut()
             if (error) throw error
             return { error: null }

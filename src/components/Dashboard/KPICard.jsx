@@ -12,7 +12,7 @@ export default function KPICard({ title, value, status = 'default', barWidth = n
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--wp-text-muted)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
                 {icon && <span>{icon}</span>}{title}
             </div>
-            <div style={{ fontFamily: 'Georgia, serif', fontWeight: 900, fontSize: 22, color: c.value, lineHeight: 1 }}>
+            <div style={{ fontWeight: 900, fontSize: 22, color: c.value, lineHeight: 1 }}>
                 {value}
             </div>
             {barWidth !== null && (
