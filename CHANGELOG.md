@@ -12,6 +12,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Registro de actividad** en Inicio (quién hizo qué y cuándo). Requiere `supabase/migrations/004_activity_log.sql`.
 - Inquilinos separados en **Activos** y **Antiguos**: el histórico conserva período, pagos y reporte PDF de cada inquilino anterior.
 - Botón **Desvincular inquilino** en Propiedades (el inquilino pasa a Antiguos; no se borra nada).
+- Selector de propiedad con **buscador** (propiedad, edificio, dirección o inquilino) en pagos, asignar inquilino, lecturas de servicios y reportes; muestra el edificio y el inquilino de cada propiedad, y al elegir una, su edificio.
 
 ### Corregido
 - El estado de pago ya no marca "AL DÍA" a quien debe: se calcula mes a mes (incluye meses sin registro) y muestra hasta qué mes está atrasado ("Debe jul – sep 2026"). Alertas y "Monto atrasado" usan la misma lógica.

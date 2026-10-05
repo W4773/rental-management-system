@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
+import PropertyPicker, { PropertyInfo } from '../Common/PropertyPicker'
 import Button from '../Common/Button'
 import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
 import { useTenants } from '../../hooks/useTenants'
@@ -58,8 +59,8 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
     }
 
-    const handlePropertySelect = (e) => {
-        setFormData(prev => ({ ...prev, property_id: e.target.value }))
+    const handlePropertySelect = (propertyId) => {
+        setFormData(prev => ({ ...prev, property_id: propertyId }))
         setErrors({})
     }
 
@@ -176,20 +177,13 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                         <p className="text-sm text-gray-600 mb-4">
                             Paso 1 de 2: Seleccione la propiedad a la que desea asignar un inquilino.
                         </p>
-                        <FormInput
-                            label="Propiedad"
-                            name="property_id"
-                            type="select"
+                        <PropertyPicker
+                            properties={properties}
                             value={formData.property_id}
                             onChange={handlePropertySelect}
                             error={errors.property_id}
                             required
-                        >
-                            <option value="">Seleccionar propiedad...</option>
-                            {properties.map(p => (
-                                <option key={p.id} value={p.id}>{p.name} — {p.address}</option>
-                            ))}
-                        </FormInput>
+                        />
                         <div className="flex gap-3 justify-end mt-6">
                             <Button type="button" variant="secondary" onClick={handleClose}>Cancelar</Button>
                             <Button type="button" variant="primary" onClick={handleNextStep}>Siguiente</Button>
@@ -200,9 +194,10 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                 {step === 2 && (
                     <>
                         {selectedPropertyName && (
-                            <p className="text-sm text-gray-500 mb-4 bg-gray-50 px-3 py-2 rounded-lg">
-                                Propiedad: <span className="font-semibold text-gray-700">{selectedPropertyName}</span>
-                            </p>
+                            <div className="text-sm text-gray-500 mb-4 bg-gray-50 px-3 py-2 rounded-lg">
+                                <p>Propiedad: <span className="font-semibold text-gray-700">{selectedPropertyName}</span></p>
+                                <PropertyInfo property={properties.find(p => p.id === formData.property_id)} className="mt-0.5" />
+                            </div>
                         )}
 
                         <FormInput

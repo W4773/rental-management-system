@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { FileText } from 'lucide-react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
+import PropertyPicker from '../Common/PropertyPicker'
 import Button from '../Common/Button'
 import { generatePaymentsReport } from '../../lib/reportGenerator'
 import { logActivity } from '../../lib/activityLog'
@@ -65,11 +66,12 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
                     Inquilino: <span className="font-semibold">{tenants.find(t => t.id === tenantId)?.name}</span>
                 </p>
             )}
-            <FormInput label="Propiedad" name="property" type="select" value={propertyId}
-                onChange={(e) => { setPropertyId(e.target.value); setError('') }} disabled={!!selectedIds?.length || !!tenantId}>
-                <option value="">Seleccionar propiedad...</option>
-                {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </FormInput>
+            <PropertyPicker
+                properties={properties}
+                value={propertyId}
+                onChange={(id) => { setPropertyId(id); setError('') }}
+                disabled={!!selectedIds?.length || !!tenantId}
+            />
             <FormInput label="Período" name="period" type="select" value={period} onChange={(e) => setPeriod(e.target.value)}>
                 {selectedIds?.length > 0 && <option value="selected">Pagos seleccionados ({selectedIds.length})</option>}
                 {years.map(y => <option key={y} value={y}>Año {y}</option>)}
