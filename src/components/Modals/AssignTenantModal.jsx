@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
@@ -8,9 +8,9 @@ import { useProperties } from '../../hooks/useProperties'
 import { usePayments } from '../../hooks/usePayments'
 import { startOfMonth, addMonths } from 'date-fns'
 
-export default function AssignTenantModal({ isOpen, onClose, onSuccess }) {
+export default function AssignTenantModal({ isOpen, onClose, onSuccess, property: presetProperty = null, tenantToEdit = null }) {
     const { properties } = useProperties()
-    const { addTenant, getActiveTenantForProperty, closeTenant } = useTenants()
+    const { addTenant, updateTenant, getActiveTenantForProperty, closeTenant } = useTenants()
     const { addPayment } = usePayments()
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
@@ -27,6 +27,28 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess }) {
 
     // Filter properties without active tenants
     const [availableProperties, setAvailableProperties] = useState([])
+
+    // Prefill when opened from a property (skip step 1) or when editing an existing tenant
+    useEffect(() => {
+        if (!isOpen) return
+        setErrors({})
+        if (tenantToEdit) {
+            setFormData({
+                property_id: tenantToEdit.property_id,
+                name: tenantToEdit.name || '',
+                identity_number: tenantToEdit.identity_number || '',
+                phone: tenantToEdit.phone || '',
+                email: tenantToEdit.email || '',
+                start_date: tenantToEdit.start_date || new Date().toISOString().split('T')[0]
+            })
+            setStep(2)
+        } else if (presetProperty) {
+            setFormData(prev => ({ ...prev, property_id: presetProperty.id, name: '', identity_number: '', phone: '', email: '' }))
+            setStep(2)
+        } else {
+            setStep(1)
+        }
+    }, [isOpen, presetProperty, tenantToEdit])
 
     const handleChange = (e) => {
         let { name, value } = e.target
@@ -102,6 +124,20 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess }) {
         setLoading(true)
 
         try {
+            if (tenantToEdit) {
+                const { error: updError } = await updateTenant(tenantToEdit.id, {
+                    name: formData.name.trim(),
+                    identity_number: formData.identity_number,
+                    phone: formData.phone,
+                    email: formData.email.trim() || null,
+                    start_date: formData.start_date
+                })
+                if (updError) throw new Error(updError)
+                if (onSuccess) onSuccess(tenantToEdit)
+                onClose()
+                return
+            }
+
             // Check if property already has active tenant
             const { data: existingTenant } = await getActiveTenantForProperty(formData.property_id)
 
@@ -189,7 +225,7 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess }) {
     const propertiesWithoutTenants = properties
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Asignar Inquilino" size="md">
+        <Modal isOpen={isOpen} onClose={handleClose} title={tenantToEdit ? 'Editar Inquilino' : 'Asignar Inquilino'} size="md">
             <form onSubmit={handleSubmit}>
                 {step === 1 && (
                     <>
@@ -305,17 +341,17 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess }) {
                             <Button
                                 type="button"
                                 variant="secondary"
-                                onClick={handleBackStep}
+                                onClick={(tenantToEdit || presetProperty) ? handleClose : handleBackStep}
                                 disabled={loading}
                             >
-                                Atrás
+                                {(tenantToEdit || presetProperty) ? 'Cancelar' : 'Atrás'}
                             </Button>
                             <Button
                                 type="submit"
                                 variant="primary"
                                 disabled={loading}
                             >
-                                {loading ? 'Guardando...' : 'Asignar Inquilino'}
+                                {loading ? 'Guardando...' : tenantToEdit ? 'Guardar cambios' : 'Asignar Inquilino'}
                             </Button>
                         </div>
                     </>

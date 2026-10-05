@@ -61,7 +61,7 @@ export default function PayGasModal({ isOpen, onClose, onSuccess, gasReading }) 
                 </div>
 
                 <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm text-yellow-800">
-                    ⚠️ Al confirmar, este consumo se marcará como pagado y se actualizarán los pendientes.
+                    Al confirmar, este consumo se marcará como pagado y se actualizarán los pendientes.
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
