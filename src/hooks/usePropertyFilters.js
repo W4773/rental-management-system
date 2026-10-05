@@ -9,7 +9,7 @@ export function usePropertyFilters({ properties, tenants, payments }) {
 
     const items = useMemo(() => properties.map(property => {
         const tenant = tenants.find(t => t.property_id === property.id && !t.end_date) || null
-        return { property, tenant, status: getPaymentStatus(property.id, !!tenant, payments) }
+        return { property, tenant, status: getPaymentStatus(property, tenant, payments) }
     }), [properties, tenants, payments])
 
     const filtered = useMemo(() => {

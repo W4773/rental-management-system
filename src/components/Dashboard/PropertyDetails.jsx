@@ -4,7 +4,8 @@ import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
 import { monthLabel } from '../../lib/pdfHelpers'
-import { hasMoney, getMonthStatus } from '../../lib/paymentStatus'
+import { hasMoney, getMonthStatus, getPaymentStatus } from '../../lib/paymentStatus'
+import StatusPill from './StatusPill'
 import { useApp } from '../../contexts/AppContext'
 import ConfirmModal from '../Common/ConfirmModal'
 import YearlyPaymentGrid from './YearlyPaymentGrid'
@@ -88,6 +89,7 @@ export default function PropertyDetails({ property, onDeleted }) {
         )
     }
 
+    const rentStatus = getPaymentStatus(property, activeTenant, propertyPayments)
     const visible = showAll ? history : history.slice(0, VISIBLE_PAYMENTS)
     const toggle = (list, setList, id) => setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id])
     const allSelected = history.length > 0 && selectedPayments.length === history.length
@@ -134,6 +136,9 @@ export default function PropertyDetails({ property, onDeleted }) {
                         <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5" />{property.bedrooms} Hab</span>
                         <span className="flex items-center gap-1"><ShowerHead className="w-3.5 h-3.5" />{property.bathrooms} Baños</span>
                     </div>
+                    {activeTenant && (
+                        <div className="mt-1.5"><StatusPill status={rentStatus} showDetail align="left" /></div>
+                    )}
                 </div>
                 <div className="text-right">
                     <p className="text-xl font-bold text-brand-700 leading-tight">{formatCurrency(property.monthly_rent)}</p>

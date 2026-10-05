@@ -19,6 +19,12 @@ function Row({ item, selected, onSelect, onPay, dense }) {
                 <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-ink truncate leading-tight">{property.name}</p>
                     <p className="text-[11px] text-gray-500 truncate leading-tight uppercase">{tenant ? tenant.name : 'Sin inquilino'}</p>
+                    {tenant && status.detail && (
+                        <p className={`text-[10px] truncate leading-tight mt-px font-medium ${
+                            status.key === 'late' ? 'text-red-600' : status.key === 'pending' ? 'text-amber-700' : 'text-gray-400'}`}>
+                            {status.detail}
+                        </p>
+                    )}
                 </div>
                 <div className="text-right shrink-0">
                     <p className="text-xs font-bold text-brand-700 leading-tight">{formatCurrency(property.monthly_rent)}</p>

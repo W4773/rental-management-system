@@ -1,9 +1,11 @@
 // src/hooks/useAlerts.js
 import { useMemo } from 'react'
+import { getPaymentStatus, monthKeyOf } from '../lib/paymentStatus'
 
 /**
- * Computes payment alerts from already-fetched data.
- * Returns overdue (past due) and upcoming (due within 7 days) unpaid payments.
+ * Payment alerts computed from already-fetched data.
+ *  - overdue : every past month a tenant has not fully paid, including months with no payment row
+ *  - upcoming: unpaid rows due within the next 7 days
  * @param {Array} payments - from usePayments()
  * @param {Array} tenants  - from useTenants()
  * @param {Array} properties - from useProperties()
@@ -12,29 +14,55 @@ export function useAlerts(payments = [], tenants = [], properties = []) {
     return useMemo(() => {
         const today = new Date(); today.setHours(0, 0, 0, 0)
         const sevenDaysFromNow = new Date(today); sevenDaysFromNow.setDate(today.getDate() + 7)
+        const monthStart = (key) => new Date(`${key}-01T00:00:00`)
 
-        const overdue = [], upcoming = []
+        const overdue = []
+        const upcoming = []
+        const seen = new Set()
 
+        // 1. Overdue months per active tenant (works even when no row exists for the month)
+        for (const tenant of tenants.filter(t => !t.end_date)) {
+            const property = properties.find(p => p.id === tenant.property_id)
+            if (!property) continue
+            const status = getPaymentStatus(property, tenant, payments, today)
+            for (const key of status.overdueMonths) {
+                const dueDate = monthStart(key)
+                seen.add(`${property.id}:${key}`)
+                overdue.push({
+                    id: `${property.id}-${key}`,
+                    propertyId: property.id,
+                    tenantName: tenant.name,
+                    propertyName: property.name,
+                    amount: property.monthly_rent,
+                    dueDate,
+                    dueMonth: key,
+                    diffDays: Math.max(1, Math.ceil((today - dueDate) / 86400000))
+                })
+            }
+        }
+
+        // 2. Upcoming: unpaid rows due soon
         for (const p of payments.filter(p => p.payment_status !== 'paid')) {
-            const dueDate = new Date(p.payment_month.split('T')[0] + 'T00:00:00')
+            const key = monthKeyOf(p)
+            if (!key || seen.has(`${p.property_id}:${key}`)) continue
+            const dueDate = monthStart(key)
+            if (dueDate < today || dueDate > sevenDaysFromNow) continue
             const tenant = tenants.find(t => t.property_id === p.property_id && !t.end_date)
+            if (!tenant) continue
             const property = properties.find(pr => pr.id === p.property_id)
-            const alert = {
+            upcoming.push({
                 id: p.id,
                 propertyId: p.property_id,
-                tenantName: tenant?.name ?? 'Inquilino desconocido',
+                tenantName: tenant.name,
                 propertyName: property?.name ?? 'Propiedad desconocida',
                 amount: p.rent_amount ?? property?.monthly_rent ?? 0,
                 dueDate,
-                dueMonth: p.payment_month?.split('T')[0].slice(0, 7),
+                dueMonth: key,
                 paymentId: p.id,
-            }
-            if (dueDate < today) {
-                overdue.push({ ...alert, diffDays: Math.ceil((today - dueDate) / 86400000) })
-            } else if (dueDate <= sevenDaysFromNow) {
-                upcoming.push({ ...alert, diffDays: Math.ceil((dueDate - today) / 86400000) })
-            }
+                diffDays: Math.ceil((dueDate - today) / 86400000)
+            })
         }
+
         overdue.sort((a, b) => a.dueDate - b.dueDate)
         upcoming.sort((a, b) => a.dueDate - b.dueDate)
         return { overdue, upcoming, total: overdue.length + upcoming.length }

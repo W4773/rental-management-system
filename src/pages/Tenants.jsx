@@ -77,7 +77,7 @@ export default function Tenants() {
                                     <td className="px-3 py-1.5 hidden lg:table-cell">{formatDate(tenant.start_date)}</td>
                                     <td className="px-3 py-1.5">
                                         {active
-                                            ? <StatusPill status={getPaymentStatus(tenant.property_id, true, payments)} />
+                                            ? <StatusPill showDetail align="left" status={getPaymentStatus(property, tenant, payments)} />
                                             : <span className="px-1.5 py-px rounded-full text-[10px] font-bold uppercase border bg-gray-100 text-gray-500 border-gray-200">Histórico</span>}
                                     </td>
                                     <td className="px-3 py-1.5">

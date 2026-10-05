@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useProperties } from '../hooks/useProperties'
 import { useTenants } from '../hooks/useTenants'
 import { usePayments } from '../hooks/usePayments'
@@ -8,6 +8,7 @@ import { useUserSettings } from '../hooks/useUserSettings'
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
 import { useAlerts } from '../hooks/useAlerts'
 import { useToast } from '../components/Common/Toast'
+import { getPaymentStatus } from '../lib/paymentStatus'
 import RegisterPropertyModal from '../components/Modals/RegisterPropertyModal'
 import RegisterBuildingModal from '../components/Modals/RegisterBuildingModal'
 import AssignTenantModal from '../components/Modals/AssignTenantModal'
@@ -41,7 +42,7 @@ export function AppProvider({ children }) {
     const toastApi = useToast()
 
     const [refreshTrigger, setRefreshTrigger] = useState(0)
-    const metrics = useDashboardMetrics(new Date().getFullYear(), refreshTrigger)
+    const baseMetrics = useDashboardMetrics(new Date().getFullYear(), refreshTrigger)
 
     const { properties } = propsHook
     const { tenants } = tenantsHook
@@ -49,6 +50,22 @@ export function AppProvider({ children }) {
     const { readings: utilityReadings } = utilityHook
     const { buildings } = buildingsHook
     const alerts = useAlerts(payments, tenants, properties)
+
+    // "Monto atrasado" uses the same month-by-month logic as the status badges, so KPI and lists agree
+    const metrics = useMemo(() => {
+        const overdueAmount = tenants
+            .filter(t => !t.end_date)
+            .reduce((sum, t) => {
+                const property = properties.find(p => p.id === t.property_id)
+                return sum + (property ? getPaymentStatus(property, t, payments).owedAmount : 0)
+            }, 0)
+        return { ...baseMetrics, overdueAmount }
+    }, [baseMetrics, tenants, properties, payments])
+
+    // The metrics hook may backfill historical payments on load: reload payments once it finishes
+    useEffect(() => {
+        if (!baseMetrics.loading) paymentsHook.refresh()
+    }, [baseMetrics.loading])
 
     const [paymentModal, setPaymentModal] = useState({ open: false, initial: null })
     const [propertyModal, setPropertyModal] = useState({ open: false, property: null })
