@@ -5,6 +5,32 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.3.0] - 2026-10-06
+
+### Agregado
+- **Editar pagos**: lápiz en cada pago del historial (monto, fecha, método, referencia, notas; recalcula saldo y estado).
+- **Editar meses**: marca meses como **pendientes** o **nulos** (no cobrados, con motivo) en lote, o quita la marca. Los meses con pagos registrados están bloqueados. Requiere `supabase/migrations/006_payment_void.sql` para los nulos.
+- Los meses nulos no cuentan como deuda, ni en alertas, ni en el monto atrasado, ni en la tasa de cobro; se ven grises rayados en el Estado anual.
+- Documentación comercial en español e inglés: `README`, guía de uso, arquitectura, base de datos, despliegue y roadmap, con capturas de demostración.
+- `LICENSE` (propietaria), `SECURITY.md` y `CONTRIBUTING.md`.
+
+### Cambiado
+- `MIGRATION_GUIDE.md` y `DEPLOY_GUIDE.md` pasan a `docs/DATABASE.md` y `docs/DEPLOY.md`.
+- La tasa de cobro ya no cuenta marcas de mes sin dinero como pagos recibidos.
+
+## [1.2.2] - 2026-10-05
+
+### Agregado
+- Incremento anual: campo **Fecha del primer aumento** (cuándo entra en vigor por primera vez; luego se repite cada año). El detalle de la propiedad muestra el próximo aumento y el monto resultante. Requiere `supabase/migrations/005_increase_start_date.sql`.
+
+### Corregido
+- Asignar inquilino fallaba con "Cannot read properties of undefined (reading 'monthly_rent')" en propiedades recién creadas, y dejaba el inquilino a medio crear. El modal usaba una copia desactualizada de la lista de propiedades; ahora usa la lista compartida y valida la propiedad antes de crear nada. Lo mismo en el modal de lecturas de servicios.
+
+## [1.2.1] - 2026-10-05
+
+### Cambiado
+- Reglas del estado de pago: **Al día** = solo falta el mes actual (o nada); **Pendiente** = falta el mes anterior; **Atrasado** = falta el mes anterior y uno o más antes. El detalle indica los meses ("Debe jul – sep 2026 (3 meses)").
+
 ## [1.2.0] - 2026-10-05
 
 ### Agregado

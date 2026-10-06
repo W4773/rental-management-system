@@ -19,6 +19,7 @@ const EMPTY_FORM = {
     deposit_amount: '',
     annual_increase_pct: '',
     increase_type: 'percentage',
+    increase_start_date: '',
     building_id: ''
 }
 
@@ -47,6 +48,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                 deposit_amount: propertyToEdit.deposit_amount || '',
                 annual_increase_pct: propertyToEdit.annual_increase_pct || '',
                 increase_type: propertyToEdit.increase_type || 'percentage',
+                increase_start_date: propertyToEdit.increase_start_date || '',
                 building_id: propertyToEdit.building_id || ''
             })
         } else if (isOpen) {
@@ -79,6 +81,10 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         const rentError = validateMonthlyRent(formData.monthly_rent)
         if (rentError) newErrors.monthly_rent = rentError
 
+        if (formData.increase_start_date && !(parseFloat(formData.annual_increase_pct) > 0)) {
+            newErrors.annual_increase_pct = 'Indica el porcentaje o monto del aumento para usar la fecha de entrada en vigor'
+        }
+
         if (formData.notes && formData.notes.length > 500) {
             newErrors.notes = 'Las notas no pueden exceder 500 caracteres'
         }
@@ -107,6 +113,10 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             increase_type: formData.increase_type || 'percentage',
         }
 
+        // The date column comes with migration 005: only send it when there is something to save
+        if (formData.increase_start_date) propertyData.increase_start_date = formData.increase_start_date
+        else if (propertyToEdit?.increase_start_date) propertyData.increase_start_date = null
+
         // building_id only travels when relevant, so saving keeps working before migration 002 is applied
         if (formData.building_id) propertyData.building_id = formData.building_id
         else if (propertyToEdit?.building_id) propertyData.building_id = null
@@ -118,7 +128,10 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         setSaving(false)
         if (error) {
             const duplicate = /duplicate|unique/i.test(error)
-            setErrors(duplicate ? { name: 'Ya existe una propiedad con este nombre' } : { submit: error })
+            const missingColumn = /increase_start_date/i.test(error)
+            setErrors(duplicate
+                ? { name: 'Ya existe una propiedad con este nombre' }
+                : { submit: missingColumn ? 'Falta ejecutar supabase/migrations/005_increase_start_date.sql en Supabase (esquema rental) para guardar la fecha del aumento.' : error })
             return
         }
 
@@ -324,12 +337,30 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                             {formData.increase_type === 'percentage' ? '%' : 'RD$'}
                                         </span>
                                     </div>
+                                    {/* First increase date */}
+                                    <div className="mt-3">
+                                        <label className="accessible-label mb-1 block" htmlFor="increase_start_date">
+                                            Fecha del primer aumento <span className="text-gray-400 font-normal">(opcional)</span>
+                                        </label>
+                                        <input
+                                            id="increase_start_date"
+                                            type="date"
+                                            name="increase_start_date"
+                                            value={formData.increase_start_date}
+                                            onChange={handleChange}
+                                            className="accessible-input w-full"
+                                        />
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Día en que entra en vigor el aumento por primera vez; después se repite cada año en la misma fecha.
+                                        </p>
+                                    </div>
+                                    {errors.annual_increase_pct && <p className="mt-1 text-xs text-red-600">{errors.annual_increase_pct}</p>}
                                     {/* Live preview */}
                                     {formData.annual_increase_pct && formData.monthly_rent && (
                                         <p className="mt-2 text-[14px] text-blue-700 bg-blue-50 px-3 py-2 rounded-lg font-medium">
                                             {formData.increase_type === 'percentage'
-                                                ? `Con ${formData.annual_increase_pct}% → RD$${(parseFloat(formData.monthly_rent) * (1 + parseFloat(formData.annual_increase_pct) / 100)).toLocaleString('es-DO', { minimumFractionDigits: 2 })} el próximo año`
-                                                : `RD$${parseFloat(formData.monthly_rent).toLocaleString('es-DO')} + RD$${parseFloat(formData.annual_increase_pct).toLocaleString('es-DO')} = RD$${(parseFloat(formData.monthly_rent) + parseFloat(formData.annual_increase_pct)).toLocaleString('es-DO', { minimumFractionDigits: 2 })} el próximo año`
+                                                ? `Con ${formData.annual_increase_pct}% → RD$${(parseFloat(formData.monthly_rent) * (1 + parseFloat(formData.annual_increase_pct) / 100)).toLocaleString('es-DO', { minimumFractionDigits: 2 })} el próximo aumento`
+                                                : `RD$${parseFloat(formData.monthly_rent).toLocaleString('es-DO')} + RD$${parseFloat(formData.annual_increase_pct).toLocaleString('es-DO')} = RD$${(parseFloat(formData.monthly_rent) + parseFloat(formData.annual_increase_pct)).toLocaleString('es-DO', { minimumFractionDigits: 2 })} el próximo aumento`
                                             }
                                         </p>
                                     )}

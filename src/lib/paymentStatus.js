@@ -40,9 +40,10 @@ const isContiguous = (keys) => keys.every((k, i) => {
 
 /**
  * Month-by-month standing of a tenant's rent, from the tenant's first month up to today.
- *  - overdue months  = past months (before the current one) not fully paid, INCLUDING months with no row at all
- *  - pending         = only the current month is still unpaid
- *  - paid            = nothing owed
+ * `overdueMonths` = past months (before the current one) not fully paid, INCLUDING months with no row at all.
+ *  - AL DÍA    : no past month owed (the current month may still be pending)
+ *  - PENDIENTE : exactly one past month owed (the previous month)
+ *  - ATRASADO  : two or more past months owed (the previous month and one or more before it)
  * Returns { key, label, badgeClass, detail, overdueMonths, monthsOwed, owedAmount, paidThrough }.
  */
 export function getPaymentStatus(property, tenant, payments, today = new Date()) {
@@ -72,7 +73,7 @@ export function getPaymentStatus(property, tenant, payments, today = new Date())
         const isFutureMonth = y > cy || (y === cy && m > cm)
         if (st.status === 'paid') {
             paidThrough = st.key
-        } else if (!isFutureMonth) {
+        } else if (st.status !== 'void' && !isFutureMonth) {
             const owed = Math.max(0, parseFloat(mine.find(p => monthKeyOf(p) === st.key && hasMoney(p))?.rent_amount || rent) - st.total)
             if (isCurrent) currentUnpaid = true
             else { overdue.push(st.key); owedAmount += owed }
@@ -83,19 +84,27 @@ export function getPaymentStatus(property, tenant, payments, today = new Date())
 
     const base = { overdueMonths: overdue, monthsOwed: overdue.length, owedAmount, paidThrough }
 
-    if (overdue.length > 0) {
-        const n = overdue.length
-        const detail = n === 1
-            ? `Debe ${formatMonthKey(overdue[0])}`
-            : isContiguous(overdue)
-                ? `Debe ${formatRange(overdue)} (${n} meses)`
-                : `Debe ${n} meses: ${formatMonthKey(overdue[0])} … ${formatMonthKey(overdue[n - 1])}`
+    const n = overdue.length
+
+    // 2+ past months unpaid (the previous month and at least one before it): ATRASADO
+    if (n >= 2) {
+        const detail = isContiguous(overdue)
+            ? `Debe ${formatRange(overdue)} (${n} meses)`
+            : `Debe ${n} meses: ${formatMonthKey(overdue[0])} … ${formatMonthKey(overdue[n - 1])}`
         return { ...STATUS.late, ...base, detail }
     }
-    if (currentUnpaid) {
-        return { ...STATUS.pending, ...base, detail: `Pendiente ${formatMonthKey(keyOf(cy, cm))}` }
+    // exactly one past month unpaid (normally the previous month): PENDIENTE
+    if (n === 1) {
+        return { ...STATUS.pending, ...base, detail: `Debe ${formatMonthKey(overdue[0])}` }
     }
-    return { ...STATUS.paid, ...base, detail: paidThrough ? `Pagado hasta ${formatMonthKey(paidThrough)}` : 'Sin meses vencidos' }
+    // nothing owed from past months; at most the current month is still to be paid: AL DÍA
+    return {
+        ...STATUS.paid,
+        ...base,
+        detail: currentUnpaid
+            ? `Mes actual (${formatMonthKey(keyOf(cy, cm))}) por pagar`
+            : paidThrough ? `Pagado hasta ${formatMonthKey(paidThrough)}` : 'Sin meses vencidos'
+    }
 }
 
 export const STATUS_FILTERS = [
@@ -115,13 +124,25 @@ export const normalizeText = (s = '') =>
  */
 export function getMonthStatus(payments, property, year, monthIndex, today = new Date()) {
     const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`
-    const rows = payments.filter(p => hasMoney(p) && monthKeyOf(p) === key)
+    const monthRows = payments.filter(p => monthKeyOf(p) === key)
+    const rows = monthRows.filter(hasMoney)
     const total = rows.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
     const rent = parseFloat(rows[0]?.rent_amount || property.monthly_rent)
+
+    // Editing metadata: real payments lock the month; "marks" are explicit pending / void rows;
+    // auto rows are the paid history generated when a tenant was registered.
+    const realRows = rows.filter(p => !p.auto_generated)
+    const autoRows = rows.filter(p => p.auto_generated)
+    const markRows = monthRows.filter(p => !hasMoney(p) && !p.auto_generated)
+    const voidRow = markRows.find(p => p.voided)
+    const meta = { key, total, locked: realRows.length > 0, autoRows, markRows, reason: voidRow?.void_reason || null }
+
     if (total > 0) {
         const isPaid = rows.some(p => p.payment_type === 'full') || total >= rent - 1
-        return { key, status: isPaid ? 'paid' : 'partial', total }
+        return { ...meta, status: isPaid ? 'paid' : 'partial' }
     }
+    // Not charged: neither owed nor paid
+    if (voidRow) return { ...meta, status: 'void' }
     const isFuture = year > today.getFullYear() || (year === today.getFullYear() && monthIndex > today.getMonth())
-    return { key, status: isFuture ? 'future' : 'pending', total: 0 }
+    return { ...meta, status: isFuture ? 'future' : 'pending', total: 0 }
 }

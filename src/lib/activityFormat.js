@@ -28,6 +28,16 @@ export function describeActivity(entry, { properties = [], tenants = [], buildin
                 subtitle: join(tenant?.name, propName, monthsText(meta.months), meta.amount != null && formatCurrency(meta.amount)) }
         case 'payment.delete':
             return { kind: 'payment', tone: 'delete', title: 'Pago eliminado', subtitle: join(tenant?.name, propName, monthsText(meta.months), meta.amount != null && formatCurrency(meta.amount)) }
+        case 'payment.update':
+            return { kind: 'payment', tone: 'update', title: 'Pago editado', subtitle: join(tenant?.name, propName, monthsText(meta.months), meta.amount != null && formatCurrency(meta.amount)) }
+        case 'payment.pending':
+            return { kind: 'payment', tone: 'update', title: (meta.months?.length || 0) > 1 ? `${meta.months.length} meses marcados como pendientes` : 'Mes marcado como pendiente',
+                subtitle: join(tenant?.name, propName, monthsText(meta.months)) }
+        case 'payment.void':
+            return { kind: 'payment', tone: 'delete', title: (meta.months?.length || 0) > 1 ? `${meta.months.length} meses marcados como nulos` : 'Mes marcado como nulo',
+                subtitle: join(tenant?.name, propName, monthsText(meta.months), meta.reason) }
+        case 'payment.unmark':
+            return { kind: 'payment', tone: 'update', title: 'Marca de mes quitada', subtitle: join(propName, monthsText(meta.months)) }
         case 'property.create':
             return { kind: 'property', tone: 'create', title: 'Propiedad creada', subtitle: join(meta.name, meta.rent != null && formatCurrency(meta.rent)) }
         case 'property.update':

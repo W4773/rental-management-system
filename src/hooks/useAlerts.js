@@ -42,7 +42,7 @@ export function useAlerts(payments = [], tenants = [], properties = []) {
         }
 
         // 2. Upcoming: unpaid rows due soon
-        for (const p of payments.filter(p => p.payment_status !== 'paid')) {
+        for (const p of payments.filter(p => p.payment_status !== 'paid' && !p.voided)) {
             const key = monthKeyOf(p)
             if (!key || seen.has(`${p.property_id}:${key}`)) continue
             const dueDate = monthStart(key)

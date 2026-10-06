@@ -122,12 +122,15 @@ export const useDashboardMetrics = (year = new Date().getFullYear(), refreshTrig
                 // Only calculate for current year
                 if (year === currentYear) {
                     const rentedProperties = tenants.filter(t => t.end_date === null).length
-                    const expectedPayments = rentedProperties * currentMonth
+                    // Months marked as "nulo" (not charged) are not expected
+                    const voidedMonths = payments.filter(p => p.voided && activeTenants.some(t => t.id === p.tenant_id)).length
+                    const expectedPayments = Math.max(0, rentedProperties * currentMonth - voidedMonths)
 
                     const receivedPaymentsCount = payments.filter(p => {
                         const paymentDate = new Date(p.payment_month)
                         return paymentDate.getFullYear() === currentYear &&
-                            p.payment_type === 'full'
+                            p.payment_type === 'full' &&
+                            parseFloat(p.amount_paid || 0) > 0 // pending / void marks have type 'full' but no money
                     }).length
 
                     const collectionRate = expectedPayments > 0

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
+import { monthKeyOf, hasMoney } from '../lib/paymentStatus'
 
 export function usePayments() {
     const [payments, setPayments] = useState([])
@@ -65,7 +66,7 @@ export function usePayments() {
         }
     }
 
-    async function updatePayment(id, updates) {
+    async function updatePayment(id, updates, { silent = false } = {}) {
         try {
             const { data, error: updateError } = await supabase
                 .from('rent_payments')
@@ -74,6 +75,10 @@ export function usePayments() {
                 .select()
 
             if (updateError) throw updateError
+            if (!silent) {
+                const row = data?.[0] || payments.find(p => p.id === id)
+                logActivity({ action: 'payment.update', entityType: 'payment', entityId: id, meta: { property_id: row?.property_id, tenant_id: row?.tenant_id, months: [monthKeyOf(row)], amount: row?.amount_paid } })
+            }
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error updating payment:', err)
@@ -95,6 +100,87 @@ export function usePayments() {
         } catch (err) {
             console.error('Error deleting payment:', err)
             return { error: err.message }
+        }
+    }
+
+    /**
+     * Marks months of a property as owed ('pending') or not charged ('void' = "nulo").
+     * Months with real payments are skipped and reported. Rows are replaced insert-first, so a failure
+     * never loses the previous state. Explicit rows (not just "no row") are needed so the metrics
+     * back-fill does not turn old months back into "paid".
+     */
+    async function setMonthsState(property, tenant, monthKeys, state, { reason = '' } = {}) {
+        try {
+            const ownerId = await getEffectiveOwnerId()
+            if (!ownerId) throw new Error('No autenticado')
+            const rent = parseFloat(property.monthly_rent || 0)
+            const skipped = []
+            const toInsert = []
+            const toDelete = []
+            const done = []
+
+            for (const key of monthKeys) {
+                const rows = payments.filter(p => p.property_id === property.id && monthKeyOf(p) === key)
+                if (rows.some(p => hasMoney(p) && !p.auto_generated)) { skipped.push(key); continue }
+                toDelete.push(...rows.map(r => r.id))
+                done.push(key)
+                toInsert.push({
+                    property_id: property.id,
+                    tenant_id: tenant.id,
+                    payment_month: `${key}-01`,
+                    rent_amount: rent,
+                    amount_paid: 0,
+                    remaining_balance: rent,
+                    payment_date: null,
+                    payment_method: 'pending',
+                    payment_type: 'full',
+                    payment_status: 'pending',
+                    auto_generated: false,
+                    user_id: ownerId,
+                    notes: state === 'void' ? (reason ? `Nulo: ${reason}` : 'Nulo') : 'Marcado como pendiente',
+                    ...(state === 'void' ? { voided: true, void_reason: reason || null } : {})
+                })
+            }
+
+            if (toInsert.length > 0) {
+                const { error: insertError } = await supabase.from('rent_payments').insert(toInsert)
+                if (insertError) throw insertError
+            }
+            if (toDelete.length > 0) {
+                const { error: deleteError } = await supabase.from('rent_payments').delete().in('id', toDelete)
+                if (deleteError) throw deleteError
+            }
+            if (done.length > 0) {
+                logActivity({
+                    action: state === 'void' ? 'payment.void' : 'payment.pending',
+                    entityType: 'payment',
+                    entityId: property.id,
+                    meta: { property_id: property.id, tenant_id: tenant.id, months: done, reason: reason || undefined }
+                })
+            }
+            await fetchPayments()
+            return { done, skipped, error: null }
+        } catch (err) {
+            console.error('Error marking months:', err)
+            return { done: [], skipped: [], error: err.message }
+        }
+    }
+
+    /** Removes the explicit pending / void rows of those months (they go back to "no record" = owed). */
+    async function clearMonthMarks(property, monthKeys) {
+        try {
+            const ids = payments
+                .filter(p => p.property_id === property.id && monthKeys.includes(monthKeyOf(p)) && !hasMoney(p) && !p.auto_generated)
+                .map(p => p.id)
+            if (ids.length > 0) {
+                const { error: deleteError } = await supabase.from('rent_payments').delete().in('id', ids)
+                if (deleteError) throw deleteError
+                logActivity({ action: 'payment.unmark', entityType: 'payment', entityId: property.id, meta: { property_id: property.id, months: monthKeys } })
+            }
+            await fetchPayments()
+            return { count: ids.length, error: null }
+        } catch (err) {
+            return { count: 0, error: err.message }
         }
     }
 
@@ -188,6 +274,8 @@ export function usePayments() {
         error,
         addPayment,
         updatePayment,
+        setMonthsState,
+        clearMonthMarks,
         deletePayment,
         getPaymentsByProperty,
         getPaymentsByYear,
