@@ -39,6 +39,45 @@ const isContiguous = (keys) => keys.every((k, i) => {
 })
 
 /**
+ * First month to look at for a tenant: their start month, or earlier when they already have rows
+ * (a tenant can be registered today with older months on record: history, marks, payments).
+ */
+function trackingStart(tenant, rows, today = new Date()) {
+    let [y, m] = (tenant.start_date || '').slice(0, 7).split('-').map(Number)
+    if (!y || !m) { y = today.getFullYear(); m = today.getMonth() + 1 }
+    m -= 1
+    const firstRowKey = rows.filter(p => p.tenant_id === tenant.id).map(monthKeyOf).filter(Boolean).sort()[0]
+    if (firstRowKey && firstRowKey < keyOf(y, m)) {
+        y = parseInt(firstRowKey.slice(0, 4), 10)
+        m = parseInt(firstRowKey.slice(5, 7), 10) - 1
+    }
+    return [y, m]
+}
+
+/**
+ * Bills still to pay for a tenant, oldest first, up to (and including) `upToKey` ('YYYY-MM').
+ * Payments are sequential: the oldest pending bill is always paid first. Void months and
+ * months settled implicitly (before a paid month) are not bills.
+ * Returns [{ key, rent, paid, remaining }].
+ */
+export function getPendingBills(property, tenant, payments, upToKey, today = new Date()) {
+    if (!property || !tenant) return []
+    const mine = payments.filter(p => p.property_id === property.id)
+    let [y, m] = trackingStart(tenant, mine, today)
+    const bills = []
+    while (keyOf(y, m) <= upToKey) {
+        const st = getMonthStatus(mine, property, y, m, today)
+        if (st.status !== 'void' && st.status !== 'paid') {
+            const remaining = Math.max(0, st.rent - st.total)
+            if (remaining > 1) bills.push({ key: st.key, rent: st.rent, paid: st.total, remaining })
+        }
+        m += 1
+        if (m > 11) { m = 0; y += 1 }
+    }
+    return bills
+}
+
+/**
  * Month-by-month standing of a tenant's rent, from the tenant's first month up to today.
  * `overdueMonths` = past months (before the current one) not fully paid, INCLUDING months with no row at all.
  *  - AL DÍA    : no past month owed (the current month may still be pending)
@@ -54,17 +93,7 @@ export function getPaymentStatus(property, tenant, payments, today = new Date())
     const cm = today.getMonth()
     const rent = parseFloat(property.monthly_rent || 0)
 
-    let [y, m] = (tenant.start_date || '').slice(0, 7).split('-').map(Number)
-    if (!y || !m) { y = cy; m = cm + 1 }
-    m -= 1
-
-    // A tenant can be registered today with older months already on record (history, marks, payments):
-    // count from the earliest month this tenant has a row, otherwise those months looked "up to date"
-    const firstRowKey = mine.filter(p => p.tenant_id === tenant.id).map(monthKeyOf).filter(Boolean).sort()[0]
-    if (firstRowKey && firstRowKey < keyOf(y, m)) {
-        y = parseInt(firstRowKey.slice(0, 4), 10)
-        m = parseInt(firstRowKey.slice(5, 7), 10) - 1
-    }
+    let [y, m] = trackingStart(tenant, mine, today)
 
     // Look a bit past today so advance payments count towards "paid through"
     const lastRowKey = mine.filter(hasMoney).map(monthKeyOf).sort().pop() || keyOf(cy, cm)
@@ -126,6 +155,24 @@ export const STATUS_FILTERS = [
 export const normalizeText = (s = '') =>
     s.toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
+/** Latest month ('YYYY-MM') that is fully paid among these rows, or null. */
+function lastPaidKey(payments) {
+    const byMonth = new Map()
+    for (const p of payments) {
+        if (!hasMoney(p)) continue
+        const k = monthKeyOf(p)
+        if (!k) continue
+        const cur = byMonth.get(k) || { total: 0, full: false, rent: 0 }
+        cur.total += parseFloat(p.amount_paid || 0)
+        cur.full = cur.full || p.payment_type === 'full'
+        cur.rent = cur.rent || parseFloat(p.rent_amount || 0)
+        byMonth.set(k, cur)
+    }
+    let last = null
+    for (const [k, v] of byMonth) if ((v.full || v.total >= v.rent - 1) && (!last || k > last)) last = k
+    return last
+}
+
 /**
  * Status of one month of a property's rent: 'paid' | 'partial' | 'pending' | 'current' | 'future' | 'void'.
  * `payments` = rent_payments of that property (any extra rows are ignored by property filter upstream).
@@ -143,7 +190,7 @@ export function getMonthStatus(payments, property, year, monthIndex, today = new
     const autoRows = rows.filter(p => p.auto_generated)
     const markRows = monthRows.filter(p => !hasMoney(p) && !p.auto_generated)
     const voidRow = markRows.find(p => p.voided)
-    const meta = { key, total, locked: realRows.length > 0, autoRows, markRows, reason: voidRow?.void_reason || null }
+    const meta = { key, total, rent, locked: realRows.length > 0, autoRows, markRows, reason: voidRow?.void_reason || null }
 
     if (total > 0) {
         const isPaid = rows.some(p => p.payment_type === 'full') || total >= rent - 1
@@ -151,6 +198,12 @@ export function getMonthStatus(payments, property, year, monthIndex, today = new
     }
     // Not charged: neither owed nor paid
     if (voidRow) return { ...meta, status: 'void' }
+    // Rent is paid in order (oldest first): a month with no record at all that comes before a month
+    // already paid was necessarily settled. Explicit marks and partial payments are never implied.
+    if (monthRows.length === 0) {
+        const last = lastPaidKey(payments)
+        if (last && key < last) return { ...meta, status: 'paid', implicit: true, total: 0 }
+    }
     const isFuture = year > today.getFullYear() || (year === today.getFullYear() && monthIndex > today.getMonth())
     // The month in progress isn't overdue yet: it shows as "Mes actual", not as "Pendiente"
     const isCurrent = year === today.getFullYear() && monthIndex === today.getMonth()

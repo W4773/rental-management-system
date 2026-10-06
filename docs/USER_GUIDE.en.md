@@ -80,13 +80,17 @@ The **Inquilinos** tab has two views: **Activos** (active, with payment status) 
 
 ### One month
 
-Click **Registrar pago** (Home) or **Pagar** (on the property), or click an unpaid month in the **Estado anual** strip. Pick the property (searchable), month, type (*full* or *partial*), date, method, reference and notes. Partial payments accumulate until the month's rent is complete.
+Click **Registrar pago** (Home) or **Pagar** (on the property), or click an unpaid month in the **Estado anual** strip. Pick the property (searchable), month, type (*full* or *partial*), date, method, reference and notes. **Payments are applied in order, oldest month first**: choosing a month means *catch up through that month*. A *full* payment adds up everything pending through that month; a *partial* payment is taken first from the oldest pending bill and the rest moves on to the next (the form shows how it is split). Partial payments accumulate until each month is complete.
+
+> Because payments go in order, a month with **no record at all** before an already paid month is considered settled. To reopen it, mark it as *pending* with [Edit months](#6-fixing-history-edit-months).
 
 ### Several months at once
 
-On the property detail, section **Pagos → Selección múltiple**: tick the pending months (or use *Marcar meses pendientes*) and click **Pagar N meses**. The balance of every month is recorded in one step.
+On the property detail, section **Pagos → Selección múltiple**: tick the pending months (or use *Marcar meses pendientes*) and click **Pagar N meses**. The balance of every month is recorded in one step; older pending months are included (tagged *anterior pendiente*).
 
 ![Pay several months](images/pay-several-months.png)
+
+![Payment applied in order](images/pay-in-order.png)
 
 ### Optional receipt
 

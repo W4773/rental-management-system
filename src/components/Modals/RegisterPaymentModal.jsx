@@ -6,7 +6,7 @@ import Button from '../Common/Button'
 import { usePayments } from '../../hooks/usePayments'
 import { logActivity } from '../../lib/activityLog'
 import { monthLabel } from '../../lib/pdfHelpers'
-import { monthKeyOf, hasMoney } from '../../lib/paymentStatus'
+import { getPendingBills } from '../../lib/paymentStatus'
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const todayStr = () => new Date().toISOString().split('T')[0]
@@ -60,19 +60,35 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
     )
     const propertiesWithTenants = properties.filter(p => tenants.some(t => t.property_id === p.id && !t.end_date))
 
-    const rowsForKey = (key) => allPayments
-        .filter(p => p.property_id === formData.property_id && hasMoney(p) && monthKeyOf(p) === key)
-    const paidForKey = (key) => rowsForKey(key).reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
-    // The rent agreed for that month (rows keep it); fall back to the property's current rent
-    const rentForKey = (key) => parseFloat(rowsForKey(key)[0]?.rent_amount || selectedProperty?.monthly_rent || 0)
-
+    // Rent is paid in order: the oldest pending bill is paid first, whatever month is picked.
+    // Picking a month means "settle everything up to and including it".
     const singleKey = `${selectedYear}-${pad(parseInt(selectedMonth))}`
-    const paidSoFar = formData.property_id ? paidForKey(singleKey) : 0
-    const remaining = Math.max(0, rentForKey(singleKey) - paidSoFar)
-    const monthPaid = !!selectedProperty && remaining <= 1
+    const upToKey = isMulti ? multiMonths[multiMonths.length - 1] : singleKey
+    const bills = useMemo(
+        () => (selectedProperty && activeTenant) ? getPendingBills(selectedProperty, activeTenant, allPayments, upToKey) : [],
+        [selectedProperty, activeTenant, allPayments, upToKey]
+    )
+    const billsTotal = bills.reduce((s, b) => s + b.remaining, 0)
+    const remaining = billsTotal
+    const monthPaid = !!selectedProperty && billsTotal <= 1
 
-    const multiRows = multiMonths.map(key => ({ key, rent: rentForKey(key), remaining: Math.max(0, rentForKey(key) - paidForKey(key)) }))
-    const multiTotal = multiRows.reduce((s, r) => s + r.remaining, 0)
+    // Spreads an amount over the bills, oldest first
+    const allocate = (amount) => {
+        let left = amount
+        const out = []
+        for (const b of bills) {
+            if (left <= 0.005) break
+            const give = Math.min(b.remaining, left)
+            out.push({ ...b, give })
+            left -= give
+        }
+        return out
+    }
+    const typedAmount = parseFloat(formData.amount_paid) || 0
+    const preview = isMulti ? bills.map(b => ({ ...b, give: b.remaining })) : allocate(typedAmount)
+
+    const multiRows = bills.map(b => ({ key: b.key, rent: b.rent, remaining: b.remaining, extra: !multiMonths.includes(b.key) }))
+    const multiTotal = billsTotal
 
     // Auto-fill amount with the remaining balance for full payments
     useEffect(() => {
@@ -115,7 +131,7 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
             const amount = parseFloat(formData.amount_paid)
             if (monthPaid) e.submit = 'Este mes ya está pagado completamente.'
             if (!formData.amount_paid || isNaN(amount) || amount <= 0) e.amount_paid = 'El monto debe ser mayor a 0'
-            else if (amount > remaining + 1) e.amount_paid = `El monto excede la deuda restante (${remaining})`
+            else if (amount > remaining + 1) e.amount_paid = `El monto excede lo pendiente hasta ese mes (${remaining})`
         }
         setErrors(e)
         return Object.keys(e).length === 0
@@ -126,9 +142,8 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
         if (!validate()) return
         setLoading(true)
         try {
-            const toCreate = isMulti
-                ? multiRows.filter(r => r.remaining > 0).map(r => buildPayment(r.key, r.remaining, r.rent - r.remaining, r.rent))
-                : [buildPayment(singleKey, parseFloat(formData.amount_paid), paidSoFar, rentForKey(singleKey))]
+            const toCreate = allocate(isMulti ? billsTotal : parseFloat(formData.amount_paid))
+                .map(r => buildPayment(r.key, r.give, r.paid, r.rent))
 
             const created = []
             for (const payment of toCreate) {
@@ -176,7 +191,7 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
                         <ul className="divide-y divide-brand-100">
                             {multiRows.map(r => (
                                 <li key={r.key} className="flex justify-between py-1">
-                                    <span className="capitalize">{monthLabel(`${r.key}-01`)}</span>
+                                    <span className="capitalize">{monthLabel(`${r.key}-01`)}{r.extra && <span className="ml-2 text-[10px] font-semibold normal-case bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">anterior pendiente</span>}</span>
                                     <span className="font-medium">{fmt(r.remaining)}</span>
                                 </li>
                             ))}
@@ -206,14 +221,22 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
                         {selectedProperty && monthPaid && (
                             <p className="mt-2 mb-1 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">Este mes ya está pagado completamente.</p>
                         )}
-                        {selectedProperty && !monthPaid && paidSoFar > 0 && (
-                            <p className="mt-2 mb-1 p-2 bg-brand-50 border border-brand-200 rounded text-brand-700 text-xs">
-                                Ya se pagó {fmt(paidSoFar)}. Restan {fmt(remaining)}.
-                            </p>
+                        {selectedProperty && !monthPaid && preview.length > 0 && (
+                            <div className="mt-2 mb-1 p-2 bg-brand-50 border border-brand-200 rounded text-xs text-brand-800">
+                                <p className="font-semibold mb-1">Se paga en orden, del mes más antiguo al más reciente:</p>
+                                <ul className="space-y-0.5">
+                                    {preview.map(r => (
+                                        <li key={r.key} className="flex justify-between gap-2">
+                                            <span className="capitalize">{monthLabel(`${r.key}-01`)}{r.key !== singleKey && <span className="ml-1 normal-case text-amber-700">(anterior pendiente)</span>}</span>
+                                            <span>{fmt(r.give)}{r.give < r.remaining - 1 ? ` · quedan ${fmt(r.remaining - r.give)}` : ''}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         )}
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             <FormInput label="Tipo de pago" name="payment_type" type="select" value={formData.payment_type} onChange={handleChange}>
-                                <option value="full">Completo (restante)</option>
+                                <option value="full">Completo (todo lo pendiente hasta ese mes)</option>
                                 <option value="partial">Parcial</option>
                             </FormInput>
                             <FormInput label="Monto (RD$)" name="amount_paid" type="number" value={formData.amount_paid}

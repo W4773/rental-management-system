@@ -80,13 +80,17 @@ La pestaña **Inquilinos** tiene dos vistas: **Activos** (con su estado de pago)
 
 ### Un mes
 
-Pulsa **Registrar pago** (Inicio) o **Pagar** (en la propiedad), o toca un mes pendiente del **Estado anual**. Elige la propiedad (con el buscador), el mes, el tipo (*completo* o *parcial*), fecha, método, referencia y notas. Los abonos parciales se acumulan hasta completar la renta del mes.
+Pulsa **Registrar pago** (Inicio) o **Pagar** (en la propiedad), o toca un mes pendiente del **Estado anual**. Elige la propiedad (con el buscador), el mes, el tipo (*completo* o *parcial*), fecha, método, referencia y notas. **Los pagos se aplican en orden, del mes más antiguo al más reciente**: elegir un mes significa *ponerme al día hasta ese mes*. El pago *completo* suma todo lo pendiente hasta ese mes; un pago *parcial* se descuenta primero de la factura pendiente más antigua y el resto pasa a la siguiente (el formulario muestra cómo se reparte). Los abonos parciales se acumulan hasta completar cada mes.
+
+> Como se paga en orden, un mes **sin ningún registro** anterior a un mes ya pagado se considera saldado. Para reabrirlo, márcalo como *pendiente* con [Editar meses](#6-corregir-el-historial-editar-meses).
 
 ### Varios meses a la vez
 
-En el detalle de la propiedad, sección **Pagos → Selección múltiple**: marca los meses pendientes (o usa *Marcar meses pendientes*) y pulsa **Pagar N meses**. Se registra el saldo de cada mes en un solo paso.
+En el detalle de la propiedad, sección **Pagos → Selección múltiple**: marca los meses pendientes (o usa *Marcar meses pendientes*) y pulsa **Pagar N meses**. Se registra el saldo de cada mes en un solo paso; si hay meses anteriores pendientes, se incluyen (marcados *anterior pendiente*).
 
 ![Pagar varios meses](images/pay-several-months.png)
+
+![Pago aplicado en orden](images/pay-in-order.png)
 
 ### Recibo opcional
 
