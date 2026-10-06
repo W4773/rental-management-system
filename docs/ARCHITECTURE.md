@@ -23,7 +23,7 @@ flowchart LR
 
 | Capa | Dónde | Responsabilidad |
 |---|---|---|
-| Páginas | `src/pages` | Pantallas y rutas: `/`, `/propiedades`, `/edificios`, `/inquilinos`, `/gastos`, `/settings`, `/login`, `/register`. |
+| Páginas | `src/pages` | Pantallas y rutas: `/`, `/propiedades`, `/edificios`, `/edificios/:id`, `/inquilinos`, `/gastos`, `/settings`, `/login`, `/register`. |
 | Componentes | `src/components` | UI reutilizable: lista y detalle de propiedad, cuadrícula anual, modales (pago, edición, nulos, edificio, inquilino…), selector con buscador. |
 | Estado | `src/contexts/AppContext.jsx` | Carga una sola vez propiedades, inquilinos, pagos, servicios, edificios, ajustes y actividad; expone `openX()` para abrir modales y `refreshAll()` (sin recargar la página). |
 | Datos | `src/hooks` | Un hook por tabla con las operaciones CRUD contra Supabase; registran la actividad. |

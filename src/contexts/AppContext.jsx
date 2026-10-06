@@ -70,7 +70,7 @@ export function AppProvider({ children }) {
     }, [baseMetrics.loading])
 
     const [paymentModal, setPaymentModal] = useState({ open: false, initial: null })
-    const [propertyModal, setPropertyModal] = useState({ open: false, property: null })
+    const [propertyModal, setPropertyModal] = useState({ open: false, property: null, buildingId: null })
     const [buildingModal, setBuildingModal] = useState({ open: false, building: null })
     const [tenantModal, setTenantModal] = useState({ open: false, property: null, tenant: null })
     const [utilityType, setUtilityType] = useState(null)
@@ -127,7 +127,7 @@ export function AppProvider({ children }) {
         refreshAll,
         onDataChanged,
         openPayment: (initial = null) => setPaymentModal({ open: true, initial }),
-        openProperty: (property = null) => setPropertyModal({ open: true, property }),
+        openProperty: (property = null, opts = {}) => setPropertyModal({ open: true, property, buildingId: opts.buildingId || null }),
         openBuilding: (building = null) => setBuildingModal({ open: true, building }),
         openTenant: (property = null, tenant = null) => setTenantModal({ open: true, property, tenant }),
         openUtility: (type) => setUtilityType(type),
@@ -158,9 +158,10 @@ export function AppProvider({ children }) {
             <RegisterPropertyModal
                 isOpen={propertyModal.open}
                 propertyToEdit={propertyModal.property}
+                defaultBuildingId={propertyModal.buildingId}
                 buildings={buildings}
                 onNewBuilding={() => setBuildingModal({ open: true, building: null })}
-                onClose={() => setPropertyModal({ open: false, property: null })}
+                onClose={() => setPropertyModal({ open: false, property: null, buildingId: null })}
                 onSuccess={() => onDataChanged(propertyModal.property ? 'Propiedad actualizada' : 'Propiedad registrada')}
             />
             <RegisterBuildingModal

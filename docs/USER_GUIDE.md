@@ -39,9 +39,15 @@ El **Inicio** reúne los indicadores del año, la lista de propiedades (agrupada
 - **Eliminar** un edificio: sus propiedades **no se borran**, quedan "Sin edificio".
 - **Asignar** propiedades sueltas a un edificio con el selector de la sección "Sin edificio".
 
-Cada tarjeta muestra unidades, ocupación, renta mensual total y cuántas están atrasadas. Pulsa una unidad para abrirla.
+Cada tarjeta muestra unidades, ocupación, renta mensual total y cuántas están atrasadas. **Pulsa el nombre del edificio (o "Ver")** para abrir su detalle.
+
+### Detalle del edificio
+
+Muestra los datos del edificio, sus indicadores (unidades, ocupación, renta mensual, monto atrasado) y todas sus unidades con inquilino y estado de pago. Puedes buscar, filtrar (Todas · Ocupadas · Vacantes · Atrasadas), **Cobrar** a una unidad ocupada, **Asignar inquilino** a una vacante, **Editar edificio** o **Agregar propiedad** (nace dentro del edificio y toma su dirección automáticamente).
 
 ![Edificios](images/buildings.png)
+
+![Detalle de edificio](images/building-detail.png)
 
 ## 3. Propiedades
 
@@ -55,7 +61,7 @@ Para editar o eliminar una propiedad usa los iconos de la esquina superior derec
 
 ## 4. Inquilinos
 
-- **Asignar:** en el detalle de una propiedad vacante pulsa *Asignar inquilino* (o **Inquilinos → + Nuevo inquilino** y elige la propiedad con el buscador). Pide nombre, cédula, teléfono, correo (opcional) y fecha de entrada.
+- **Asignar:** en el detalle de una propiedad vacante pulsa *Asignar inquilino* (o **Inquilinos → + Nuevo inquilino**: el selector muestra solo propiedades **disponibles**, con filtro por edificio y buscador). Pide nombre, cédula, teléfono, correo (opcional) y fecha de entrada.
 - **Editar** los datos del inquilino actual: botón *Editar inquilino*.
 - **Cambiar inquilino:** registra a uno nuevo; el anterior pasa a "Antiguos" con su historial.
 - **Desvincular:** botón *Desvincular* (en la propiedad o en Inquilinos). La propiedad queda vacante y el inquilino pasa a **Antiguos**. **No se borra ningún pago.**

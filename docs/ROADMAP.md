@@ -22,6 +22,7 @@ Que cualquier propietario o administrador sepa **en segundos** quién pagó, qui
 
 **v1.2 – Control y trazabilidad**
 - Estado de pago por meses (Al día · Pendiente · Atrasado) con el detalle de lo que se debe.
+- Detalle de edificio, dirección automática y asignación solo a propiedades disponibles (v1.4).
 - Sección **Edificios**, **registro de actividad** e inquilinos **activos y antiguos** con histórico.
 - Desvincular inquilino sin perder pagos; selector de propiedad con buscador.
 - Incremento anual con **fecha del primer aumento**.

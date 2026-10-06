@@ -23,14 +23,16 @@ const EMPTY_FORM = {
     building_id: ''
 }
 
-export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, propertyToEdit = null, buildings = [], onNewBuilding }) {
+export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, propertyToEdit = null, buildings = [], onNewBuilding, defaultBuildingId = null }) {
     const { addProperty, updateProperty } = useProperties()
     const [errors, setErrors] = useState({})
     const [formData, setFormData] = useState(EMPTY_FORM)
     const [saving, setSaving] = useState(false)
+    const [customAddress, setCustomAddress] = useState(false)
     const selectedBuilding = buildings.find(b => b.id === formData.building_id)
-
-
+    // With a building that has an address, the unit takes it automatically unless the user opts out
+    const addressFromBuilding = Boolean(selectedBuilding?.address) && !customAddress
+    const effectiveAddress = addressFromBuilding ? selectedBuilding.address : formData.address
 
     useEffect(() => {
         if (isOpen && propertyToEdit) {
@@ -51,10 +53,15 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                 increase_start_date: propertyToEdit.increase_start_date || '',
                 building_id: propertyToEdit.building_id || ''
             })
+            // A stored address that differs from the building's is a deliberate custom one
+            const b = buildings.find(x => x.id === propertyToEdit.building_id)
+            setCustomAddress(Boolean(b?.address && propertyToEdit.address && propertyToEdit.address !== b.address))
         } else if (isOpen) {
-            setFormData(EMPTY_FORM)
+            setFormData({ ...EMPTY_FORM, building_id: defaultBuildingId || '' })
+            setCustomAddress(false)
         }
-    }, [isOpen, propertyToEdit])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, propertyToEdit, defaultBuildingId])
 
     const handleChange = (e) => {
         const { name, value } = e.target
@@ -62,6 +69,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             onNewBuilding?.()
             return
         }
+        if (name === 'building_id') setCustomAddress(false)
         setFormData(prev => ({ ...prev, [name]: value }))
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
     }
@@ -72,9 +80,9 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         const nameError = validatePropertyName(formData.name)
         if (nameError) newErrors.name = nameError
 
-        if ((!formData.address || formData.address.trim().length === 0) && !selectedBuilding?.address) {
-            newErrors.address = 'La dirección es obligatoria (o elija un edificio con dirección)'
-        } else if (formData.address.length > 255) {
+        if (!effectiveAddress || effectiveAddress.trim().length === 0) {
+            newErrors.address = selectedBuilding ? 'Este edificio no tiene dirección: escríbela aquí o edítalo' : 'La dirección es obligatoria'
+        } else if (effectiveAddress.length > 255) {
             newErrors.address = 'La dirección no puede exceder 255 caracteres'
         }
 
@@ -99,7 +107,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
 
         const propertyData = {
             name: formData.name.trim(),
-            address: formData.address.trim() || selectedBuilding?.address || '',
+            address: effectiveAddress.trim(),
             monthly_rent: parseFloat(formData.monthly_rent),
             bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : 1,
             bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : 1,
@@ -142,6 +150,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
     }
 
     const handleClose = () => {
+        setCustomAddress(false)
         setFormData(EMPTY_FORM)
         setErrors({})
         onClose()
@@ -178,15 +187,25 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                     {onNewBuilding && <option value="__new__">+ Nuevo edificio...</option>}
                                 </FormInput>
                                 <FormInput
-                                    label={selectedBuilding ? 'Dirección (opcional: usa la del edificio)' : 'Dirección Completa'}
+                                    label="Dirección Completa"
                                     name="address"
-                                    value={formData.address}
+                                    value={effectiveAddress}
                                     onChange={handleChange}
                                     error={errors.address}
-                                    required={!selectedBuilding?.address}
-                                    placeholder={selectedBuilding?.address || 'Ej: Calle Principal #123, Santo Domingo'}
+                                    required
+                                    disabled={addressFromBuilding}
+                                    placeholder="Ej: Calle Principal #123, Santo Domingo"
                                     maxLength={255}
                                 />
+                                {addressFromBuilding && (
+                                    <p className="-mt-2 mb-3 text-xs text-gray-500">
+                                        Tomada del edificio.{' '}
+                                        <button type="button" className="text-brand-700 font-semibold hover:underline"
+                                            onClick={() => { setFormData(prev => ({ ...prev, address: selectedBuilding.address })); setCustomAddress(true) }}>
+                                            Usar otra dirección
+                                        </button>
+                                    </p>
+                                )}
                             </div>
                         </div>
 

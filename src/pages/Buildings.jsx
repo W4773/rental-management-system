@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Pencil, Trash2, Plus, MapPin, AlertTriangle } from 'lucide-react'
+import { Building2, Pencil, Trash2, Plus, MapPin, AlertTriangle, ChevronRight } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { formatCurrency } from '../lib/calculations'
-import { getPaymentStatus } from '../lib/paymentStatus'
+import { getBuildingUnits, buildingStats, enrichUnit } from '../lib/buildingStats'
 import ConfirmModal from '../components/Common/ConfirmModal'
 
 const DOT = { paid: 'bg-green-500', pending: 'bg-amber-400', late: 'bg-red-500', vacant: 'bg-gray-300' }
@@ -29,22 +29,12 @@ export default function Buildings() {
     const [toDelete, setToDelete] = useState(null)
 
     const rows = useMemo(() => {
-        const enrich = (property) => {
-            const tenant = tenants.find(t => t.property_id === property.id && !t.end_date) || null
-            return { property, tenant, status: getPaymentStatus(property, tenant, payments) }
-        }
-        const stats = (units) => ({
-            total: units.length,
-            occupied: units.filter(u => u.tenant).length,
-            rent: units.reduce((s, u) => s + (parseFloat(u.property.monthly_rent) || 0), 0),
-            late: units.filter(u => u.status.key === 'late').length
-        })
         const withBuilding = buildings.map(building => {
-            const units = properties.filter(p => p.building_id === building.id).map(enrich)
-            return { building, units, ...stats(units) }
+            const units = getBuildingUnits(building, properties, tenants, payments)
+            return { building, units, ...buildingStats(units) }
         })
-        const loose = properties.filter(p => !buildings.some(b => b.id === p.building_id)).map(enrich)
-        return { withBuilding, loose, looseStats: stats(loose) }
+        const loose = properties.filter(p => !buildings.some(b => b.id === p.building_id)).map(p => enrichUnit(p, tenants, payments))
+        return { withBuilding, loose }
     }, [buildings, properties, tenants, payments])
 
     const handleDelete = async () => {
@@ -102,12 +92,16 @@ export default function Buildings() {
                             <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-400 to-brand-500 text-white flex items-center justify-center shrink-0">
                                 <Building2 className="w-4 h-4" />
                             </span>
-                            <div className="min-w-0 flex-1">
-                                <h2 className="font-bold text-ink leading-tight truncate">{building.name}</h2>
+                            <Link to={`/edificios/${building.id}`} className="min-w-0 flex-1 group" title="Ver detalle del edificio">
+                                <h2 className="font-bold text-ink leading-tight truncate group-hover:text-brand-700">{building.name}</h2>
                                 <p className="flex items-center gap-1 text-xs text-gray-500 truncate">
                                     <MapPin className="w-3 h-3 shrink-0" />{building.address || 'Sin dirección'}
                                 </p>
-                            </div>
+                            </Link>
+                            <Link to={`/edificios/${building.id}`} aria-label={`Ver ${building.name}`} title="Ver detalle"
+                                className="flex items-center gap-0.5 px-2 py-1.5 rounded-md border border-brand-200 text-brand-700 text-xs font-semibold hover:bg-brand-50">
+                                Ver <ChevronRight className="w-3.5 h-3.5" />
+                            </Link>
                             <button onClick={() => openBuilding(building)} aria-label={`Editar ${building.name}`} title="Editar edificio"
                                 className="p-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"><Pencil className="w-4 h-4" /></button>
                             <button onClick={() => setToDelete(building)} aria-label={`Eliminar ${building.name}`} title="Eliminar edificio"

@@ -23,7 +23,7 @@ flowchart LR
 
 | Layer | Where | Responsibility |
 |---|---|---|
-| Pages | `src/pages` | Screens and routes: `/`, `/propiedades`, `/edificios`, `/inquilinos`, `/gastos`, `/settings`, `/login`, `/register`. |
+| Pages | `src/pages` | Screens and routes: `/`, `/propiedades`, `/edificios`, `/edificios/:id`, `/inquilinos`, `/gastos`, `/settings`, `/login`, `/register`. |
 | Components | `src/components` | Reusable UI: property list and detail, yearly strip, modals (payment, edit, void, building, tenant…), searchable selector. |
 | State | `src/contexts/AppContext.jsx` | Loads properties, tenants, payments, utilities, buildings, settings and activity once; exposes `openX()` to open modals and `refreshAll()` (no page reloads). |
 | Data | `src/hooks` | One hook per table with the CRUD operations against Supabase; they log activity. |

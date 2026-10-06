@@ -4,7 +4,7 @@ import { useApp } from '../../contexts/AppContext'
 import { normalizeText } from '../../lib/paymentStatus'
 
 /** "Edificio · Inquilino" context line used in the list and under the selection. */
-function useContext(property) {
+function useUnitContext(property) {
     const { buildings, tenants } = useApp()
     const building = buildings.find(b => b.id === property?.building_id) || null
     const tenant = tenants.find(t => t.property_id === property?.id && !t.end_date) || null
@@ -13,7 +13,7 @@ function useContext(property) {
 
 /** Compact "which property is this" line: name · building · address · tenant. For read-only displays. */
 export function PropertyInfo({ property, className = '' }) {
-    const { building, tenant } = useContext(property)
+    const { building, tenant } = useUnitContext(property)
     if (!property) return null
     return (
         <p className={`text-xs text-gray-600 ${className}`}>
@@ -31,7 +31,8 @@ export function PropertyInfo({ property, className = '' }) {
  */
 export default function PropertyPicker({
     properties = [], value, onChange, label = 'Propiedad', required = false, error, disabled = false,
-    placeholder = 'Buscar por propiedad, edificio o inquilino...', showInfo = true
+    placeholder = 'Buscar por propiedad, edificio o inquilino...', showInfo = true,
+    onlyVacant = false, buildingId = null, keepId = null
 }) {
     const { buildings, tenants } = useApp()
     const [open, setOpen] = useState(false)
@@ -40,14 +41,14 @@ export default function PropertyPicker({
     const rootRef = useRef(null)
     const listRef = useRef(null)
 
-    const items = useMemo(() => properties.map(property => {
+    const items = useMemo(() => properties.filter(p => !buildingId || p.building_id === buildingId).map(property => {
         const building = buildings.find(b => b.id === property.building_id) || null
         const tenant = tenants.find(t => t.property_id === property.id && !t.end_date) || null
         return {
             property, building, tenant,
             haystack: normalizeText(`${property.name} ${building?.name || ''} ${building?.address || ''} ${property.address || ''} ${tenant?.name || ''}`)
         }
-    }), [properties, buildings, tenants])
+    }).filter(i => !onlyVacant || !i.tenant || i.property.id === keepId), [properties, buildings, tenants, onlyVacant, buildingId, keepId])
 
     const selected = items.find(i => i.property.id === value) || null
 

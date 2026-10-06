@@ -19,6 +19,7 @@ Anyone who owns or manages rentals should know **in seconds** who paid, who owes
 - Buildings with grouped properties; editing of properties and tenants.
 - Search and filters; paying several months at once; optional receipt; PDF payment reports.
 - Team (owner and members) in Settings.
+- Building detail page, automatic address and assigning tenants only to available properties (v1.4).
 
 **v1.2 – Control and traceability**
 - Month-by-month payment status (Up to date · Pending · Late) with the detail of what is owed.
