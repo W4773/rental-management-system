@@ -172,7 +172,7 @@ In **Ajustes → Carta de cobro** you define the letter sent to tenants with pen
 | `<<Fecha>>`, `<<Fecha límite>>` | Today and today + 5 days |
 | `<<Nombre del propietario>>`, `<<Empresa>>`, `<<Teléfono>>`, `<<Correo>>` | Your Ajustes → Factura data |
 
-There are two **base designs** (*Formal* and *Cordial*), letterhead, overdue-months table and signature options, a **live preview** and a sample PDF. A misspelled variable is flagged and printed as is.
+The **signature** is uploaded on this same screen (it is the same one as Ajustes → Factura) and appears in the preview and the PDF. There are two **base designs** (*Formal* and *Cordial*), letterhead, overdue-months table and signature options, a **live preview** and a sample PDF. A misspelled variable is flagged and printed as is.
 
 To generate the letter for a tenant with pending months use the **Carta de cobro** button (envelope icon) in the property detail, in **Inquilinos** or in **Finanzas**: it downloads as a PDF. Saving the template requires `008_letter_template.sql` (see [DATABASE](DATABASE.md)).
 

@@ -58,6 +58,14 @@ export function getPaymentStatus(property, tenant, payments, today = new Date())
     if (!y || !m) { y = cy; m = cm + 1 }
     m -= 1
 
+    // A tenant can be registered today with older months already on record (history, marks, payments):
+    // count from the earliest month this tenant has a row, otherwise those months looked "up to date"
+    const firstRowKey = mine.filter(p => p.tenant_id === tenant.id).map(monthKeyOf).filter(Boolean).sort()[0]
+    if (firstRowKey && firstRowKey < keyOf(y, m)) {
+        y = parseInt(firstRowKey.slice(0, 4), 10)
+        m = parseInt(firstRowKey.slice(5, 7), 10) - 1
+    }
+
     // Look a bit past today so advance payments count towards "paid through"
     const lastRowKey = mine.filter(hasMoney).map(monthKeyOf).sort().pop() || keyOf(cy, cm)
     const endKey = lastRowKey > keyOf(cy, cm) ? lastRowKey : keyOf(cy, cm)

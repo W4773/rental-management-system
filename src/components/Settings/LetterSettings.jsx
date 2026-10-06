@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FileDown, RotateCcw, AlertTriangle } from 'lucide-react'
+import { FileDown, RotateCcw, AlertTriangle, Upload, Trash2 } from 'lucide-react'
 import { useUserSettings } from '../../hooks/useUserSettings'
 import Button from '../Common/Button'
 import {
@@ -16,10 +16,33 @@ const Toggle = ({ label, checked, onChange }) => (
 )
 
 export default function LetterSettings({ showToast }) {
-    const { settings, loading, updateSettings } = useUserSettings()
+    const { settings, loading, updateSettings, uploadSignature } = useUserSettings()
     const [form, setForm] = useState(DEFAULT_LETTER)
     const [saving, setSaving] = useState(false)
     const bodyRef = useRef(null)
+    const fileInputRef = useRef(null)
+    const [uploading, setUploading] = useState(false)
+    const signatureUrl = settings?.signature_url || null
+
+    // The signature is shared with the invoice settings (same file, same field)
+    const handleSignatureUpload = async (e) => {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        setUploading(true)
+        const { url, error } = await uploadSignature(file)
+        if (error) showToast(error, 'error')
+        else {
+            const res = await updateSettings({ signature_url: url })
+            showToast(res.error ? 'No se pudo guardar la firma: ' + res.error : 'Firma guardada correctamente', res.error ? 'error' : 'success')
+        }
+        setUploading(false)
+    }
+
+    const removeSignature = async () => {
+        const res = await updateSettings({ signature_url: null })
+        showToast(res.error ? 'No se pudo quitar la firma: ' + res.error : 'Firma eliminada', res.error ? 'error' : 'success')
+    }
 
     useEffect(() => {
         if (settings) setForm(resolveLetterSettings(settings.letter_settings))
@@ -126,6 +149,31 @@ export default function LetterSettings({ showToast }) {
                         <Toggle label="Tabla de meses adeudados" checked={form.showTable} onChange={(v) => set({ showTable: v })} />
                         <Toggle label="Firma" checked={form.showSignature} onChange={(v) => set({ showSignature: v })} />
                     </div>
+
+                    <div>
+                        <label className="accessible-label">Firma del arrendador</label>
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Subir firma"
+                                className="border-2 border-dashed border-gray-300 rounded-xl p-3 flex items-center justify-center hover:border-brand-400 transition bg-white"
+                                style={{ minWidth: '180px', minHeight: '84px' }}>
+                                {signatureUrl
+                                    ? <img src={signatureUrl} alt="Firma" style={{ maxHeight: '64px', maxWidth: '160px', objectFit: 'contain' }} />
+                                    : <span className="flex flex-col items-center gap-1 text-gray-400 text-xs"><Upload className="w-5 h-5" />PNG o JPG</span>}
+                            </button>
+                            <div className="flex flex-col gap-2">
+                                <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                                    {uploading ? 'Subiendo...' : signatureUrl ? 'Cambiar firma' : 'Seleccionar archivo'}
+                                </Button>
+                                {signatureUrl && (
+                                    <button type="button" onClick={removeSignature} className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline">
+                                        <Trash2 className="w-3.5 h-3.5" /> Quitar firma
+                                    </button>
+                                )}
+                            </div>
+                            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleSignatureUpload} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Es la misma firma de Ajustes → Factura: se usa en recibos y en la carta.</p>
+                    </div>
                 </div>
 
                 <div>
@@ -157,8 +205,9 @@ export default function LetterSettings({ showToast }) {
                                 </table>
                             )}
                             {form.showSignature && (
-                                <div className="pt-6">
-                                    <div className="w-40 border-t border-gray-700" />
+                                <div className="pt-4">
+                                    {signatureUrl && <img src={signatureUrl} alt="" style={{ maxHeight: '48px', maxWidth: '150px', objectFit: 'contain' }} />}
+                                    <div className={`w-40 border-t border-gray-700 ${signatureUrl ? '' : 'mt-6'}`} />
                                     <p className="font-bold">{values['Nombre del propietario'] || values['Empresa']}</p>
                                     <p className="text-gray-500">{values['Nombre del propietario'] ? values['Empresa'] : 'Administración'}</p>
                                 </div>

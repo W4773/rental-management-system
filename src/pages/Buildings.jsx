@@ -20,7 +20,10 @@ function Unit({ property, tenant, status, color }) {
             className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-200 bg-white text-[12px] hover:brightness-95 transition"
         >
             <span className={`w-2.5 h-2.5 rounded-full shrink-0 ring-2 ${DOT[status.key]}`} />
-            <span className="font-medium truncate max-w-[10rem]">{property.name}</span>
+            <span className="min-w-0 leading-tight">
+                <span className="block font-medium truncate max-w-[11rem]">{property.name}</span>
+                <span className={`block text-[10px] truncate max-w-[11rem] uppercase ${tenant ? 'text-gray-600' : 'text-gray-400 italic normal-case'}`}>{tenant ? tenant.name : 'Vacante'}</span>
+            </span>
         </Link>
     )
 }
@@ -143,9 +146,12 @@ export default function Buildings() {
                     <h2 className="font-bold text-ink mb-1">Sin edificio <span className="text-xs font-normal text-gray-500">({rows.loose.length})</span></h2>
                     <p className="text-xs text-gray-500 mb-2">Asigna cada propiedad a un edificio para agruparlas en las listas.</p>
                     <ul className="divide-y divide-gray-100">
-                        {rows.loose.map(({ property }) => (
+                        {rows.loose.map(({ property, tenant }) => (
                             <li key={property.id} className="flex items-center gap-2 py-1.5">
-                                <Link to={`/propiedades?p=${property.id}`} className="flex-1 min-w-0 text-[13px] font-medium truncate hover:text-brand-700">{property.name}</Link>
+                                <Link to={`/propiedades?p=${property.id}`} className="flex-1 min-w-0 leading-tight hover:text-brand-700">
+                                    <span className="block text-[13px] font-medium truncate">{property.name}</span>
+                                    <span className={`block text-[11px] truncate uppercase ${tenant ? 'text-gray-600' : 'text-gray-400 italic normal-case'}`}>{tenant ? tenant.name : 'Vacante'}</span>
+                                </Link>
                                 <select aria-label={`Asignar ${property.name} a un edificio`} value="" disabled={buildings.length === 0}
                                     onChange={(e) => assign(property, e.target.value)}
                                     className="px-2 py-1 text-xs border border-gray-200 rounded-lg bg-white">

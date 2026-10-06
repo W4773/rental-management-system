@@ -5,6 +5,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.7.1] - 2026-10-06
+
+### Corregido
+- **Estado "Al día" incorrecto**: si un inquilino se registra con una fecha de ingreso reciente pero ya tiene meses anteriores en el historial (pagos, historial generado o marcas), el estado ahora cuenta desde su primer mes registrado; antes ignoraba los meses previos a la fecha de ingreso y mostraba "Al día" aunque el Estado anual tuviera meses pendientes.
+
+### Cambiado
+- **Edificios** muestra el nombre del inquilino (o "Vacante") junto a cada propiedad, también en "Sin edificio".
+- **Carta de cobro**: se puede subir, cambiar y quitar la firma desde su configuración (es la misma firma de Factura) y se ve en la vista previa.
+
 ## [1.7.0] - 2026-10-06
 
 ### Agregado

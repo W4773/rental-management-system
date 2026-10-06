@@ -172,7 +172,7 @@ En **Ajustes → Carta de cobro** defines la carta que se envía a quien tiene m
 | `<<Fecha>>`, `<<Fecha límite>>` | Hoy y hoy + 5 días |
 | `<<Nombre del propietario>>`, `<<Empresa>>`, `<<Teléfono>>`, `<<Correo>>` | Tus datos de Ajustes → Factura |
 
-Hay dos **diseños base** (*Formal* y *Cordial*), opciones de membrete, tabla de meses adeudados y firma, una **vista previa en vivo** y un PDF de ejemplo. Una variable mal escrita se avisa y se imprime tal cual.
+La **firma** se sube en esta misma pantalla (es la misma de Ajustes → Factura) y aparece en la vista previa y en el PDF. Hay dos **diseños base** (*Formal* y *Cordial*), opciones de membrete, tabla de meses adeudados y firma, una **vista previa en vivo** y un PDF de ejemplo. Una variable mal escrita se avisa y se imprime tal cual.
 
 Para generar la carta de un inquilino con meses pendientes usa el botón **Carta de cobro** (icono de sobre) en el detalle de la propiedad, en **Inquilinos** o en **Finanzas**: se descarga en PDF. Guardar la plantilla requiere `008_letter_template.sql` (ver [DATABASE](DATABASE.md)).
 
