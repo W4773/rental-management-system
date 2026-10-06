@@ -119,7 +119,7 @@ export const normalizeText = (s = '') =>
     s.toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 /**
- * Status of one month of a property's rent: 'paid' | 'partial' | 'pending' | 'future'.
+ * Status of one month of a property's rent: 'paid' | 'partial' | 'pending' | 'current' | 'future' | 'void'.
  * `payments` = rent_payments of that property (any extra rows are ignored by property filter upstream).
  */
 export function getMonthStatus(payments, property, year, monthIndex, today = new Date()) {
@@ -144,5 +144,7 @@ export function getMonthStatus(payments, property, year, monthIndex, today = new
     // Not charged: neither owed nor paid
     if (voidRow) return { ...meta, status: 'void' }
     const isFuture = year > today.getFullYear() || (year === today.getFullYear() && monthIndex > today.getMonth())
-    return { ...meta, status: isFuture ? 'future' : 'pending', total: 0 }
+    // The month in progress isn't overdue yet: it shows as "Mes actual", not as "Pendiente"
+    const isCurrent = year === today.getFullYear() && monthIndex === today.getMonth()
+    return { ...meta, status: isFuture ? 'future' : isCurrent ? 'current' : 'pending', total: 0 }
 }

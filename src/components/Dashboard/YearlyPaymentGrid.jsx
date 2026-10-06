@@ -7,10 +7,11 @@ const STYLES = {
     paid: 'bg-green-500 text-white',
     partial: 'bg-amber-400 text-white',
     pending: 'bg-red-500 text-white',
+    current: 'bg-gray-100 text-gray-600 border-2 border-dashed border-gray-400',
     future: 'bg-gray-100 text-gray-400',
     void: 'bg-gray-200 text-gray-600'
 }
-const LABELS = { paid: 'Pagado', partial: 'Parcial', pending: 'Pendiente', future: 'Futuro', void: 'Nulo' }
+const LABELS = { paid: 'Pagado', partial: 'Parcial', pending: 'Pendiente', future: 'Futuro', void: 'Nulo', current: 'Mes actual' }
 // diagonal stripes for "nulo" months
 const VOID_STRIPES = { backgroundImage: 'repeating-linear-gradient(135deg, rgba(0,0,0,.07) 0 4px, transparent 4px 8px)' }
 
@@ -35,7 +36,7 @@ export default function YearlyPaymentGrid({ property, payments, year, onYearChan
                 {Array.from({ length: 12 }, (_, i) => {
                     const m = getMonthStatus(payments, property, year, i)
                     const { key, status } = m
-                    const unpaid = status === 'pending' || status === 'partial'
+                    const unpaid = status === 'pending' || status === 'partial' || status === 'current'
                     const selecting = selectMode || editMode
                     const editable = editMode && status !== 'future' && !m.locked
                     const actionable = editMode ? editable && !!onToggle : (unpaid && (selectMode ? !!onToggle : !!onMonthClick))
