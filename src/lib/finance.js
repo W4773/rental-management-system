@@ -1,4 +1,4 @@
-import { getPaymentStatus, hasMoney, monthKeyOf } from './paymentStatus'
+import { getPaymentStatus, getMonthStatus, hasMoney, monthKeyOf } from './paymentStatus'
 
 const keyOf = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`
 const num = (v) => parseFloat(v) || 0
@@ -57,7 +57,12 @@ export function computeFinance({ properties, tenants, payments, buildings, year,
         if (t) tenantRow(t).collected += amount
     }
 
-    // Expected (rent due while the tenant lived there, void months excluded)
+    // Expected (rent due while the tenant lived there; void months and months implicitly settled are excluded)
+    const rowsByProperty = new Map()
+    const propertyRows = (id) => {
+        if (!rowsByProperty.has(id)) rowsByProperty.set(id, payments.filter(p => p.property_id === id))
+        return rowsByProperty.get(id)
+    }
     for (const t of tenants) {
         const property = propById.get(t.property_id)
         if (!property) continue
@@ -68,6 +73,7 @@ export function computeFinance({ properties, tenants, payments, buildings, year,
             if ((startKey && k < startKey) || (endKey && k > endKey)) continue
             const rows = payments.filter(p => p.tenant_id === t.id && monthKeyOf(p) === k)
             if (rows.some(p => p.voided)) continue
+            if (getMonthStatus(propertyRows(property.id), property, year, m, today).implicit) continue
             const rent = num(rows.find(hasMoney)?.rent_amount) || num(property.monthly_rent)
             monthly[m].expected += rent
             bucket(property).expected += rent

@@ -5,6 +5,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.8.0] - 2026-10-06
+
+### Cambiado
+- **Los pagos se aplican en orden (lo más antiguo primero)**: elegir un mes significa "ponerme al día hasta ese mes". El pago completo suma todo lo pendiente hasta el mes elegido y un **pago parcial se descuenta de la factura pendiente más antigua**, luego de la siguiente; el formulario muestra cómo se repartirá. En "Selección múltiple", los meses anteriores pendientes se incluyen y se marcan como *anterior pendiente*.
+- **Estado sin falsos atrasos**: como se paga en orden, un mes **sin ningún registro** anterior a un mes ya pagado se da por saldado (antes un inquilino con ingreso antiguo podía figurar "Atrasado" por meses sin registro aunque estuviera al día en el año). Las marcas de *pendiente*, los pagos parciales y los meses posteriores al último pago siguen contando como deuda. Finanzas no cuenta esos meses como "esperados".
+- **Finanzas con enlaces**: inquilinos y propiedades abren su ficha, los edificios abren su detalle (también desde las gráficas y las listas) y los inquilinos antiguos abren Inquilinos → Antiguos filtrado por su nombre.
+
 ## [1.7.1] - 2026-10-06
 
 ### Corregido

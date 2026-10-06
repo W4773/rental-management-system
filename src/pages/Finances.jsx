@@ -21,6 +21,14 @@ const Card = ({ title, subtitle, children, className = '' }) => (
     </section>
 )
 
+const propertyLink = (property) => property ? `/propiedades?p=${property.id}` : null
+const tenantLink = (row) => row.active && row.property
+    ? propertyLink(row.property)
+    : `/inquilinos?v=former&q=${encodeURIComponent(row.tenant.name)}`
+const A = ({ to, children, className = '' }) => to
+    ? <Link to={to} className={`hover:text-brand-700 hover:underline ${className}`}>{children}</Link>
+    : <span className={className}>{children}</span>
+
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 
 export default function Finances() {
@@ -71,8 +79,8 @@ export default function Finances() {
 
     if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
 
-    const buildingBars = data.buildingRows.map(b => ({ key: b.id, label: b.building?.name || 'Sin edificio', value: b.collected, pending: b.owed, color: b.building ? GOLD : '#9ca3af' }))
-    const owedBars = data.buildingRows.filter(b => b.owed > 0).sort((a, b) => b.owed - a.owed).map(b => ({ key: b.id, label: b.building?.name || 'Sin edificio', value: b.owed, color: '#dc2626' }))
+    const buildingBars = data.buildingRows.map(b => ({ key: b.id, label: b.building?.name || 'Sin edificio', to: b.building ? `/edificios/${b.id}` : null, value: b.collected, pending: b.owed, color: b.building ? GOLD : '#9ca3af' }))
+    const owedBars = data.buildingRows.filter(b => b.owed > 0).sort((a, b) => b.owed - a.owed).map(b => ({ key: b.id, label: b.building?.name || 'Sin edificio', to: b.building ? `/edificios/${b.id}` : null, value: b.owed, color: '#dc2626' }))
     const SortTh = ({ k, children, className = '' }) => (
         <th className={`px-3 py-2 ${className}`}>
             <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-brand-700">
@@ -143,8 +151,11 @@ export default function Finances() {
                             {debtors.map(r => (
                                 <li key={r.tenant.id} className="flex items-center gap-2 py-1.5">
                                     <div className="min-w-0 flex-1">
-                                        <Link to={`/propiedades?p=${r.property?.id}`} className="block text-[13px] font-semibold text-ink truncate hover:text-brand-700">{r.tenant.name}</Link>
-                                        <p className="text-[11px] text-gray-500 truncate">{r.property?.name}{r.building ? ` · ${r.building.name}` : ''} · {r.monthsOwed} mes(es)</p>
+                                        <A to={propertyLink(r.property)} className="block text-[13px] font-semibold text-ink truncate">{r.tenant.name}</A>
+                                        <p className="text-[11px] text-gray-500 truncate">
+                                            <A to={propertyLink(r.property)}>{r.property?.name}</A>
+                                            {r.building && <> · <A to={`/edificios/${r.building.id}`}>{r.building.name}</A></>} · {r.monthsOwed} mes(es)
+                                        </p>
                                     </div>
                                     <span className="text-[13px] font-bold text-red-600 shrink-0">{formatCurrency(r.owed)}</span>
                                     <button onClick={() => generateLetter(r.property, r.tenant)} title="Carta de cobro (PDF)" aria-label={`Carta de cobro ${r.tenant.name}`}
@@ -215,8 +226,8 @@ export default function Finances() {
                             {tenantRows.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-gray-500">No hay inquilinos que coincidan.</td></tr>}
                             {tenantRows.map(r => (
                                 <tr key={r.tenant.id} className="text-right hover:bg-brand-50/50">
-                                    <td className="px-3 py-1.5 text-left font-medium uppercase">{r.tenant.name}{!r.active && <span className="ml-1.5 text-[9px] font-bold normal-case bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">Antiguo</span>}</td>
-                                    <td className="px-3 py-1.5 text-left">{r.property?.name}{r.building && <span className="block text-[10px] text-gray-500 leading-tight">{r.building.name}</span>}</td>
+                                    <td className="px-3 py-1.5 text-left font-medium uppercase"><A to={tenantLink(r)}>{r.tenant.name}</A>{!r.active && <span className="ml-1.5 text-[9px] font-bold normal-case bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">Antiguo</span>}</td>
+                                    <td className="px-3 py-1.5 text-left"><A to={propertyLink(r.property)}>{r.property?.name}</A>{r.building && <A to={`/edificios/${r.building.id}`} className="block text-[10px] text-gray-500 leading-tight">{r.building.name}</A>}</td>
                                     <td className="px-3 py-1.5 font-semibold">{formatCurrency(r.collected)}</td>
                                     <td className="px-3 py-1.5">{formatCurrency(r.expected)}</td>
                                     <td className="px-3 py-1.5">{r.rate === null ? '—' : `${r.rate}%`}</td>

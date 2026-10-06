@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus, Mail, ChevronDown, ChevronRight, History } from 'lucide-react'
 import { differenceInCalendarMonths } from 'date-fns'
 import { useApp } from '../contexts/AppContext'
@@ -14,8 +15,10 @@ const Spinner = () => <div className="flex justify-center py-20"><div className=
 
 export default function Tenants() {
     const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, generateLetter, closeTenant, onDataChanged, toast, loading } = useApp()
-    const [query, setQuery] = useState('')
-    const [view, setView] = useState('active') // 'active' | 'former'
+    const [params] = useSearchParams()
+    // Deep links (e.g. from Finanzas): /inquilinos?v=former&q=name
+    const [query, setQuery] = useState(params.get('q') || '')
+    const [view, setView] = useState(params.get('v') === 'former' ? 'former' : 'active') // 'active' | 'former'
     const [toUnassign, setToUnassign] = useState(null)
     const [expanded, setExpanded] = useState(null)
 

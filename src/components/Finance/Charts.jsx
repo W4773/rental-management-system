@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { formatCurrency } from '../../lib/calculations'
 
 export const compact = (n) => {
@@ -54,7 +55,9 @@ export function HBars({ rows, valueKey = 'value', secondaryKey, format = formatC
                 return (
                     <li key={r.key}>
                         <div className="flex items-baseline justify-between gap-2 text-xs">
-                            <span className="font-semibold text-ink truncate">{r.label}</span>
+                            {r.to
+                                ? <Link to={r.to} className="font-semibold text-ink truncate hover:text-brand-700 hover:underline">{r.label}</Link>
+                                : <span className="font-semibold text-ink truncate">{r.label}</span>}
                             <span className="text-gray-500 shrink-0">
                                 <span className="font-bold" style={{ color: r.color }}>{format(a)}</span>
                                 {secondaryKey && b > 0 && <span className="text-red-600 ml-2">pendiente {format(b)}</span>}
