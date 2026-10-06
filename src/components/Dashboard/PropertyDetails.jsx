@@ -77,7 +77,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     const history = useMemo(
         () => propertyPayments
             .filter(p => hasMoney(p) && !p.auto_generated)
-            .sort((a, b) => b.payment_month.localeCompare(a.payment_month) || (b.payment_date || '').localeCompare(a.payment_date || '')),
+            .sort((a, b) => (b.payment_month || '').localeCompare(a.payment_month || '') || (b.payment_date || '').localeCompare(a.payment_date || '')),
         [propertyPayments]
     )
     const utilities = useMemo(
