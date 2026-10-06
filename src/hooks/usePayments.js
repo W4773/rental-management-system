@@ -131,8 +131,10 @@ export function usePayments() {
                     rent_amount: rent,
                     amount_paid: 0,
                     remaining_balance: rent,
-                    payment_date: null,
-                    payment_method: 'pending',
+                    // The table requires a date and a known method even for unpaid rows: use the month's first day
+                    // and the same 'historical' method the generated history rows already use
+                    payment_date: `${key}-01`,
+                    payment_method: 'historical',
                     payment_type: 'full',
                     payment_status: 'pending',
                     auto_generated: false,

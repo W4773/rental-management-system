@@ -5,6 +5,17 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.5.0] - 2026-10-06
+
+### Agregado
+- **Nueva identidad visual**: logo "Torres en alza" (símbolo, horizontal y apilado; color, negro y blanco), favicon y set de íconos web/PWA, y guía de marca (`docs/BRAND.md`, archivos en `docs/brand/`). El encabezado usa el logo real en lugar de un ícono genérico.
+
+### Cambiado
+- El mes en curso sin pago se muestra como **"Mes actual"** en gris (borde punteado) en lugar de "Pendiente", para no confundirlo con un mes vencido. Sigue siendo pagable.
+
+### Corregido
+- **Marcar como pendiente** un mes que estaba "pagado" automáticamente ya no falla por valores nulos: las marcas llevan fecha (día 1 del mes) y método válidos.
+
 ## [1.4.0] - 2026-10-06
 
 ### Agregado

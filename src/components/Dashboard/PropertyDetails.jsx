@@ -148,7 +148,7 @@ export default function PropertyDetails({ property, onDeleted }) {
         refreshAll(); exitEditMode()
     }
     const pendingMonthKeys = Array.from({ length: 12 }, (_, i) => getMonthStatus(propertyPayments, property, year, i))
-        .filter(m => m.status === 'pending' || m.status === 'partial')
+        .filter(m => m.status === 'pending' || m.status === 'partial' || m.status === 'current')
         .map(m => m.key)
     const allPendingSelected = pendingMonthKeys.length > 0 && pendingMonthKeys.every(k => selectedMonths.includes(k))
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/logo.png" alt="Alquiler Pro" width="84" />
+<img src="public/logo-stacked.svg" alt="Alquiler Pro" width="180" />
 
 # Alquiler Pro
 
