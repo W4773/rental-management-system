@@ -80,12 +80,13 @@ export default function Tenants() {
                                 <th className="text-left px-3 py-2 hidden sm:table-cell">Teléfono</th>
                                 <th className="text-left px-3 py-2">Propiedad</th>
                                 <th className="text-left px-3 py-2 hidden lg:table-cell">Entrada</th>
+                                <th className="text-left px-3 py-2 hidden xl:table-cell">Depósito</th>
                                 <th className="text-left px-3 py-2">Estado de pago</th>
                                 <th className="px-3 py-2" />
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {active.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-gray-500">No hay inquilinos activos.</td></tr>}
+                            {active.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-gray-500">No hay inquilinos activos.</td></tr>}
                             {active.map(({ tenant, property }) => {
                                 const building = buildings.find(b => b.id === property?.building_id)
                                 return (
@@ -95,6 +96,7 @@ export default function Tenants() {
                                         <td className="px-3 py-1.5 hidden sm:table-cell">{tenant.phone}</td>
                                         <td className="px-3 py-1.5">{property?.name}{building && <span className="text-[11px] text-gray-500 block leading-tight">{building.name}</span>}</td>
                                         <td className="px-3 py-1.5 hidden lg:table-cell">{formatDate(tenant.start_date)}</td>
+                                        <td className="px-3 py-1.5 hidden xl:table-cell">{tenant.deposit_amount > 0 ? formatCurrency(tenant.deposit_amount) : '-'}</td>
                                         <td className="px-3 py-1.5"><StatusPill showDetail align="left" status={getPaymentStatus(property, tenant, payments)} /></td>
                                         <td className="px-3 py-1.5">
                                             <div className="flex items-center justify-end gap-0.5">

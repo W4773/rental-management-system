@@ -4,6 +4,7 @@ import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
 import { monthLabel } from '../../lib/pdfHelpers'
+import { useBuildingColors } from '../../lib/buildingColors'
 import { hasMoney, getMonthStatus, getPaymentStatus } from '../../lib/paymentStatus'
 import { nextIncrease } from '../../lib/rentIncrease'
 import StatusPill from './StatusPill'
@@ -52,6 +53,7 @@ export default function PropertyDetails({ property, onDeleted }) {
         deletePayment, deleteProperty, closeTenant, setMonthsState, clearMonthMarks, onDataChanged, refreshAll, toast
     } = useApp()
 
+    const buildingColors = useBuildingColors(buildings)
     const [year, setYear] = useState(new Date().getFullYear())
     const [showAll, setShowAll] = useState(false)
     const [selectedPayments, setSelectedPayments] = useState([])
@@ -87,6 +89,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     const pendingUtilities = utilities.filter(g => !g.paid).reduce((s, g) => s + (parseFloat(g.total_cost) || 0), 0)
     const activeTenant = property ? tenants.find(t => t.property_id === property.id && !t.end_date) : null
     const building = property ? buildings.find(b => b.id === property.building_id) : null
+    const color = building ? buildingColors[building.id] : null
 
     if (!property) {
         return (
@@ -181,13 +184,19 @@ export default function PropertyDetails({ property, onDeleted }) {
     }
 
     return (
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4" style={color ? { borderTop: `4px solid ${color.solid}` } : undefined}>
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h2 className="text-xl font-bold text-ink leading-tight">{property.name}</h2>
                     <p className="text-sm text-gray-500">
-                        {building ? `${building.name} · ` : ''}{property.address}
+                        {building && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-px mr-1 rounded text-[11px] font-semibold align-middle"
+                                style={{ background: color.strong, color: color.text, border: `1px solid ${color.border}` }}>
+                                <Building2 className="w-3 h-3" />{building.name}
+                            </span>
+                        )}
+                        {property.address}
                     </p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
                         <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5" />{property.bedrooms} Hab</span>
@@ -225,13 +234,15 @@ export default function PropertyDetails({ property, onDeleted }) {
             {/* Tenant */}
             <Section title="Inquilino actual" icon={User}>
                 {activeTenant ? (
-                    <div className="rounded-lg bg-brand-50 border border-brand-100 p-3">
+                    <div className="rounded-lg bg-brand-50 border border-brand-100 p-3"
+                        style={color ? { background: color.soft, borderColor: color.border } : undefined}>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[13px]">
                             <div><dt className="inline font-semibold">Nombre: </dt><dd className="inline">{activeTenant.name}</dd></div>
                             <div><dt className="inline font-semibold">Cédula: </dt><dd className="inline">{activeTenant.identity_number}</dd></div>
                             <div><dt className="inline font-semibold">Teléfono: </dt><dd className="inline">{activeTenant.phone}</dd></div>
                             <div><dt className="inline font-semibold">Email: </dt><dd className="inline">{activeTenant.email || '-'}</dd></div>
                             <div><dt className="inline font-semibold">Entrada: </dt><dd className="inline">{formatDate(activeTenant.start_date)}</dd></div>
+                            <div><dt className="inline font-semibold">Depósito: </dt><dd className="inline">{activeTenant.deposit_amount > 0 ? formatCurrency(activeTenant.deposit_amount) : '-'}</dd></div>
                         </dl>
                         <div className="mt-2.5 flex gap-2">
                             <button onClick={() => openTenant(property, activeTenant)}

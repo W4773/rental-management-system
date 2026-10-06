@@ -43,7 +43,7 @@ You register your buildings, properties and tenants; record payments (one month 
 | Area | What you get |
 |---|---|
 | **Home** | KPIs (collected this year, overdue amount, occupancy, collection rate), search and filters, activity log, payment alerts. |
-| **Properties** | Create and edit, physical details, rent, deposit, **annual increase with first-increase date**, 12-month yearly status. |
+| **Properties** | Create and edit, physical details, rent, optional tenant in the same form, **annual increase with first-increase date**, 12-month yearly status. |
 | **Buildings** | Name and address, detail page with units, occupancy, total rent and arrears; properties take the building address. |
 | **Tenants** | Active and **former** (history with period and payments), unlink without deleting anything, per-tenant report. |
 | **Payments** | Pay one month or **several at once**, partial payments, edit payments, **pending** or **void** (not charged) months. |

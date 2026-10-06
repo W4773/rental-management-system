@@ -10,8 +10,8 @@ La app usa **Supabase (PostgreSQL)** con el esquema **`rental`** (el cliente lo 
 
 | Tabla | Para qué | Columnas principales |
 |---|---|---|
-| `properties` | Propiedades | `id`, `user_id`, `name`, `address`, `monthly_rent`, `bedrooms`, `bathrooms`, `property_type`, `unit_number`, `square_meters`, `notes`, `contract_start_date`, `deposit_amount`, `annual_increase_pct`, `increase_type`, **`increase_start_date`** (005), **`building_id`** (002) |
-| `tenants` | Inquilinos (activo = `end_date` nulo) | `id`, `user_id`, `property_id`, `name`, `identity_number`, `phone`, `email`, `start_date`, `end_date` |
+| `properties` | Propiedades | `id`, `user_id`, `name`, `address`, `monthly_rent`, `bedrooms`, `bathrooms`, `property_type`, `unit_number`, `square_meters`, `notes`, `contract_start_date`, `annual_increase_pct`, `increase_type`, **`increase_start_date`** (005), **`building_id`** (002) |
+| `tenants` | Inquilinos (activo = `end_date` nulo) | `id`, `user_id`, `property_id`, `name`, `identity_number`, `phone`, `email`, `start_date`, `end_date`, **`deposit_amount`** (007) |
 | `rent_payments` | Un registro por pago o marca de mes | `id`, `user_id`, `property_id`, `tenant_id`, `payment_month`, `rent_amount`, `amount_paid`, `remaining_balance`, `payment_date`, `payment_method`, `payment_type`, `payment_status`, `reference`, `notes`, `auto_generated`, **`voided`**, **`void_reason`** (006) |
 | `gas_consumption` | Lecturas de gas, luz y agua | `id`, `user_id`, `property_id`, `utility_type`, `reading_date`, `previous_reading`, `current_reading`, `price_per_unit`, `consumption_volume`, `total_cost`, `paid`, `payment_date` |
 | `user_settings` | Datos para los PDFs | `user_id`, `business_name`, `landlord_name`, `phone`, `email`, `invoice_footer`, `signature_url` |
@@ -38,6 +38,7 @@ Ejecuta **cada archivo completo** en el *SQL Editor* de Supabase, del proyecto c
 | 004 | [`004_activity_log.sql`](../supabase/migrations/004_activity_log.sql) | Tabla `activity_log` (solo lectura/inserción). Requiere 002. | Inicio muestra solo los pagos recientes. |
 | 005 | [`005_increase_start_date.sql`](../supabase/migrations/005_increase_start_date.sql) | `properties.increase_start_date` (fecha del primer aumento). | Guardar una propiedad con esa fecha falla y lo avisa. |
 | 006 | [`006_payment_void.sql`](../supabase/migrations/006_payment_void.sql) | `rent_payments.voided` y `void_reason` (meses nulos). | Marcar meses como nulos avisa; "pendiente" funciona. |
+| 007 | [`007_tenant_deposit.sql`](../supabase/migrations/007_tenant_deposit.sql) | `tenants.deposit_amount` (el depósito pasa al inquilino; copia el que tuviera la propiedad). | Guardar un inquilino con depósito avisa; lo demás funciona. |
 
 ### Verificación (solo lectura)
 
@@ -72,7 +73,7 @@ The app uses **Supabase (PostgreSQL)** with the **`rental`** schema (declared in
 | Table | Purpose |
 |---|---|
 | `properties` | Properties (+ `increase_start_date` from 005, `building_id` from 002) |
-| `tenants` | Tenants (active = `end_date` is null) |
+| `tenants` | Tenants (active = `end_date` is null; + `deposit_amount` from 007) |
 | `rent_payments` | One row per payment or month mark (+ `voided`, `void_reason` from 006) |
 | `gas_consumption` | Gas, electricity and water readings |
 | `user_settings` | Data used in PDFs (business name, contact, footer, signature) |
@@ -99,6 +100,7 @@ Run **each file in full** in the Supabase *SQL Editor* of the right project, **i
 | 004 | `004_activity_log.sql` | `activity_log` table (read/insert only). Requires 002. | Home shows only recent payments. |
 | 005 | `005_increase_start_date.sql` | `properties.increase_start_date`. | Saving a property with that date fails and says why. |
 | 006 | `006_payment_void.sql` | `rent_payments.voided` / `void_reason` (void months). | Marking void months warns; "pending" still works. |
+| 007 | `007_tenant_deposit.sql` | `tenants.deposit_amount` (the deposit moves to the tenant; copies the one stored on the property). | Saving a tenant with a deposit warns; everything else works. |
 
 ## Security
 

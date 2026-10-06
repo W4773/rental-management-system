@@ -6,6 +6,7 @@ import Button from '../Common/Button'
 import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
 import { useTenants } from '../../hooks/useTenants'
 import { Building2 } from 'lucide-react'
+import { createTenantWithHistory, depositColumnMissing, DEPOSIT_MIGRATION_MESSAGE } from '../../lib/createTenantWithHistory'
 import { useApp } from '../../contexts/AppContext'
 import { usePayments } from '../../hooks/usePayments'
 import { startOfMonth, addMonths } from 'date-fns' // eslint-disable-line no-unused-vars
@@ -16,6 +17,7 @@ const EMPTY_FORM = {
     identity_number: '',
     phone: '',
     email: '',
+    deposit_amount: '',
     start_date: new Date().toISOString().split('T')[0]
 }
 
@@ -51,6 +53,7 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                 identity_number: tenantToEdit.identity_number || '',
                 phone: tenantToEdit.phone || '',
                 email: tenantToEdit.email || '',
+                deposit_amount: tenantToEdit.deposit_amount ?? '',
                 start_date: tenantToEdit.start_date || new Date().toISOString().split('T')[0]
             })
             setStep(2)
@@ -112,6 +115,10 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
         const dateError = validateNotFutureDate(formData.start_date)
         if (dateError) newErrors.start_date = dateError
 
+        if (formData.deposit_amount !== '' && !(parseFloat(formData.deposit_amount) >= 0)) {
+            newErrors.deposit_amount = 'El depósito debe ser un monto válido'
+        }
+
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
@@ -130,6 +137,10 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                     phone: formData.phone,
                     email: formData.email.trim() || null,
                     start_date: formData.start_date,
+                    // Always sent on edit so it can be cleared; the column comes with migration 007
+                    ...(formData.deposit_amount !== '' || tenantToEdit.deposit_amount != null
+                        ? { deposit_amount: formData.deposit_amount === '' ? null : parseFloat(formData.deposit_amount) }
+                        : {})
                 })
                 if (updateError) throw new Error(updateError)
                 if (onSuccess) onSuccess(updated)
@@ -144,24 +155,11 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                 const { data: existingTenant } = await getActiveTenantForProperty(formData.property_id)
                 if (existingTenant) await closeTenant(existingTenant.id, new Date())
 
-                const { data: newTenant, error: tenantError } = await addTenant({
-                    property_id: formData.property_id,
-                    name: formData.name.trim(),
-                    identity_number: formData.identity_number,
-                    phone: formData.phone,
-                    email: formData.email.trim() || null,
-                    start_date: formData.start_date,
-                    end_date: null
-                })
-                if (tenantError) throw new Error(tenantError)
-
-                // Auto-generate paid records for all months before the last 2 (current + previous)
-                await generateHistoricalPayments(
-                    formData.property_id,
-                    newTenant.id,
-                    formData.start_date,
-                    selectedProperty.monthly_rent
+                const { data: newTenant, error: tenantError } = await createTenantWithHistory(
+                    { addTenant, generateHistoricalPayments },
+                    { propertyId: formData.property_id, monthlyRent: selectedProperty.monthly_rent, values: formData }
                 )
+                if (tenantError) throw new Error(tenantError)
 
                 if (onSuccess) onSuccess(newTenant)
             }
@@ -169,7 +167,7 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
             handleClose()
         } catch (err) {
             console.error('Error en AssignTenantModal:', err)
-            setErrors({ submit: err.message || 'Error al guardar inquilino' })
+            setErrors({ submit: depositColumnMissing(err.message) ? DEPOSIT_MIGRATION_MESSAGE : (err.message || 'Error al guardar inquilino') })
         } finally {
             setLoading(false)
         }
@@ -280,6 +278,17 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             onChange={handleChange}
                             error={errors.email}
                             placeholder="correo@ejemplo.com"
+                        />
+                        <FormInput
+                            label="Depósito (RD$) — opcional"
+                            name="deposit_amount"
+                            type="number"
+                            value={formData.deposit_amount}
+                            onChange={handleChange}
+                            error={errors.deposit_amount}
+                            placeholder="Ej: 30000"
+                            min="0"
+                            step="0.01"
                         />
                         <FormInput
                             label="Fecha de Ingreso"

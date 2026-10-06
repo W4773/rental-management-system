@@ -39,7 +39,7 @@ This guide walks through the app screen by screen. Screenshots use fictitious de
 - **Delete** a building: its properties are **not deleted**, they become "Sin edificio" (no building).
 - **Assign** loose properties to a building with the selector in the "Sin edificio" section.
 
-Each card shows units, occupancy, total monthly rent and how many are late. **Click the building name (or "Ver")** to open its detail page.
+Each building has **its own colour** (automatic and fixed) in the Buildings view and in Properties, shared by its units and tenants, and units are listed alphabetically. Each card shows units, occupancy, total monthly rent and how many are late. **Click the building name (or "Ver")** to open its detail page.
 
 ### Building detail
 
@@ -51,9 +51,11 @@ Shows the building's data, its indicators (units, occupancy, monthly rent, overd
 
 ## 3. Properties
 
-**Propiedades → + Nueva propiedad.** Enter name or code, building (optional; if you pick one the address is optional), monthly rent, bedrooms and bathrooms. Further down you'll find extra details (type, square meters, deposit, notes).
+**Propiedades → + Nueva propiedad.** Enter name or code, building (optional; if you pick one the address is optional), monthly rent, bedrooms and bathrooms. Further down you'll find extra details (type, square meters, notes).
 
-**Annual increase.** Choose a percentage or a fixed amount and, optionally, the **date of the first increase**: the day it takes effect for the first time; it then repeats every year on that date. The property detail shows a line such as *"Aumento anual: 5% · próximo el 01/01/2027 → RD$19,425"*. It is informational: the rent does not change by itself.
+**All-in-one registration.** At the bottom of the form, below the *opcional* line, you can enter the **current tenant** (name, ID, phone, email, move-in date and deposit) and everything is saved in a single step. Leave it empty to create only the property.
+
+**Annual increase (optional).** Choose a percentage or a fixed amount and, optionally, the **date of the first increase**: the day it takes effect for the first time; it then repeats every year on that date. The property detail shows a line such as *"Aumento anual: 5% · próximo el 01/01/2027 → RD$19,425"*. It is informational: the rent does not change by itself.
 
 To edit or delete a property use the icons in the top-right corner of its detail. Deleting also removes its history; the app asks for confirmation.
 
@@ -61,7 +63,7 @@ To edit or delete a property use the icons in the top-right corner of its detail
 
 ## 4. Tenants
 
-- **Assign:** on a vacant property click *Asignar inquilino* (or **Inquilinos → + Nuevo inquilino** and pick the property with the search box). It asks for name, ID number, phone, email (optional) and move-in date.
+- **Assign:** on a vacant property click *Asignar inquilino* (or **Inquilinos → + Nuevo inquilino** and pick the property with the search box). It asks for name, ID number, phone, email (optional), **deposit (optional)** and move-in date.
 - **Edit** the current tenant: *Editar inquilino*.
 - **Change tenant:** registers a new one; the previous tenant moves to "Antiguos" (former) with their history.
 - **Unlink:** *Desvincular* button (on the property or in Tenants). The property becomes vacant and the tenant moves to **Antiguos**. **No payment is deleted.**

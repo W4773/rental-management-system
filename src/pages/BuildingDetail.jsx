@@ -6,6 +6,7 @@ import { formatCurrency } from '../lib/calculations'
 import { normalizeText } from '../lib/paymentStatus'
 import { getBuildingUnits, buildingStats } from '../lib/buildingStats'
 import StatusPill from '../components/Dashboard/StatusPill'
+import { useBuildingColors } from '../lib/buildingColors'
 import Kpi from '../components/Common/Kpi'
 
 const FILTERS = [
@@ -22,6 +23,8 @@ export default function BuildingDetail() {
     const [query, setQuery] = useState('')
 
     const building = buildings.find(b => b.id === id) || null
+    const colors = useBuildingColors(buildings)
+    const color = building ? colors[building.id] : null
     const units = useMemo(
         () => building ? getBuildingUnits(building, properties, tenants, payments) : [],
         [building, properties, tenants, payments]
@@ -58,11 +61,11 @@ export default function BuildingDetail() {
             </Link>
 
             <div className="flex flex-wrap items-start gap-3">
-                <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-400 to-brand-500 text-white flex items-center justify-center shrink-0">
+                <span className="w-11 h-11 rounded-xl text-white flex items-center justify-center shrink-0" style={{ background: color.solid }}>
                     <Building2 className="w-5 h-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                    <h1 className="text-xl font-bold text-ink leading-tight">{building.name}</h1>
+                    <h1 className="text-xl font-bold leading-tight" style={{ color: color.text }}>{building.name}</h1>
                     <p className="flex items-center gap-1 text-sm text-gray-500">
                         <MapPin className="w-3.5 h-3.5 shrink-0" />{building.address || 'Sin dirección'}
                     </p>
@@ -77,7 +80,7 @@ export default function BuildingDetail() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2" style={{ '--bcolor': color.solid }}>
                 <Kpi icon={HomeIcon} label="Unidades" value={stats.total} />
                 <Kpi icon={Percent} label="Ocupación" value={`${stats.occupied}/${stats.total} · ${stats.occupancy}%`} tone={stats.vacant > 0 ? 'amber' : 'green'} />
                 <Kpi icon={Wallet} label="Renta mensual" value={formatCurrency(stats.rent)} />
@@ -85,7 +88,7 @@ export default function BuildingDetail() {
                 <Kpi icon={AlertTriangle} label="Atrasadas" value={stats.late} tone={stats.late > 0 ? 'red' : 'green'} />
             </div>
 
-            <section className="bg-white rounded-xl border border-brand-200 shadow-sm">
+            <section className="bg-white rounded-xl border border-brand-200 shadow-sm" style={{ borderColor: color.border, borderTop: `4px solid ${color.solid}` }}>
                 <div className="flex flex-wrap items-center gap-2 p-3 border-b border-gray-100">
                     <div className="relative flex-1 min-w-[12rem]">
                         <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -112,10 +115,10 @@ export default function BuildingDetail() {
                 ) : (
                     <ul className="divide-y divide-gray-100">
                         {shown.map(({ property, tenant, status }) => (
-                            <li key={property.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
+                            <li key={property.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 border-l-4" style={{ borderLeftColor: color.solid }}>
                                 <div className="min-w-0 flex-1 basis-48">
                                     <Link to={`/propiedades?p=${property.id}`} className="text-sm font-semibold text-ink hover:text-brand-700 truncate block">{property.name}</Link>
-                                    <p className="text-xs text-gray-500 truncate">{tenant ? tenant.name : 'Vacante'}{property.unit_number ? ` · ${property.unit_number}` : ''}</p>
+                                    <p className="text-xs text-gray-500 truncate" style={tenant ? { color: color.text } : undefined}>{tenant ? tenant.name : 'Vacante'}{property.unit_number ? ` · ${property.unit_number}` : ''}</p>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-700 w-28 text-right">{formatCurrency(property.monthly_rent)}</span>
                                 <div className="w-44"><StatusPill status={status} showDetail align="left" /></div>

@@ -1,5 +1,8 @@
 import { getPaymentStatus } from './paymentStatus'
 
+/** Natural alphabetical order of units: 1-A, 2-A, 10-A. */
+export const compareUnits = (a, b) => (a.name || '').localeCompare(b.name || '', 'es', { numeric: true, sensitivity: 'base' })
+
 /** Unit = property + its active tenant + payment status. */
 export function enrichUnit(property, tenants, payments) {
     const tenant = tenants.find(t => t.property_id === property.id && !t.end_date) || null
@@ -10,7 +13,7 @@ export function getBuildingUnits(building, properties, tenants, payments) {
     return properties
         .filter(p => p.building_id === building.id)
         .map(p => enrichUnit(p, tenants, payments))
-        .sort((a, b) => a.property.name.localeCompare(b.property.name, 'es', { numeric: true }))
+        .sort((a, b) => compareUnits(a.property, b.property))
 }
 
 export function buildingStats(units) {

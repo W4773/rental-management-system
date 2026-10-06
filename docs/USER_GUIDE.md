@@ -39,7 +39,7 @@ El **Inicio** reúne los indicadores del año, la lista de propiedades (agrupada
 - **Eliminar** un edificio: sus propiedades **no se borran**, quedan "Sin edificio".
 - **Asignar** propiedades sueltas a un edificio con el selector de la sección "Sin edificio".
 
-Cada tarjeta muestra unidades, ocupación, renta mensual total y cuántas están atrasadas. **Pulsa el nombre del edificio (o "Ver")** para abrir su detalle.
+Cada edificio tiene **su propio color** (automático y fijo) en la vista de Edificios y en Propiedades, junto con sus unidades e inquilinos, y las unidades aparecen en orden alfabético. Cada tarjeta muestra unidades, ocupación, renta mensual total y cuántas están atrasadas. **Pulsa el nombre del edificio (o "Ver")** para abrir su detalle.
 
 ### Detalle del edificio
 
@@ -51,9 +51,11 @@ Muestra los datos del edificio, sus indicadores (unidades, ocupación, renta men
 
 ## 3. Propiedades
 
-**Propiedades → + Nueva propiedad.** Completa nombre o código, edificio (opcional; si lo eliges, la dirección es opcional), renta mensual, habitaciones y baños. Más abajo encontrarás datos adicionales (tipo, metros, depósito, notas).
+**Propiedades → + Nueva propiedad.** Completa nombre o código, edificio (opcional; si lo eliges, la dirección es opcional), renta mensual, habitaciones y baños. Más abajo encontrarás datos adicionales (tipo, metros, notas).
 
-**Incremento anual.** Elige porcentaje o monto fijo y, si quieres, la **fecha del primer aumento**: el día en que entra en vigor por primera vez; luego se repite cada año en la misma fecha. En el detalle de la propiedad verás una línea como *"Aumento anual: 5% · próximo el 01/01/2027 → RD$19,425"*. Es informativo: la renta no cambia sola.
+**Registro todo en uno.** Al final del formulario, bajo la línea *opcional*, puedes registrar al **inquilino actual** (nombre, cédula, teléfono, correo, fecha de ingreso y depósito) y todo se guarda en un solo paso. Si lo dejas vacío, se crea solo la propiedad.
+
+**Incremento anual (opcional).** Elige porcentaje o monto fijo y, si quieres, la **fecha del primer aumento**: el día en que entra en vigor por primera vez; luego se repite cada año en la misma fecha. En el detalle de la propiedad verás una línea como *"Aumento anual: 5% · próximo el 01/01/2027 → RD$19,425"*. Es informativo: la renta no cambia sola.
 
 Para editar o eliminar una propiedad usa los iconos de la esquina superior derecha de su detalle. Eliminar borra también su historial; la app te pide confirmación.
 
@@ -61,7 +63,7 @@ Para editar o eliminar una propiedad usa los iconos de la esquina superior derec
 
 ## 4. Inquilinos
 
-- **Asignar:** en el detalle de una propiedad vacante pulsa *Asignar inquilino* (o **Inquilinos → + Nuevo inquilino**: el selector muestra solo propiedades **disponibles**, con filtro por edificio y buscador). Pide nombre, cédula, teléfono, correo (opcional) y fecha de entrada.
+- **Asignar:** en el detalle de una propiedad vacante pulsa *Asignar inquilino* (o **Inquilinos → + Nuevo inquilino**: el selector muestra solo propiedades **disponibles**, con filtro por edificio y buscador). Pide nombre, cédula, teléfono, correo (opcional), **depósito (opcional)** y fecha de entrada.
 - **Editar** los datos del inquilino actual: botón *Editar inquilino*.
 - **Cambiar inquilino:** registra a uno nuevo; el anterior pasa a "Antiguos" con su historial.
 - **Desvincular:** botón *Desvincular* (en la propiedad o en Inquilinos). La propiedad queda vacante y el inquilino pasa a **Antiguos**. **No se borra ningún pago.**

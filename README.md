@@ -43,7 +43,7 @@ Registras tus edificios, propiedades e inquilinos; anotas los pagos (uno o vario
 | Área | Qué incluye |
 |---|---|
 | **Inicio** | Indicadores (cobrado del año, monto atrasado, ocupación, tasa de cobro), buscador y filtros, registro de actividad, alertas de pago. |
-| **Propiedades** | Alta y edición, datos físicos, renta, depósito, **incremento anual con fecha del primer aumento**, estado anual de 12 meses. |
+| **Propiedades** | Alta y edición, datos físicos, renta, inquilino opcional en el mismo formulario, **incremento anual con fecha del primer aumento**, estado anual de 12 meses. |
 | **Edificios** | Nombre y dirección, ficha de detalle con unidades, ocupación, renta total y atrasos; las propiedades toman la dirección del edificio. |
 | **Inquilinos** | Activos y **antiguos** (histórico con período y pagos), desvincular sin borrar nada, reporte por inquilino. |
 | **Pagos** | Pago de un mes o de **varios a la vez**, abonos parciales, edición de pagos, meses **pendientes** o **nulos** (no cobrados). |
