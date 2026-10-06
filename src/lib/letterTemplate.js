@@ -220,7 +220,7 @@ export async function generateCollectionLetter({ property, tenant, building, sta
     if (cfg.showSignature) {
         if (userSettings.signature_url) {
             const data = await loadImageAsDataUrl(userSettings.signature_url)
-            if (data) { doc.addImage(data, 'PNG', margin, y, 48, 19); y += 20 }
+            if (data) { doc.addImage(data, /^data:image\/jpe?g/i.test(data) ? 'JPEG' : 'PNG', margin, y, 48, 19); y += 20 }
         } else { y += 14 }
         doc.setDrawColor(...PDF_COLORS.ink)
         doc.setLineWidth(0.4)
