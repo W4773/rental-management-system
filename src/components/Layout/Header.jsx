@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, House, DoorOpen, Users, Flame, Bell, Settings, LogOut } from 'lucide-react'
+import { Building2, House, DoorOpen, Users, Flame, Bell, Settings, LogOut, ChartColumn } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useApp } from '../../contexts/AppContext'
 
@@ -9,6 +9,7 @@ const TABS = [
     { to: '/propiedades', label: 'Propiedades', icon: DoorOpen },
     { to: '/edificios', label: 'Edificios', icon: Building2 },
     { to: '/inquilinos', label: 'Inquilinos', icon: Users },
+    { to: '/finanzas', label: 'Finanzas', icon: ChartColumn },
     { to: '/gastos', label: 'Gastos', icon: Flame }
 ]
 

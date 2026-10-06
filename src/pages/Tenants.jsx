@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus, ChevronDown, ChevronRight, History } from 'lucide-react'
+import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus, Mail, ChevronDown, ChevronRight, History } from 'lucide-react'
 import { differenceInCalendarMonths } from 'date-fns'
 import { useApp } from '../contexts/AppContext'
 import { formatDate } from '../lib/dateUtils'
@@ -13,7 +13,7 @@ const METHOD = { transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque', h
 const Spinner = () => <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
 
 export default function Tenants() {
-    const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, closeTenant, onDataChanged, toast, loading } = useApp()
+    const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, generateLetter, closeTenant, onDataChanged, toast, loading } = useApp()
     const [query, setQuery] = useState('')
     const [view, setView] = useState('active') // 'active' | 'former'
     const [toUnassign, setToUnassign] = useState(null)
@@ -89,6 +89,7 @@ export default function Tenants() {
                             {active.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-gray-500">No hay inquilinos activos.</td></tr>}
                             {active.map(({ tenant, property }) => {
                                 const building = buildings.find(b => b.id === property?.building_id)
+                                const status = getPaymentStatus(property, tenant, payments)
                                 return (
                                     <tr key={tenant.id} className="hover:bg-brand-50/50">
                                         <td className="px-3 py-1.5 font-medium uppercase">{tenant.name}</td>
@@ -97,9 +98,12 @@ export default function Tenants() {
                                         <td className="px-3 py-1.5">{property?.name}{building && <span className="text-[11px] text-gray-500 block leading-tight">{building.name}</span>}</td>
                                         <td className="px-3 py-1.5 hidden lg:table-cell">{formatDate(tenant.start_date)}</td>
                                         <td className="px-3 py-1.5 hidden xl:table-cell">{tenant.deposit_amount > 0 ? formatCurrency(tenant.deposit_amount) : '-'}</td>
-                                        <td className="px-3 py-1.5"><StatusPill showDetail align="left" status={getPaymentStatus(property, tenant, payments)} /></td>
+                                        <td className="px-3 py-1.5"><StatusPill showDetail align="left" status={status} /></td>
                                         <td className="px-3 py-1.5">
                                             <div className="flex items-center justify-end gap-0.5">
+                                                {property && status.monthsOwed > 0 && (
+                                                    <button aria-label="Carta de cobro" title="Carta de cobro (PDF)" onClick={() => generateLetter(property, tenant)} className="p-1.5 rounded hover:bg-brand-50 text-gray-500 hover:text-brand-700"><Mail className="w-4 h-4" /></button>
+                                                )}
                                                 {property && (
                                                     <button aria-label="Registrar pago" title="Registrar pago" onClick={() => openPayment({ propertyId: property.id })} className="p-1.5 rounded hover:bg-brand-50 text-gray-500 hover:text-brand-700"><Wallet className="w-4 h-4" /></button>
                                                 )}

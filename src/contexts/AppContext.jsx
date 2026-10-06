@@ -10,6 +10,7 @@ import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
 import { useAlerts } from '../hooks/useAlerts'
 import { useToast } from '../components/Common/Toast'
 import { getPaymentStatus } from '../lib/paymentStatus'
+import { logActivity } from '../lib/activityLog'
 import RegisterPropertyModal from '../components/Modals/RegisterPropertyModal'
 import RegisterBuildingModal from '../components/Modals/RegisterBuildingModal'
 import AssignTenantModal from '../components/Modals/AssignTenantModal'
@@ -110,7 +111,29 @@ export function AppProvider({ children }) {
         return { error: null }
     }
 
+    /** Downloads the collection letter (Ajustes -> Carta de cobro) for a tenant with overdue months. */
+    const generateLetter = async (property, tenant) => {
+        if (!property || !tenant) return
+        const status = getPaymentStatus(property, tenant, payments)
+        if (status.monthsOwed === 0) {
+            toastApi.warning(`${tenant.name} no tiene meses pendientes: no hace falta una carta de cobro.`)
+            return
+        }
+        try {
+            const { generateCollectionLetter, letterFileName } = await import('../lib/letterTemplate')
+            const building = buildings.find(b => b.id === property.building_id) || null
+            const doc = await generateCollectionLetter({ property, tenant, building, status, payments, userSettings: settings || {}, letter: settings?.letter_settings })
+            doc.save(letterFileName(tenant))
+            logActivity({ action: 'document.letter', entityType: 'document', entityId: tenant.id, meta: { name: tenant.name, property_id: property.id, months: status.monthsOwed } })
+            toastApi.success(`Carta de cobro generada para ${tenant.name}`)
+        } catch (err) {
+            console.error('Error generating letter:', err)
+            toastApi.error('No se pudo generar la carta: ' + err.message)
+        }
+    }
+
     const value = {
+        generateLetter,
         properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts,
         activity: activityHook.entries,
         activityAvailable: activityHook.available,

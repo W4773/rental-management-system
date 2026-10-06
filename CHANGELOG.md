@@ -5,6 +5,12 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.7.0] - 2026-10-06
+
+### Agregado
+- **Sección Finanzas** (`/finanzas`): indicadores del año (cobrado, esperado, tasa de cobro, pendiente por cobrar, promedio mensual, renta perdida por vacantes), gráfica de cobrado por mes, estado de las propiedades, cobrado y pendiente **por edificio**, mayores deudas, histórico por año y detalle **por inquilino** con búsqueda, orden, filtro "solo con deuda" y exportación a CSV. Selector de año y opción de incluir o no el historial generado.
+- **Carta de cobro**: plantilla editable en Ajustes → *Carta de cobro* con variables dinámicas (`<<Nombre del inquilino>>`, `<<Meses pendientes>>`, `<<Detalle de meses>>`, `<<Monto adeudado>>`, etc.), dos diseños base (Formal y Cordial), vista previa en vivo y PDF de ejemplo. Se genera en PDF desde el detalle de la propiedad, Inquilinos y Finanzas para quien tenga meses pendientes. Requiere `supabase/migrations/008_letter_template.sql` para guardar la plantilla (sin ella se usa el diseño base).
+
 ## [1.6.1] - 2026-10-06
 
 ### Cambiado

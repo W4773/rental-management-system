@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, UserMinus, CheckSquare, ListChecks, Ban, Eraser } from 'lucide-react'
+import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, UserMinus, CheckSquare, ListChecks, Ban, Eraser, Mail } from 'lucide-react'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
@@ -49,7 +49,7 @@ const Section = ({ title, icon: Icon, right, children }) => (
 export default function PropertyDetails({ property, onDeleted }) {
     const {
         payments: allPayments, tenants, utilityReadings, buildings, settings,
-        openPayment, openProperty, openTenant, openReport, openPayGas,
+        openPayment, openProperty, openTenant, openReport, openPayGas, generateLetter,
         deletePayment, deleteProperty, closeTenant, setMonthsState, clearMonthMarks, onDataChanged, refreshAll, toast
     } = useApp()
 
@@ -244,11 +244,17 @@ export default function PropertyDetails({ property, onDeleted }) {
                             <div><dt className="inline font-semibold">Entrada: </dt><dd className="inline">{formatDate(activeTenant.start_date)}</dd></div>
                             <div><dt className="inline font-semibold">Depósito: </dt><dd className="inline">{activeTenant.deposit_amount > 0 ? formatCurrency(activeTenant.deposit_amount) : '-'}</dd></div>
                         </dl>
-                        <div className="mt-2.5 flex gap-2">
+                        <div className="mt-2.5 flex flex-wrap gap-2">
                             <button onClick={() => openTenant(property, activeTenant)}
                                 className="flex-1 bg-brand-600 text-white py-1.5 rounded-md hover:bg-brand-700 text-xs font-semibold">Editar inquilino</button>
                             <button onClick={() => openTenant(property, null)}
                                 className="flex-1 bg-accent-500 text-white py-1.5 rounded-md hover:bg-accent-600 text-xs font-semibold">Cambiar inquilino</button>
+                            {rentStatus.monthsOwed > 0 && (
+                                <button onClick={() => generateLetter(property, activeTenant)} aria-label="Generar carta de cobro" title="Carta de cobro (PDF)"
+                                    className="flex items-center justify-center gap-1 px-3 bg-white text-brand-700 border border-brand-300 py-1.5 rounded-md hover:bg-brand-50 text-xs font-semibold">
+                                    <Mail className="w-3.5 h-3.5" /> Carta de cobro
+                                </button>
+                            )}
                             <button onClick={() => setConfirmUnlink(true)} aria-label="Desvincular inquilino"
                                 className="flex items-center justify-center gap-1 px-3 bg-white text-red-600 border border-red-200 py-1.5 rounded-md hover:bg-red-50 text-xs font-semibold">
                                 <UserMinus className="w-3.5 h-3.5" /> Desvincular

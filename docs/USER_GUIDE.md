@@ -17,7 +17,9 @@ Esta guía recorre la app pantalla por pantalla. Las capturas usan datos de demo
 9. [Buscar y filtrar](#9-buscar-y-filtrar)
 10. [Alertas y registro de actividad](#10-alertas-y-registro-de-actividad)
 11. [Equipo](#11-equipo)
-12. [Preguntas frecuentes](#12-preguntas-frecuentes)
+12. [Finanzas](#12-finanzas)
+13. [Carta de cobro](#13-carta-de-cobro)
+14. [Preguntas frecuentes](#14-preguntas-frecuentes)
 
 ---
 
@@ -142,7 +144,43 @@ Ambos usan el nombre del negocio, contacto y firma de **Ajustes → Factura**.
 
 ![Equipo](images/settings-team.png)
 
-## 12. Preguntas frecuentes
+## 12. Finanzas
+
+**Finanzas** reúne el análisis del dinero. Arriba eliges el **año** y ves: lo **cobrado**, lo **esperado** (renta que correspondía cobrar hasta hoy, sin contar meses nulos), la **tasa de cobro**, el **pendiente por cobrar** (meses vencidos sin pagar), el promedio mensual y la renta perdida por unidades vacantes.
+
+- **Cobrado por mes:** barras del dinero recibido frente a lo que correspondía (contorno punteado).
+- **Estado de las propiedades:** al día, pendientes (1 mes), atrasadas (2 o más) y vacantes.
+- **Por edificio:** cobrado, pendiente, tasa de cobro y unidades pendientes/atrasadas.
+- **Mayores deudas** y **detalle por inquilino** (con búsqueda, orden por columnas, filtro *Solo con deuda* y **Exportar CSV** para Excel).
+- **Cobrado por año:** el histórico de todos los años con pagos.
+
+*Incluir historial generado* suma o no los meses que la app marcó como pagados al registrar a un inquilino (es el mismo criterio del indicador "Cobrado este año" de Inicio).
+
+![Finanzas](images/finances.png)
+
+## 13. Carta de cobro
+
+En **Ajustes → Carta de cobro** defines la carta que se envía a quien tiene meses pendientes. Escribe el texto y usa **variables** entre `<<` y `>>`; se reemplazan solas con los datos de cada inquilino. Haz clic en una variable para insertarla donde está el cursor.
+
+| Variable | Se reemplaza por |
+|---|---|
+| `<<Nombre del inquilino>>`, `<<Cédula>>` | Datos del inquilino |
+| `<<Propiedad>>`, `<<Edificio>>`, `<<Dirección>>` | Datos de la propiedad |
+| `<<Meses pendientes>>` | Cantidad de meses vencidos sin pagar |
+| `<<Detalle de meses>>` | "julio, agosto y septiembre de 2026" |
+| `<<Monto adeudado>>`, `<<Renta mensual>>` | Montos en RD$ |
+| `<<Fecha>>`, `<<Fecha límite>>` | Hoy y hoy + 5 días |
+| `<<Nombre del propietario>>`, `<<Empresa>>`, `<<Teléfono>>`, `<<Correo>>` | Tus datos de Ajustes → Factura |
+
+Hay dos **diseños base** (*Formal* y *Cordial*), opciones de membrete, tabla de meses adeudados y firma, una **vista previa en vivo** y un PDF de ejemplo. Una variable mal escrita se avisa y se imprime tal cual.
+
+Para generar la carta de un inquilino con meses pendientes usa el botón **Carta de cobro** (icono de sobre) en el detalle de la propiedad, en **Inquilinos** o en **Finanzas**: se descarga en PDF. Guardar la plantilla requiere `008_letter_template.sql` (ver [DATABASE](DATABASE.md)).
+
+![Plantilla de carta](images/letter-settings.png)
+
+![Carta de ejemplo](images/letter-sample.png)
+
+## 14. Preguntas frecuentes
 
 **¿Por qué un inquilino sale "Pendiente" si ya pagó?**
 Revisa el mes: se debe el **mes anterior**, no el actual. Registra ese pago o, si no se cobró, márcalo como nulo en [Editar meses](#6-corregir-el-historial-editar-meses).

@@ -17,7 +17,9 @@ This guide walks through the app screen by screen. Screenshots use fictitious de
 9. [Search and filters](#9-search-and-filters)
 10. [Alerts and activity log](#10-alerts-and-activity-log)
 11. [Team](#11-team)
-12. [FAQ](#12-faq)
+12. [Finance](#12-finance)
+13. [Collection letter](#13-collection-letter)
+14. [FAQ](#14-faq)
 
 ---
 
@@ -142,7 +144,43 @@ Both use the business name, contact details and signature from **Ajustes → Fac
 
 ![Team](images/settings-team.png)
 
-## 12. FAQ
+## 12. Finance
+
+**Finanzas** (Finance) gathers the money analysis. Pick the **year** at the top to see: **collected**, **expected** (rent that was due until today, void months excluded), **collection rate**, **pending to collect** (overdue months not paid), monthly average and rent lost to vacant units.
+
+- **Collected per month:** bars of money received against what was due (dotted outline).
+- **Property status:** up to date, pending (1 month), late (2 or more) and vacant.
+- **By building:** collected, pending, collection rate and pending/late unit counts.
+- **Biggest debts** and **per-tenant detail** (search, column sorting, *Solo con deuda* filter and **Exportar CSV** for Excel).
+- **Collected per year:** history of every year with payments.
+
+*Incluir historial generado* adds or not the months the app marked as paid when a tenant was registered (same criterion as the "Cobrado este año" indicator on Inicio).
+
+![Finance](images/finances.png)
+
+## 13. Collection letter
+
+In **Ajustes → Carta de cobro** you define the letter sent to tenants with pending months. Write the text and use **variables** between `<<` and `>>`; they are replaced with each tenant's data. Click a variable to insert it at the cursor.
+
+| Variable | Replaced by |
+|---|---|
+| `<<Nombre del inquilino>>`, `<<Cédula>>` | Tenant data |
+| `<<Propiedad>>`, `<<Edificio>>`, `<<Dirección>>` | Property data |
+| `<<Meses pendientes>>` | Number of overdue unpaid months |
+| `<<Detalle de meses>>` | "julio, agosto y septiembre de 2026" |
+| `<<Monto adeudado>>`, `<<Renta mensual>>` | Amounts in RD$ |
+| `<<Fecha>>`, `<<Fecha límite>>` | Today and today + 5 days |
+| `<<Nombre del propietario>>`, `<<Empresa>>`, `<<Teléfono>>`, `<<Correo>>` | Your Ajustes → Factura data |
+
+There are two **base designs** (*Formal* and *Cordial*), letterhead, overdue-months table and signature options, a **live preview** and a sample PDF. A misspelled variable is flagged and printed as is.
+
+To generate the letter for a tenant with pending months use the **Carta de cobro** button (envelope icon) in the property detail, in **Inquilinos** or in **Finanzas**: it downloads as a PDF. Saving the template requires `008_letter_template.sql` (see [DATABASE](DATABASE.md)).
+
+![Letter template](images/letter-settings.png)
+
+![Sample letter](images/letter-sample.png)
+
+## 14. FAQ
 
 **Why does a tenant show "Pendiente" if they already paid?**
 Check the month: what is owed is the **previous month**, not the current one. Record that payment or, if it was not charged, mark it void in [Edit months](#6-fixing-history-edit-months).

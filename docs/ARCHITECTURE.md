@@ -7,7 +7,7 @@ Alquiler Pro es una **SPA** (aplicación de una sola página) en React que habla
 ```mermaid
 flowchart LR
     subgraph Navegador
-        P[Páginas<br/>Inicio · Propiedades · Edificios · Inquilinos · Gastos · Ajustes]
+        P[Páginas<br/>Inicio · Propiedades · Edificios · Inquilinos · Finanzas · Gastos · Ajustes]
         C[Componentes y modales]
         X[AppContext<br/>datos + modales globales]
         H[Hooks<br/>useProperties · usePayments · useTenants ...]
@@ -23,7 +23,7 @@ flowchart LR
 
 | Capa | Dónde | Responsabilidad |
 |---|---|---|
-| Páginas | `src/pages` | Pantallas y rutas: `/`, `/propiedades`, `/edificios`, `/edificios/:id`, `/inquilinos`, `/gastos`, `/settings`, `/login`, `/register`. |
+| Páginas | `src/pages` | Pantallas y rutas: `/`, `/propiedades`, `/edificios`, `/edificios/:id`, `/inquilinos`, `/finanzas`, `/gastos`, `/settings`, `/login`, `/register`. |
 | Componentes | `src/components` | UI reutilizable: lista y detalle de propiedad, cuadrícula anual, modales (pago, edición, nulos, edificio, inquilino…), selector con buscador. |
 | Estado | `src/contexts/AppContext.jsx` | Carga una sola vez propiedades, inquilinos, pagos, servicios, edificios, ajustes y actividad; expone `openX()` para abrir modales y `refreshAll()` (sin recargar la página). |
 | Datos | `src/hooks` | Un hook por tabla con las operaciones CRUD contra Supabase; registran la actividad. |
