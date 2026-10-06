@@ -70,6 +70,8 @@ export function describeActivity(entry, { properties = [], tenants = [], buildin
             return { kind: 'document', tone: 'update', title: 'Recibo generado', subtitle: join(tenant?.name, propName, monthsText(meta.months)) }
         case 'document.report':
             return { kind: 'document', tone: 'update', title: 'Reporte de pagos generado', subtitle: join(propName, meta.period) }
+        case 'document.letter':
+            return { kind: 'document', tone: 'update', title: 'Carta de cobro generada', subtitle: join(meta.name || tenant?.name, propName, meta.months ? `${meta.months} mes(es)` : '') }
         default:
             return { kind: 'document', tone: 'update', title: entry.action, subtitle: '' }
     }

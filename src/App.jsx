@@ -8,6 +8,7 @@ import Home from './pages/Home'
 import Properties from './pages/Properties'
 import Buildings from './pages/Buildings'
 import BuildingDetail from './pages/BuildingDetail'
+import Finances from './pages/Finances'
 import Tenants from './pages/Tenants'
 import Expenses from './pages/Expenses'
 import Settings from './pages/Settings'
@@ -26,6 +27,7 @@ function App() {
                         <Route path="/edificios" element={<Buildings />} />
                         <Route path="/edificios/:id" element={<BuildingDetail />} />
                         <Route path="/inquilinos" element={<Tenants />} />
+                        <Route path="/finanzas" element={<Finances />} />
                         <Route path="/gastos" element={<Expenses />} />
                         <Route path="/settings" element={<Settings />} />
                     </Route>

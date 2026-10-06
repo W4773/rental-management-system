@@ -31,6 +31,10 @@ Que cualquier propietario o administrador sepa **en segundos** quién pagó, qui
 - **Editar pagos** y marcar meses como **pendientes** o **nulos** (no cobrados), en lote.
 - Documentación completa en español e inglés.
 
+**v1.4 – v1.7 – Más control**
+- Detalle de edificio, registro todo en uno, depósito del inquilino, colores por edificio y semáforo de estados.
+- Sección **Finanzas** y **carta de cobro** con plantilla personalizable.
+
 ## 🚧 Próximo
 
 | Tema | Descripción |

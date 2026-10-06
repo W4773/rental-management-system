@@ -11,7 +11,7 @@ const GRAY = [90, 79, 58]
 const LIGHT_GRAY = [138, 122, 90]
 const GREEN = [45, 106, 53]
 
-async function loadImageAsDataUrl(url) {
+export async function loadImageAsDataUrl(url) {
     try {
         const response = await fetch(url)
         const blob = await response.blob()

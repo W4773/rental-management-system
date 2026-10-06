@@ -47,8 +47,9 @@ Registras tus edificios, propiedades e inquilinos; anotas los pagos (uno o vario
 | **Edificios** | Nombre y dirección, ficha de detalle con unidades, ocupación, renta total y atrasos; las propiedades toman la dirección del edificio. |
 | **Inquilinos** | Activos y **antiguos** (histórico con período y pagos), desvincular sin borrar nada, reporte por inquilino. |
 | **Pagos** | Pago de un mes o de **varios a la vez**, abonos parciales, edición de pagos, meses **pendientes** o **nulos** (no cobrados). |
+| **Finanzas** | Cobrado por mes, edificio e inquilino, pendiente por cobrar, mayores deudas, histórico anual y exportación a CSV. |
 | **Servicios** | Lecturas de gas, luz y agua con cálculo de consumo y costo; control de pagados y pendientes. |
-| **Documentos** | Recibos y **reportes de pagos en PDF** con tu marca, datos y firma; recibo opcional tras cada pago. |
+| **Documentos** | Recibos, **reportes de pagos** y **cartas de cobro** en PDF con tu marca, datos y firma; la carta usa una plantilla con variables que tú personalizas. |
 | **Equipo** | Varias cuentas trabajando sobre los mismos datos, con titular y miembros. |
 | **Trazabilidad** | Registro de actividad: quién registró, editó, eliminó o imprimió, y cuándo. |
 

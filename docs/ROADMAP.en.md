@@ -31,6 +31,10 @@ Anyone who owns or manages rentals should know **in seconds** who paid, who owes
 - **Edit payments** and mark months as **pending** or **void** (not charged), in bulk.
 - Complete documentation in Spanish and English.
 
+**v1.4 – v1.7 – More control**
+- Building detail, all-in-one registration, tenant deposit, building colours and status traffic light.
+- **Finance** section and customisable **collection letter** template.
+
 ## 🚧 Next
 
 | Topic | Description |

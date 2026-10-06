@@ -47,8 +47,9 @@ You register your buildings, properties and tenants; record payments (one month 
 | **Buildings** | Name and address, detail page with units, occupancy, total rent and arrears; properties take the building address. |
 | **Tenants** | Active and **former** (history with period and payments), unlink without deleting anything, per-tenant report. |
 | **Payments** | Pay one month or **several at once**, partial payments, edit payments, **pending** or **void** (not charged) months. |
+| **Finanzas** (Finance) | Collected by month, building and tenant, amount pending, biggest debts, yearly history and CSV export. |
 | **Utilities** | Gas, electricity and water readings with consumption and cost calculation; paid / pending tracking. |
-| **Documents** | **PDF receipts and payment reports** with your branding, details and signature; optional receipt after each payment. |
+| **Documents** | **PDF receipts, payment reports and collection letters** with your branding, details and signature; the letter uses a template with variables you customise. |
 | **Team** | Several accounts working on the same data, with an owner and members. |
 | **Traceability** | Activity log: who recorded, edited, deleted or printed, and when. |
 
