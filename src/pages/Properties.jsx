@@ -52,6 +52,7 @@ export default function Properties() {
                     </div>
                     <div className="max-h-[320px] lg:max-h-[calc(100vh-170px)] overflow-y-auto">
                         <PropertyList
+                            colorize
                             items={filters.filtered}
                             buildings={buildings}
                             selectedId={selected?.id}

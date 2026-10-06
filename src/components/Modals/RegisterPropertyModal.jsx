@@ -4,6 +4,16 @@ import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
 import { validatePropertyName, validateMonthlyRent } from '../../lib/validators'
 import { useProperties } from '../../hooks/useProperties'
+import { useTenants } from '../../hooks/useTenants'
+import { usePayments } from '../../hooks/usePayments'
+import { useApp } from '../../contexts/AppContext'
+import { createTenantWithHistory, depositColumnMissing, DEPOSIT_MIGRATION_MESSAGE } from '../../lib/createTenantWithHistory'
+import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
+
+const EMPTY_TENANT = {
+    name: '', identity_number: '', phone: '', email: '', deposit_amount: '',
+    start_date: new Date().toISOString().split('T')[0]
+}
 
 const EMPTY_FORM = {
     name: '',
@@ -16,7 +26,6 @@ const EMPTY_FORM = {
     square_meters: '',
     notes: '',
     contract_start_date: '',
-    deposit_amount: '',
     annual_increase_pct: '',
     increase_type: 'percentage',
     increase_start_date: '',
@@ -25,6 +34,10 @@ const EMPTY_FORM = {
 
 export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, propertyToEdit = null, buildings = [], onNewBuilding, defaultBuildingId = null }) {
     const { addProperty, updateProperty } = useProperties()
+    const { toast } = useApp()
+    const { addTenant } = useTenants()
+    const { generateHistoricalPayments } = usePayments()
+    const [tenantData, setTenantData] = useState(EMPTY_TENANT)
     const [errors, setErrors] = useState({})
     const [formData, setFormData] = useState(EMPTY_FORM)
     const [saving, setSaving] = useState(false)
@@ -47,7 +60,6 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                 square_meters: propertyToEdit.square_meters || '',
                 notes: propertyToEdit.notes || '',
                 contract_start_date: propertyToEdit.contract_start_date || '',
-                deposit_amount: propertyToEdit.deposit_amount || '',
                 annual_increase_pct: propertyToEdit.annual_increase_pct || '',
                 increase_type: propertyToEdit.increase_type || 'percentage',
                 increase_start_date: propertyToEdit.increase_start_date || '',
@@ -58,6 +70,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             setCustomAddress(Boolean(b?.address && propertyToEdit.address && propertyToEdit.address !== b.address))
         } else if (isOpen) {
             setFormData({ ...EMPTY_FORM, building_id: defaultBuildingId || '' })
+            setTenantData(EMPTY_TENANT)
             setCustomAddress(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,6 +86,17 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         setFormData(prev => ({ ...prev, [name]: value }))
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
     }
+
+    const handleTenantChange = (e) => {
+        let { name, value } = e.target
+        if (name === 'identity_number') value = formatCedulaInput(value)
+        else if (name === 'phone') value = formatPhoneInput(value)
+        setTenantData(prev => ({ ...prev, [name]: value }))
+        if (errors[`tenant_${name}`]) setErrors(prev => ({ ...prev, [`tenant_${name}`]: null }))
+    }
+
+    // The tenant section is optional: it only counts when a name is typed
+    const wantsTenant = !propertyToEdit && tenantData.name.trim().length > 0
 
     const validate = () => {
         const newErrors = {}
@@ -97,6 +121,20 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             newErrors.notes = 'Las notas no pueden exceder 500 caracteres'
         }
 
+        if (wantsTenant) {
+            const cedulaError = validateCedula(tenantData.identity_number)
+            if (cedulaError) newErrors.tenant_identity_number = cedulaError
+            const phoneError = validatePhone(tenantData.phone)
+            if (phoneError) newErrors.tenant_phone = phoneError
+            const emailError = validateEmail(tenantData.email)
+            if (emailError) newErrors.tenant_email = emailError
+            const dateError = validateNotFutureDate(tenantData.start_date)
+            if (dateError) newErrors.tenant_start_date = dateError
+            if (tenantData.deposit_amount !== '' && !(parseFloat(tenantData.deposit_amount) >= 0)) {
+                newErrors.tenant_deposit_amount = 'El depósito debe ser un monto válido'
+            }
+        }
+
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
@@ -116,7 +154,6 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             square_meters: formData.square_meters ? parseFloat(formData.square_meters) : null,
             notes: formData.notes.trim() || null,
             contract_start_date: formData.contract_start_date || null,
-            deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : null,
             annual_increase_pct: formData.annual_increase_pct ? parseFloat(formData.annual_increase_pct) : null,
             increase_type: formData.increase_type || 'percentage',
         }
@@ -130,11 +167,11 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         else if (propertyToEdit?.building_id) propertyData.building_id = null
 
         setSaving(true)
-        const { error } = propertyToEdit
+        const { data: saved, error } = propertyToEdit
             ? await updateProperty(propertyToEdit.id, propertyData)
             : await addProperty(propertyData)
-        setSaving(false)
         if (error) {
+            setSaving(false)
             const duplicate = /duplicate|unique/i.test(error)
             const missingColumn = /increase_start_date/i.test(error)
             setErrors(duplicate
@@ -143,13 +180,34 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             return
         }
 
+        // Optional all-in-one: the property is saved, so a tenant problem must not undo it
+        if (wantsTenant) {
+            const propertyId = saved?.id || saved?.[0]?.id
+            const { error: tenantError } = propertyId
+                ? await createTenantWithHistory({ addTenant, generateHistoricalPayments }, { propertyId, monthlyRent: propertyData.monthly_rent, values: tenantData })
+                : { error: 'No se pudo leer la propiedad creada' }
+            if (tenantError) {
+                setSaving(false)
+                if (onSuccess) onSuccess()
+                setFormData(EMPTY_FORM)
+                setTenantData(EMPTY_TENANT)
+                setErrors({})
+                onClose()
+                toast.warning(`La propiedad se guardó, pero no se pudo registrar el inquilino: ${depositColumnMissing(tenantError) ? DEPOSIT_MIGRATION_MESSAGE : tenantError}\nPuedes asignarlo desde la propiedad con "Asignar inquilino".`, 10000)
+                return
+            }
+        }
+        setSaving(false)
+
         setFormData(EMPTY_FORM)
+        setTenantData(EMPTY_TENANT)
         setErrors({})
         if (onSuccess) onSuccess()
         onClose()
     }
 
     const handleClose = () => {
+        setTenantData(EMPTY_TENANT)
         setCustomAddress(false)
         setFormData(EMPTY_FORM)
         setErrors({})
@@ -294,27 +352,15 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                     min="0"
                                     step="0.01"
                                 />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <FormInput
-                                        label="Fecha inicio contrato"
-                                        name="contract_start_date"
-                                        type="date"
-                                        value={formData.contract_start_date}
-                                        onChange={handleChange}
-                                    />
-                                    <FormInput
-                                        label="Depósito (RD$)"
-                                        name="deposit_amount"
-                                        type="number"
-                                        value={formData.deposit_amount}
-                                        onChange={handleChange}
-                                        placeholder="Ej: 30000"
-                                        min="0"
-                                        step="0.01"
-                                    />
-                                </div>
+                                <FormInput
+                                    label="Fecha inicio contrato"
+                                    name="contract_start_date"
+                                    type="date"
+                                    value={formData.contract_start_date}
+                                    onChange={handleChange}
+                                />
                                 <div>
-                                    <label className="accessible-label mb-1 block">Incremento Anual</label>
+                                    <label className="accessible-label mb-1 block">Incremento anual <span className="text-gray-400 font-normal">(opcional)</span></label>
                                     {/* Toggle tipo */}
                                     <div className="flex rounded-lg overflow-hidden border-2 border-gray-200 mb-2" style={{ height: '48px' }}>
                                         <button
@@ -409,6 +455,26 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                     </div>
                 </div>
 
+                {!propertyToEdit && (
+                    <section className="mt-6" aria-label="Inquilino (opcional)">
+                        <div className="flex items-center gap-3 mb-3" role="separator">
+                            <span className="flex-1 border-t border-dashed border-gray-300" />
+                            <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">opcional</span>
+                            <span className="flex-1 border-t border-dashed border-gray-300" />
+                        </div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Inquilino actual</p>
+                        <p className="text-xs text-gray-500 mb-3">Si ya tiene inquilino, regístralo aquí y todo queda en un solo paso. Déjalo vacío para registrar solo la propiedad.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                            <FormInput label="Nombre completo" name="name" value={tenantData.name} onChange={handleTenantChange} placeholder="Juan García López" maxLength={255} />
+                            <FormInput label="Cédula" name="identity_number" value={tenantData.identity_number} onChange={handleTenantChange} error={errors.tenant_identity_number} required={wantsTenant} placeholder="123-4567890-1" maxLength={13} />
+                            <FormInput label="Teléfono" name="phone" value={tenantData.phone} onChange={handleTenantChange} error={errors.tenant_phone} required={wantsTenant} placeholder="(829) 555-1234" maxLength={15} />
+                            <FormInput label="Email" name="email" type="email" value={tenantData.email} onChange={handleTenantChange} error={errors.tenant_email} placeholder="correo@ejemplo.com" />
+                            <FormInput label="Fecha de ingreso" name="start_date" type="date" value={tenantData.start_date} onChange={handleTenantChange} error={errors.tenant_start_date} required={wantsTenant} max={new Date().toISOString().split('T')[0]} />
+                            <FormInput label="Depósito (RD$) — opcional" name="deposit_amount" type="number" value={tenantData.deposit_amount} onChange={handleTenantChange} error={errors.tenant_deposit_amount} placeholder="Ej: 30000" min="0" step="0.01" />
+                        </div>
+                    </section>
+                )}
+
                 {errors.submit && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mt-4">
                         {errors.submit}
@@ -420,7 +486,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                         Cancelar
                     </Button>
                     <Button type="submit" variant="primary" disabled={saving}>
-                        {saving ? 'Guardando...' : propertyToEdit ? 'Guardar Cambios' : 'Registrar Propiedad'}
+                        {saving ? 'Guardando...' : propertyToEdit ? 'Guardar Cambios' : wantsTenant ? 'Registrar propiedad e inquilino' : 'Registrar Propiedad'}
                     </Button>
                 </div>
             </form>

@@ -3,8 +3,9 @@ import { ChevronDown, ChevronRight, Pencil, Wallet, Building2 } from 'lucide-rea
 import { formatCurrency } from '../../lib/calculations'
 import { groupByBuilding } from '../../hooks/usePropertyFilters'
 import StatusPill from './StatusPill'
+import { useBuildingColors } from '../../lib/buildingColors'
 
-function Row({ item, selected, onSelect, onPay, dense }) {
+function Row({ item, selected, onSelect, onPay, dense, color }) {
     const { property, tenant, status } = item
     return (
         <li>
@@ -15,10 +16,11 @@ function Row({ item, selected, onSelect, onPay, dense }) {
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect(property)}
                 className={`group flex items-center gap-2 px-3 ${dense ? 'py-1.5' : 'py-2'} cursor-pointer border-l-[3px] transition ${
                     selected ? 'bg-brand-50 border-brand-500' : 'border-transparent hover:bg-gray-50'}`}
+                style={color ? { borderLeftColor: color.solid, background: selected ? color.strong : undefined } : undefined}
             >
                 <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-ink truncate leading-tight">{property.name}</p>
-                    <p className="text-[11px] text-gray-500 truncate leading-tight uppercase">{tenant ? tenant.name : 'Sin inquilino'}</p>
+                    <p className="text-[11px] text-gray-500 truncate leading-tight uppercase" style={color && tenant ? { color: color.text } : undefined}>{tenant ? tenant.name : 'Sin inquilino'}</p>
                     {tenant && status.detail && (
                         <p className={`text-[10px] truncate leading-tight mt-px font-medium ${
                             status.key === 'late' ? 'text-red-600' : status.key === 'pending' ? 'text-amber-700' : 'text-gray-400'}`}>
@@ -46,8 +48,10 @@ function Row({ item, selected, onSelect, onPay, dense }) {
 }
 
 /** Compact list of properties, grouped by building (collapsible) when buildings exist. */
-export default function PropertyList({ items, buildings, selectedId, onSelect, onPay, onEditBuilding, dense = false }) {
+/** `colorize` paints each building's header and rows with its own colour (used in the detailed views). */
+export default function PropertyList({ items, buildings, selectedId, onSelect, onPay, onEditBuilding, dense = false, colorize = false }) {
     const [collapsed, setCollapsed] = useState({})
+    const colors = useBuildingColors(buildings)
 
     if (items.length === 0) {
         return <p className="p-6 text-center text-sm text-gray-500">No hay propiedades que coincidan.</p>
@@ -66,18 +70,20 @@ export default function PropertyList({ items, buildings, selectedId, onSelect, o
             {groupByBuilding(items, buildings).map(({ building, items: groupItems }) => {
                 const key = building?.id || 'none'
                 const isCollapsed = collapsed[key]
+                const color = colorize && building ? colors[building.id] : null
                 return (
                     <section key={key}>
-                        <div className="sticky top-0 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-brand-50/90 backdrop-blur border-y border-brand-100">
+                        <div className="sticky top-0 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-brand-50/90 backdrop-blur border-y border-brand-100"
+                            style={color ? { background: color.strong, borderColor: color.border, borderLeft: `4px solid ${color.solid}` } : undefined}>
                             <button
                                 onClick={() => setCollapsed(c => ({ ...c, [key]: !c[key] }))}
                                 className="flex items-center gap-1.5 min-w-0 flex-1 text-left"
                                 aria-expanded={!isCollapsed}
                             >
                                 {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
-                                <Building2 className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+                                <Building2 className="w-3.5 h-3.5 text-brand-600 shrink-0" style={color ? { color: color.solid } : undefined} />
                                 <span className="min-w-0">
-                                    <span className="block text-xs font-bold text-brand-700 truncate">{building ? building.name : 'Sin edificio'}</span>
+                                    <span className="block text-xs font-bold text-brand-700 truncate" style={color ? { color: color.text } : undefined}>{building ? building.name : 'Sin edificio'}</span>
                                     {building?.address && <span className="block text-[10px] text-gray-500 truncate">{building.address}</span>}
                                 </span>
                                 <span className="ml-auto text-[10px] text-gray-500">{groupItems.length}</span>
@@ -90,7 +96,7 @@ export default function PropertyList({ items, buildings, selectedId, onSelect, o
                         </div>
                         {!isCollapsed && (
                             <ul className="divide-y divide-gray-100">
-                                {groupItems.map(i => <Row key={i.property.id} item={i} dense={dense} selected={selectedId === i.property.id} onSelect={onSelect} onPay={onPay} />)}
+                                {groupItems.map(i => <Row key={i.property.id} item={i} dense={dense} color={color} selected={selectedId === i.property.id} onSelect={onSelect} onPay={onPay} />)}
                             </ul>
                         )}
                     </section>

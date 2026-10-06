@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { getPaymentStatus, normalizeText } from '../lib/paymentStatus'
+import { compareUnits } from '../lib/buildingStats'
 
 /** Search + filters over properties, enriched with active tenant and payment status. */
 export function usePropertyFilters({ properties, tenants, payments }) {
@@ -32,9 +33,9 @@ export function usePropertyFilters({ properties, tenants, payments }) {
 /** Group enriched items by building -> [{ building|null, items }] (buildings first, "Sin edificio" last). */
 export function groupByBuilding(items, buildings) {
     const groups = buildings
-        .map(building => ({ building, items: items.filter(i => i.property.building_id === building.id) }))
+        .map(building => ({ building, items: items.filter(i => i.property.building_id === building.id).sort((a, b) => compareUnits(a.property, b.property)) }))
         .filter(g => g.items.length > 0)
-    const orphans = items.filter(i => !buildings.some(b => b.id === i.property.building_id))
+    const orphans = items.filter(i => !buildings.some(b => b.id === i.property.building_id)).sort((a, b) => compareUnits(a.property, b.property))
     if (orphans.length > 0) groups.push({ building: null, items: orphans })
     return groups
 }

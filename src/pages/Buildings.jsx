@@ -4,16 +4,18 @@ import { Building2, Pencil, Trash2, Plus, MapPin, AlertTriangle, ChevronRight } 
 import { useApp } from '../contexts/AppContext'
 import { formatCurrency } from '../lib/calculations'
 import { getBuildingUnits, buildingStats, enrichUnit } from '../lib/buildingStats'
+import { useBuildingColors } from '../lib/buildingColors'
 import ConfirmModal from '../components/Common/ConfirmModal'
 
 const DOT = { paid: 'bg-green-500', pending: 'bg-amber-400', late: 'bg-red-500', vacant: 'bg-gray-300' }
 
-function Unit({ property, tenant, status }) {
+function Unit({ property, tenant, status, color }) {
     return (
         <Link
             to={`/propiedades?p=${property.id}`}
             title={`${tenant ? tenant.name : 'Sin inquilino'} · ${status.detail}`}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-200 bg-white text-[12px] hover:border-brand-400 hover:bg-brand-50 transition"
+            style={color ? { borderColor: color.border, background: color.soft } : undefined}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-200 bg-white text-[12px] hover:brightness-95 transition"
         >
             <span className={`w-2 h-2 rounded-full shrink-0 ${DOT[status.key]}`} />
             <span className="font-medium truncate max-w-[10rem]">{property.name}</span>
@@ -27,6 +29,7 @@ export default function Buildings() {
         openBuilding, deleteBuilding, updateProperty, refreshAll, toast
     } = useApp()
     const [toDelete, setToDelete] = useState(null)
+    const colors = useBuildingColors(buildings)
 
     const rows = useMemo(() => {
         const withBuilding = buildings.map(building => {
@@ -87,13 +90,14 @@ export default function Buildings() {
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                 {rows.withBuilding.map(({ building, units, total, occupied, rent, late }) => (
-                    <section key={building.id} className="bg-white rounded-xl border border-brand-200 shadow-sm p-3">
+                    <section key={building.id} className="bg-white rounded-xl border border-brand-200 shadow-sm p-3"
+                        style={{ borderColor: colors[building.id].border, borderTop: `4px solid ${colors[building.id].solid}` }}>
                         <div className="flex items-start gap-3">
-                            <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-400 to-brand-500 text-white flex items-center justify-center shrink-0">
+                            <span className="w-9 h-9 rounded-lg text-white flex items-center justify-center shrink-0" style={{ background: colors[building.id].solid }}>
                                 <Building2 className="w-4 h-4" />
                             </span>
                             <Link to={`/edificios/${building.id}`} className="min-w-0 flex-1 group" title="Ver detalle del edificio">
-                                <h2 className="font-bold text-ink leading-tight truncate group-hover:text-brand-700">{building.name}</h2>
+                                <h2 className="font-bold leading-tight truncate group-hover:underline" style={{ color: colors[building.id].text }}>{building.name}</h2>
                                 <p className="flex items-center gap-1 text-xs text-gray-500 truncate">
                                     <MapPin className="w-3 h-3 shrink-0" />{building.address || 'Sin dirección'}
                                 </p>
@@ -110,7 +114,7 @@ export default function Buildings() {
 
                         <dl className="grid grid-cols-4 gap-2 mt-3 text-center">
                             {[['Unidades', total], ['Ocupadas', `${occupied}/${total}`], ['Renta mensual', formatCurrency(rent)], ['Atrasadas', late]].map(([label, value]) => (
-                                <div key={label} className="rounded-lg bg-brand-50 px-1 py-1.5">
+                                <div key={label} className="rounded-lg px-1 py-1.5" style={{ background: colors[building.id].soft }}>
                                     <dt className="text-[9px] font-bold uppercase tracking-wide text-gray-500">{label}</dt>
                                     <dd className={`text-[13px] font-bold leading-tight ${label === 'Atrasadas' && late > 0 ? 'text-red-600' : 'text-ink'}`}>{value}</dd>
                                 </div>
@@ -120,7 +124,7 @@ export default function Buildings() {
                         <div className="flex flex-wrap gap-1.5 mt-3">
                             {units.length === 0
                                 ? <p className="text-xs text-gray-400 italic">Sin propiedades asignadas todavía.</p>
-                                : units.map(u => <Unit key={u.property.id} {...u} />)}
+                                : units.map(u => <Unit key={u.property.id} {...u} color={colors[building.id]} />)}
                         </div>
                     </section>
                 ))}

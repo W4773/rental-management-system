@@ -5,6 +5,18 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.6.0] - 2026-10-06
+
+### Agregado
+- **Registro todo en uno**: al crear una propiedad, una sección opcional (separada por la línea *opcional*) permite registrar también a su inquilino; se crea el inquilino y su historial en el mismo paso.
+- **Depósito en el inquilino** (`tenants.deposit_amount`, migración `007_tenant_deposit.sql`, que copia el depósito que ya tuviera la propiedad). Se ve en el detalle de la propiedad y en Inquilinos.
+- **Color por edificio** (automático y fijo) en Edificios, detalle de edificio y Propiedades, aplicado también a sus unidades e inquilinos.
+
+### Cambiado
+- El incremento anual se indica como opcional.
+- El depósito ya no se pide en la propiedad.
+- Las unidades de cada edificio se ordenan alfabéticamente (1-A, 2-A, 10-A).
+
 ## [1.5.0] - 2026-10-06
 
 ### Agregado
