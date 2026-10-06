@@ -5,6 +5,19 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.3.0] - 2026-10-06
+
+### Agregado
+- **Editar pagos**: lápiz en cada pago del historial (monto, fecha, método, referencia, notas; recalcula saldo y estado).
+- **Editar meses**: marca meses como **pendientes** o **nulos** (no cobrados, con motivo) en lote, o quita la marca. Los meses con pagos registrados están bloqueados. Requiere `supabase/migrations/006_payment_void.sql` para los nulos.
+- Los meses nulos no cuentan como deuda, ni en alertas, ni en el monto atrasado, ni en la tasa de cobro; se ven grises rayados en el Estado anual.
+- Documentación comercial en español e inglés: `README`, guía de uso, arquitectura, base de datos, despliegue y roadmap, con capturas de demostración.
+- `LICENSE` (propietaria), `SECURITY.md` y `CONTRIBUTING.md`.
+
+### Cambiado
+- `MIGRATION_GUIDE.md` y `DEPLOY_GUIDE.md` pasan a `docs/DATABASE.md` y `docs/DEPLOY.md`.
+- La tasa de cobro ya no cuenta marcas de mes sin dinero como pagos recibidos.
+
 ## [1.2.2] - 2026-10-05
 
 ### Agregado
