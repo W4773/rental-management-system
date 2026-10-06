@@ -73,7 +73,7 @@ export function getPaymentStatus(property, tenant, payments, today = new Date())
         const isFutureMonth = y > cy || (y === cy && m > cm)
         if (st.status === 'paid') {
             paidThrough = st.key
-        } else if (!isFutureMonth) {
+        } else if (st.status !== 'void' && !isFutureMonth) {
             const owed = Math.max(0, parseFloat(mine.find(p => monthKeyOf(p) === st.key && hasMoney(p))?.rent_amount || rent) - st.total)
             if (isCurrent) currentUnpaid = true
             else { overdue.push(st.key); owedAmount += owed }
@@ -124,13 +124,25 @@ export const normalizeText = (s = '') =>
  */
 export function getMonthStatus(payments, property, year, monthIndex, today = new Date()) {
     const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`
-    const rows = payments.filter(p => hasMoney(p) && monthKeyOf(p) === key)
+    const monthRows = payments.filter(p => monthKeyOf(p) === key)
+    const rows = monthRows.filter(hasMoney)
     const total = rows.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
     const rent = parseFloat(rows[0]?.rent_amount || property.monthly_rent)
+
+    // Editing metadata: real payments lock the month; "marks" are explicit pending / void rows;
+    // auto rows are the paid history generated when a tenant was registered.
+    const realRows = rows.filter(p => !p.auto_generated)
+    const autoRows = rows.filter(p => p.auto_generated)
+    const markRows = monthRows.filter(p => !hasMoney(p) && !p.auto_generated)
+    const voidRow = markRows.find(p => p.voided)
+    const meta = { key, total, locked: realRows.length > 0, autoRows, markRows, reason: voidRow?.void_reason || null }
+
     if (total > 0) {
         const isPaid = rows.some(p => p.payment_type === 'full') || total >= rent - 1
-        return { key, status: isPaid ? 'paid' : 'partial', total }
+        return { ...meta, status: isPaid ? 'paid' : 'partial' }
     }
+    // Not charged: neither owed nor paid
+    if (voidRow) return { ...meta, status: 'void' }
     const isFuture = year > today.getFullYear() || (year === today.getFullYear() && monthIndex > today.getMonth())
-    return { key, status: isFuture ? 'future' : 'pending', total: 0 }
+    return { ...meta, status: isFuture ? 'future' : 'pending', total: 0 }
 }

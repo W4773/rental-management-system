@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, UserMinus, CheckSquare, ListChecks } from 'lucide-react'
+import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, UserMinus, CheckSquare, ListChecks, Ban, Eraser } from 'lucide-react'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
@@ -10,6 +10,8 @@ import StatusPill from './StatusPill'
 import { useApp } from '../../contexts/AppContext'
 import ConfirmModal from '../Common/ConfirmModal'
 import YearlyPaymentGrid from './YearlyPaymentGrid'
+import EditPaymentModal from '../Modals/EditPaymentModal'
+import VoidMonthsModal from '../Modals/VoidMonthsModal'
 
 const VISIBLE_PAYMENTS = 4
 const UTILITY_META = {
@@ -47,7 +49,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     const {
         payments: allPayments, tenants, utilityReadings, buildings, settings,
         openPayment, openProperty, openTenant, openReport, openPayGas,
-        deletePayment, deleteProperty, closeTenant, onDataChanged, refreshAll, toast
+        deletePayment, deleteProperty, closeTenant, setMonthsState, clearMonthMarks, onDataChanged, refreshAll, toast
     } = useApp()
 
     const [year, setYear] = useState(new Date().getFullYear())
@@ -58,10 +60,14 @@ export default function PropertyDetails({ property, onDeleted }) {
     const [deleteIds, setDeleteIds] = useState([])
     const [confirmUnlink, setConfirmUnlink] = useState(false)
     const [selectMode, setSelectMode] = useState(false)
+    const [editMode, setEditMode] = useState(false)
+    const [editMonths, setEditMonths] = useState([])
+    const [editingPayment, setEditingPayment] = useState(null)
+    const [voidModal, setVoidModal] = useState(false)
 
     // Reset local selections when switching property
     useEffect(() => {
-        setSelectedPayments([]); setSelectedMonths([]); setShowAll(false); setSelectMode(false)
+        setSelectedPayments([]); setSelectedMonths([]); setShowAll(false); setSelectMode(false); setEditMode(false); setEditMonths([])
     }, [property?.id])
 
     const propertyPayments = useMemo(
@@ -98,7 +104,49 @@ export default function PropertyDetails({ property, onDeleted }) {
     const allSelected = history.length > 0 && selectedPayments.length === history.length
 
     const exitSelectMode = () => { setSelectMode(false); setSelectedPayments([]); setSelectedMonths([]) }
-    const toggleSelectMode = () => (selectMode ? exitSelectMode() : setSelectMode(true))
+    const exitEditMode = () => { setEditMode(false); setEditMonths([]) }
+    // The two modes are mutually exclusive
+    const toggleSelectMode = () => { if (selectMode) exitSelectMode(); else { exitEditMode(); setSelectMode(true) } }
+    const toggleEditMode = () => { if (editMode) exitEditMode(); else { exitSelectMode(); setEditMode(true) } }
+
+    // Past months of the year on screen that can be edited (no real payments registered)
+    const editableMonthKeys = Array.from({ length: 12 }, (_, i) => getMonthStatus(propertyPayments, property, year, i))
+        .filter(m => m.status !== 'future' && !m.locked)
+        .map(m => m.key)
+    const allEditableSelected = editableMonthKeys.length > 0 && editableMonthKeys.every(k => editMonths.includes(k))
+    const selectedHaveMarks = editMonths.some(k => {
+        const [y, mo] = k.split('-').map(Number)
+        const st = getMonthStatus(propertyPayments, property, y, mo - 1)
+        return st.markRows.length > 0
+    })
+
+    const reportMarking = (res, verb) => {
+        if (res.error) {
+            const missing = /voided|void_reason/i.test(res.error)
+            toast.error(missing
+                ? 'Falta ejecutar supabase/migrations/006_payment_void.sql en Supabase para marcar meses como nulos.'
+                : 'No se pudo guardar: ' + res.error, 8000)
+            return false
+        }
+        if (res.done.length > 0) toast.success(`${res.done.length} mes(es) ${verb}`)
+        if (res.skipped.length > 0) toast.warning(`${res.skipped.length} mes(es) se omitieron porque tienen pagos registrados: edita o elimina el pago primero.`, 7000)
+        return true
+    }
+    const markPending = async () => {
+        const res = await setMonthsState(property, activeTenant, editMonths, 'pending')
+        if (reportMarking(res, 'marcados como pendientes')) { refreshAll(); exitEditMode() }
+    }
+    const markVoid = async (reason) => {
+        const res = await setMonthsState(property, activeTenant, editMonths, 'void', { reason })
+        setVoidModal(false)
+        if (reportMarking(res, 'marcados como nulos')) { refreshAll(); exitEditMode() }
+    }
+    const clearMarks = async () => {
+        const res = await clearMonthMarks(property, editMonths)
+        if (res.error) return toast.error('No se pudo quitar la marca: ' + res.error, 6000)
+        toast.success(`${res.count} marca(s) quitada(s)`)
+        refreshAll(); exitEditMode()
+    }
     const pendingMonthKeys = Array.from({ length: 12 }, (_, i) => getMonthStatus(propertyPayments, property, year, i))
         .filter(m => m.status === 'pending' || m.status === 'partial')
         .map(m => m.key)
@@ -219,6 +267,21 @@ export default function PropertyDetails({ property, onDeleted }) {
                             {allPendingSelected ? 'Quitar meses pendientes' : `Marcar meses pendientes (${pendingMonthKeys.length})`}
                         </button>
                     )}
+                    {editMode && editableMonthKeys.length > 0 && (
+                        <button onClick={() => setEditMonths(allEditableSelected ? [] : editableMonthKeys)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                            <ListChecks className="w-3.5 h-3.5" />
+                            {allEditableSelected ? 'Quitar todos' : `Todos los meses hasta hoy (${editableMonthKeys.length})`}
+                        </button>
+                    )}
+                    {activeTenant && (
+                        <button onClick={toggleEditMode} aria-pressed={editMode}
+                            title="Marcar meses como pendientes o nulos"
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-xs font-semibold transition ${
+                                editMode ? 'bg-ink text-white border-ink' : 'border-gray-200 text-gray-700 bg-white hover:bg-gray-50'}`}>
+                            {editMode ? <><X className="w-3.5 h-3.5" /> Salir de edición</> : <><Pencil className="w-3.5 h-3.5" /> Editar meses</>}
+                        </button>
+                    )}
                     <button onClick={toggleSelectMode} aria-pressed={selectMode}
                         className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-xs font-semibold transition ${
                             selectMode ? 'bg-ink text-white border-ink' : 'border-brand-300 text-brand-700 bg-brand-50 hover:bg-brand-100'}`}>
@@ -262,6 +325,9 @@ export default function PropertyDetails({ property, onDeleted }) {
                                     <button onClick={() => generateReceiptPDF(payment, property, tenantFor(payment), settings || {})}
                                         aria-label="Imprimir recibo" title="Imprimir recibo"
                                         className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Printer className="w-4 h-4" /></button>
+                                    <button onClick={() => setEditingPayment(payment)}
+                                        aria-label="Editar pago" title="Editar pago"
+                                        className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Pencil className="w-4 h-4" /></button>
                                     <button onClick={() => setDeleteIds([payment.id])}
                                         aria-label="Eliminar pago" title="Eliminar pago"
                                         className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
@@ -283,8 +349,11 @@ export default function PropertyDetails({ property, onDeleted }) {
                     year={year}
                     onYearChange={setYear}
                     selectMode={selectMode}
-                    selected={selectedMonths}
-                    onToggle={activeTenant ? (key) => toggle(selectedMonths, setSelectedMonths, key) : undefined}
+                    editMode={editMode}
+                    selected={editMode ? editMonths : selectedMonths}
+                    onToggle={activeTenant
+                        ? (key) => (editMode ? toggle(editMonths, setEditMonths, key) : toggle(selectedMonths, setSelectedMonths, key))
+                        : undefined}
                     onMonthClick={activeTenant ? (key) => openPayment({ propertyId: property.id, months: [key] }) : undefined}
                 />
             </div>
@@ -317,6 +386,31 @@ export default function PropertyDetails({ property, onDeleted }) {
                     </ul>
                 )}
             </Section>
+
+            {/* Edit-months action bar */}
+            {editMode && (
+                <div className="sticky bottom-2 z-20 mx-auto w-fit max-w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-ink text-white shadow-xl text-xs">
+                    {editMonths.length === 0 ? (
+                        <span className="opacity-80">Marca los meses que quieres corregir (los que ya tienen pagos registrados están bloqueados).</span>
+                    ) : (
+                        <>
+                            <span className="font-semibold">{editMonths.length} mes(es)</span>
+                            <button className="px-2.5 py-1 rounded-md bg-red-500/90 hover:bg-red-500 font-semibold flex items-center gap-1" onClick={markPending}>
+                                <Wallet className="w-3.5 h-3.5" /> Marcar pendiente
+                            </button>
+                            <button className="px-2.5 py-1 rounded-md bg-white/15 hover:bg-white/25 font-semibold flex items-center gap-1" onClick={() => setVoidModal(true)}>
+                                <Ban className="w-3.5 h-3.5" /> Marcar nulo…
+                            </button>
+                            {selectedHaveMarks && (
+                                <button className="px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 flex items-center gap-1" onClick={clearMarks}>
+                                    <Eraser className="w-3.5 h-3.5" /> Quitar marca
+                                </button>
+                            )}
+                        </>
+                    )}
+                    <button aria-label="Salir de edición de meses" onClick={exitEditMode}><X className="w-4 h-4" /></button>
+                </div>
+            )}
 
             {/* Floating multi-select action bar */}
             {selectMode && (
@@ -355,6 +449,8 @@ export default function PropertyDetails({ property, onDeleted }) {
                 </div>
             )}
 
+            <EditPaymentModal isOpen={editingPayment !== null} payment={editingPayment} property={property} onClose={() => setEditingPayment(null)} />
+            <VoidMonthsModal isOpen={voidModal} months={editMonths} onClose={() => setVoidModal(false)} onConfirm={markVoid} />
             <ConfirmModal
                 isOpen={confirmUnlink}
                 onClose={() => setConfirmUnlink(false)}
