@@ -39,7 +39,7 @@ This guide walks through the app screen by screen. Screenshots use fictitious de
 - **Delete** a building: its properties are **not deleted**, they become "Sin edificio" (no building).
 - **Assign** loose properties to a building with the selector in the "Sin edificio" section.
 
-Each building has **its own colour** (automatic and fixed) in the Buildings view and in Properties, shared by its units and tenants, and units are listed alphabetically. Each card shows units, occupancy, total monthly rent and how many are late. **Click the building name (or "Ver")** to open its detail page.
+Each building has **its own colour** (automatic and fixed) in the Buildings view and in Properties, shared by its units and tenants, and units are listed alphabetically. The circle on each unit works as a traffic light: **green** up to date, **yellow** 1 month pending, **red** 2 or more months and **grey** vacant; the counters split *Pendientes* (pending) and *Atrasadas* (late). Each card shows units, occupancy, total monthly rent and how many are late. **Click the building name (or "Ver")** to open its detail page.
 
 ### Building detail
 

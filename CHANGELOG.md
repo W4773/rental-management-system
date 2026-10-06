@@ -5,6 +5,12 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.6.1] - 2026-10-06
+
+### Cambiado
+- **Semáforo en Edificios**: punto verde (al día), **amarillo (1 mes pendiente)**, **rojo (2 o más meses)** y gris (vacante), con leyenda; el mismo punto en las filas del detalle del edificio.
+- El contador "Atrasadas" se separa en **Pendientes** (1 mes) y **Atrasadas** (2+ meses) en las tarjetas y en el detalle del edificio, donde además hay filtro "Pendientes".
+
 ## [1.6.0] - 2026-10-06
 
 ### Agregado

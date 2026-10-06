@@ -9,10 +9,13 @@ import StatusPill from '../components/Dashboard/StatusPill'
 import { useBuildingColors } from '../lib/buildingColors'
 import Kpi from '../components/Common/Kpi'
 
+const DOT = { paid: 'bg-green-500 ring-green-200', pending: 'bg-yellow-400 ring-yellow-200', late: 'bg-red-500 ring-red-200', vacant: 'bg-gray-300 ring-gray-200' }
+
 const FILTERS = [
     ['all', 'Todas'],
     ['occupied', 'Ocupadas'],
     ['vacant', 'Vacantes'],
+    ['pending', 'Pendientes'],
     ['late', 'Atrasadas']
 ]
 
@@ -36,6 +39,7 @@ export default function BuildingDetail() {
         return units.filter(u => {
             if (filter === 'occupied' && !u.tenant) return false
             if (filter === 'vacant' && u.tenant) return false
+            if (filter === 'pending' && u.status.key !== 'pending') return false
             if (filter === 'late' && u.status.key !== 'late') return false
             const hay = normalizeText(`${u.property.name} ${u.property.unit_number || ''} ${u.tenant?.name || ''}`)
             return words.every(w => hay.includes(w))
@@ -80,12 +84,13 @@ export default function BuildingDetail() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2" style={{ '--bcolor': color.solid }}>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2" style={{ '--bcolor': color.solid }}>
                 <Kpi icon={HomeIcon} label="Unidades" value={stats.total} />
                 <Kpi icon={Percent} label="Ocupación" value={`${stats.occupied}/${stats.total} · ${stats.occupancy}%`} tone={stats.vacant > 0 ? 'amber' : 'green'} />
                 <Kpi icon={Wallet} label="Renta mensual" value={formatCurrency(stats.rent)} />
                 <Kpi icon={Clock} label="Monto atrasado" value={formatCurrency(stats.owed)} tone={stats.owed > 0 ? 'red' : 'green'} />
-                <Kpi icon={AlertTriangle} label="Atrasadas" value={stats.late} tone={stats.late > 0 ? 'red' : 'green'} />
+                <Kpi icon={Clock} label="Pendientes (1 mes)" value={stats.pending} tone={stats.pending > 0 ? 'amber' : 'green'} />
+                <Kpi icon={AlertTriangle} label="Atrasadas (2+ meses)" value={stats.late} tone={stats.late > 0 ? 'red' : 'green'} />
             </div>
 
             <section className="bg-white rounded-xl border border-brand-200 shadow-sm" style={{ borderColor: color.border, borderTop: `4px solid ${color.solid}` }}>
@@ -117,7 +122,9 @@ export default function BuildingDetail() {
                         {shown.map(({ property, tenant, status }) => (
                             <li key={property.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 border-l-4" style={{ borderLeftColor: color.solid }}>
                                 <div className="min-w-0 flex-1 basis-48">
-                                    <Link to={`/propiedades?p=${property.id}`} className="text-sm font-semibold text-ink hover:text-brand-700 truncate block">{property.name}</Link>
+                                    <Link to={`/propiedades?p=${property.id}`} className="flex items-center gap-1.5 text-sm font-semibold text-ink hover:text-brand-700 truncate">
+                                        <span title={status.detail} className={`w-2.5 h-2.5 rounded-full shrink-0 ring-2 ${DOT[status.key]}`} />{property.name}
+                                    </Link>
                                     <p className="text-xs text-gray-500 truncate" style={tenant ? { color: color.text } : undefined}>{tenant ? tenant.name : 'Vacante'}{property.unit_number ? ` · ${property.unit_number}` : ''}</p>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-700 w-28 text-right">{formatCurrency(property.monthly_rent)}</span>
