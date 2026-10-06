@@ -264,14 +264,14 @@ export default function PropertyDetails({ property, onDeleted }) {
                         <button onClick={() => setSelectedMonths(allPendingSelected ? [] : pendingMonthKeys)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
                             <ListChecks className="w-3.5 h-3.5" />
-                            {allPendingSelected ? 'Quitar meses pendientes' : `Marcar meses pendientes (${pendingMonthKeys.length})`}
+                            <span>{allPendingSelected ? 'Quitar meses pendientes' : `Marcar meses pendientes (${pendingMonthKeys.length})`}</span>
                         </button>
                     )}
                     {editMode && editableMonthKeys.length > 0 && (
                         <button onClick={() => setEditMonths(allEditableSelected ? [] : editableMonthKeys)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
                             <ListChecks className="w-3.5 h-3.5" />
-                            {allEditableSelected ? 'Quitar todos' : `Todos los meses hasta hoy (${editableMonthKeys.length})`}
+                            <span>{allEditableSelected ? 'Quitar todos' : `Todos los meses hasta hoy (${editableMonthKeys.length})`}</span>
                         </button>
                     )}
                     {activeTenant && (
@@ -279,13 +279,13 @@ export default function PropertyDetails({ property, onDeleted }) {
                             title="Marcar meses como pendientes o nulos"
                             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-xs font-semibold transition ${
                                 editMode ? 'bg-ink text-white border-ink' : 'border-gray-200 text-gray-700 bg-white hover:bg-gray-50'}`}>
-                            {editMode ? <><X className="w-3.5 h-3.5" /> Salir de edición</> : <><Pencil className="w-3.5 h-3.5" /> Editar meses</>}
+                            {editMode ? <><X className="w-3.5 h-3.5" /> <span>Salir de edición</span></> : <><Pencil className="w-3.5 h-3.5" /> <span>Editar meses</span></>}
                         </button>
                     )}
                     <button onClick={toggleSelectMode} aria-pressed={selectMode}
                         className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-xs font-semibold transition ${
                             selectMode ? 'bg-ink text-white border-ink' : 'border-brand-300 text-brand-700 bg-brand-50 hover:bg-brand-100'}`}>
-                        {selectMode ? <><X className="w-3.5 h-3.5" /> Salir de selección</> : <><CheckSquare className="w-3.5 h-3.5" /> Selección múltiple</>}
+                        {selectMode ? <><X className="w-3.5 h-3.5" /> <span>Salir de selección</span></> : <><CheckSquare className="w-3.5 h-3.5" /> <span>Selección múltiple</span></>}
                     </button>
                 </div>
             </div>
@@ -338,7 +338,7 @@ export default function PropertyDetails({ property, onDeleted }) {
                     {history.length > VISIBLE_PAYMENTS && (
                         <button onClick={() => setShowAll(s => !s)}
                             className="mt-1.5 w-full flex items-center justify-center gap-1 py-1 rounded-md bg-brand-50 text-brand-700 text-xs font-medium hover:bg-brand-100">
-                            {showAll ? <><ChevronUp className="w-3.5 h-3.5" />Ver menos</> : <><ChevronDown className="w-3.5 h-3.5" />Ver más ({history.length - VISIBLE_PAYMENTS} ocultos)</>}
+                            {showAll ? <><ChevronUp className="w-3.5 h-3.5" /><span>Ver menos</span></> : <><ChevronDown className="w-3.5 h-3.5" /><span>Ver más ({history.length - VISIBLE_PAYMENTS} ocultos)</span></>}
                         </button>
                     )}
                 </Section>
