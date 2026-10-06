@@ -40,10 +40,8 @@ export default function Header() {
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-brand-200">
             <div className="max-w-[1500px] mx-auto px-3 sm:px-5 h-12 flex items-center gap-3">
                 <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Alquiler Pro - ir al inicio">
-                    <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white flex items-center justify-center">
-                        <Building2 className="w-4 h-4" />
-                    </span>
-                    <span className="font-bold text-ink hidden sm:inline">Alquiler Pro</span>
+                    <img src="/logo-symbol.svg" alt="" className="h-7 w-7 sm:hidden" />
+                    <img src="/logo.svg" alt="Alquiler Pro" className="hidden sm:block h-8 w-auto" />
                 </Link>
 
                 <nav className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
