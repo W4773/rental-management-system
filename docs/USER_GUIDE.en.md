@@ -39,9 +39,15 @@ This guide walks through the app screen by screen. Screenshots use fictitious de
 - **Delete** a building: its properties are **not deleted**, they become "Sin edificio" (no building).
 - **Assign** loose properties to a building with the selector in the "Sin edificio" section.
 
-Each card shows units, occupancy, total monthly rent and how many are late. Click a unit to open it.
+Each card shows units, occupancy, total monthly rent and how many are late. **Click the building name (or "Ver")** to open its detail page.
+
+### Building detail
+
+Shows the building's data, its indicators (units, occupancy, monthly rent, overdue amount) and every unit with its tenant and payment status. You can search, filter (All · Occupied · Vacant · Late), **Cobrar** (collect) on an occupied unit, **Asignar inquilino** (assign a tenant) to a vacant one, **Edit building** or **Add property** (it is created inside the building and takes its address automatically).
 
 ![Buildings](images/buildings.png)
+
+![Building detail](images/building-detail.png)
 
 ## 3. Properties
 

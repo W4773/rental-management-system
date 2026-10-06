@@ -5,6 +5,18 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.4.0] - 2026-10-06
+
+### Agregado
+- **Detalle de edificio** (`/edificios/:id`): al pulsar un edificio ves sus datos, KPIs (unidades, ocupación, renta mensual, monto atrasado, atrasadas) y la lista de unidades con inquilino, estado de pago y acciones (Cobrar / Asignar inquilino), con buscador y filtros (Todas, Ocupadas, Vacantes, Atrasadas). Desde ahí también puedes editar el edificio y agregar propiedades.
+
+### Corregido
+- Una pantalla ya no se queda en blanco ante un error de interfaz: se muestra un aviso con el detalle y opciones de recargar o ir al inicio (`ErrorBoundary`); el historial de pagos tolera pagos sin mes.
+
+### Cambiado
+- **Dirección automática**: al registrar una propiedad en un edificio con dirección, esta se toma del edificio (campo bloqueado, con la opción "Usar otra dirección").
+- **Asignar inquilino**: el selector de propiedad muestra solo las **disponibles** (sin inquilino activo), con contador y filtro por edificio; si solo hay una, se preselecciona y se salta al paso 2.
+
 ## [1.3.0] - 2026-10-06
 
 ### Agregado

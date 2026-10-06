@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import PropertyPicker, { PropertyInfo } from '../Common/PropertyPicker'
 import Button from '../Common/Button'
 import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
 import { useTenants } from '../../hooks/useTenants'
+import { Building2 } from 'lucide-react'
 import { useApp } from '../../contexts/AppContext'
 import { usePayments } from '../../hooks/usePayments'
 import { startOfMonth, addMonths } from 'date-fns' // eslint-disable-line no-unused-vars
@@ -20,13 +21,25 @@ const EMPTY_FORM = {
 
 export default function AssignTenantModal({ isOpen, onClose, onSuccess, property, tenantToEdit }) {
     // Context list is refreshed after every change; a private hook instance went stale and missed new properties
-    const { properties } = useApp()
+    const { properties, buildings, tenants } = useApp()
     const { addTenant, updateTenant, getActiveTenantForProperty, closeTenant } = useTenants()
     const { addPayment, generateHistoricalPayments } = usePayments()
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState(EMPTY_FORM)
+    const [buildingFilter, setBuildingFilter] = useState('')
+
+    // Only properties without an active tenant can receive a new one
+    const vacant = useMemo(
+        () => properties.filter(p => !tenants.some(t => t.property_id === p.id && !t.end_date)),
+        [properties, tenants]
+    )
+    const vacantBuildings = useMemo(
+        () => buildings.filter(b => vacant.some(p => p.building_id === b.id)),
+        [buildings, vacant]
+    )
+    const hasLoose = vacant.some(p => !p.building_id || !buildings.some(b => b.id === p.building_id))
 
     useEffect(() => {
         if (!isOpen) return
@@ -45,10 +58,13 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
             setFormData({ ...EMPTY_FORM, property_id: property.id })
             setStep(2)
         } else {
-            setFormData(EMPTY_FORM)
-            setStep(1)
+            // A single free property needs no choosing: go straight to the tenant data
+            setFormData(vacant.length === 1 ? { ...EMPTY_FORM, property_id: vacant[0].id } : EMPTY_FORM)
+            setStep(vacant.length === 1 ? 2 : 1)
         }
+        setBuildingFilter('')
         setErrors({})
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, property, tenantToEdit])
 
     const handleChange = (e) => {
@@ -181,11 +197,30 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
             <form onSubmit={handleSubmit}>
                 {step === 1 && (
                     <>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Paso 1 de 2: Seleccione la propiedad a la que desea asignar un inquilino.
+                        <p className="text-sm text-gray-600 mb-3">
+                            Paso 1 de 2: Seleccione la propiedad disponible a la que desea asignar un inquilino.
+                            <span className="ml-1 font-semibold text-brand-700">{vacant.length} disponible{vacant.length === 1 ? '' : 's'}</span>
                         </p>
+                        {vacant.length === 0 && (
+                            <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                                Todas las propiedades están ocupadas. Desvincula un inquilino o registra una propiedad nueva.
+                            </div>
+                        )}
+                        {(vacantBuildings.length > 1 || (vacantBuildings.length > 0 && hasLoose)) && (
+                            <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label="Filtrar por edificio">
+                                {[{ id: '', name: 'Todos' }, ...vacantBuildings].map(b => (
+                                    <button key={b.id || 'all'} type="button" aria-pressed={buildingFilter === b.id}
+                                        onClick={() => { setBuildingFilter(b.id); setFormData(prev => ({ ...prev, property_id: '' })) }}
+                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition ${buildingFilter === b.id ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'}`}>
+                                        {b.id && <Building2 className="w-3 h-3" />}{b.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <PropertyPicker
-                            properties={properties}
+                            properties={vacant}
+                            onlyVacant
+                            buildingId={buildingFilter || null}
                             value={formData.property_id}
                             onChange={handlePropertySelect}
                             error={errors.property_id}
