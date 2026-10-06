@@ -39,7 +39,7 @@ El **Inicio** reúne los indicadores del año, la lista de propiedades (agrupada
 - **Eliminar** un edificio: sus propiedades **no se borran**, quedan "Sin edificio".
 - **Asignar** propiedades sueltas a un edificio con el selector de la sección "Sin edificio".
 
-Cada edificio tiene **su propio color** (automático y fijo) en la vista de Edificios y en Propiedades, junto con sus unidades e inquilinos, y las unidades aparecen en orden alfabético. Cada tarjeta muestra unidades, ocupación, renta mensual total y cuántas están atrasadas. **Pulsa el nombre del edificio (o "Ver")** para abrir su detalle.
+Cada edificio tiene **su propio color** (automático y fijo) en la vista de Edificios y en Propiedades, junto con sus unidades e inquilinos, y las unidades aparecen en orden alfabético. Los círculos de cada unidad funcionan como semáforo: **verde** al día, **amarillo** 1 mes pendiente, **rojo** 2 o más meses y **gris** vacante; los contadores separan *Pendientes* y *Atrasadas*. Cada tarjeta muestra unidades, ocupación, renta mensual total y cuántas están atrasadas. **Pulsa el nombre del edificio (o "Ver")** para abrir su detalle.
 
 ### Detalle del edificio
 

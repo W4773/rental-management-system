@@ -24,6 +24,7 @@ export function buildingStats(units) {
         vacant: units.length - occupied,
         occupancy: units.length ? Math.round((occupied / units.length) * 100) : 0,
         rent: units.reduce((s, u) => s + (parseFloat(u.property.monthly_rent) || 0), 0),
+        pending: units.filter(u => u.status.key === 'pending').length,
         late: units.filter(u => u.status.key === 'late').length,
         owed: units.reduce((s, u) => s + (u.status.owedAmount || 0), 0)
     }

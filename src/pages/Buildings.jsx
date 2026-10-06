@@ -7,7 +7,9 @@ import { getBuildingUnits, buildingStats, enrichUnit } from '../lib/buildingStat
 import { useBuildingColors } from '../lib/buildingColors'
 import ConfirmModal from '../components/Common/ConfirmModal'
 
-const DOT = { paid: 'bg-green-500', pending: 'bg-amber-400', late: 'bg-red-500', vacant: 'bg-gray-300' }
+// Traffic light: green = al día, yellow = 1 month owed, red = 2+ months owed, grey = vacant
+const DOT = { paid: 'bg-green-500 ring-green-200', pending: 'bg-yellow-400 ring-yellow-200', late: 'bg-red-500 ring-red-200', vacant: 'bg-gray-300 ring-gray-200' }
+const LEGEND = [['paid', 'Al día'], ['pending', 'Pendiente (1 mes)'], ['late', 'Atrasado (2+ meses)'], ['vacant', 'Vacante']]
 
 function Unit({ property, tenant, status, color }) {
     return (
@@ -17,7 +19,7 @@ function Unit({ property, tenant, status, color }) {
             style={color ? { borderColor: color.border, background: color.soft } : undefined}
             className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-200 bg-white text-[12px] hover:brightness-95 transition"
         >
-            <span className={`w-2 h-2 rounded-full shrink-0 ${DOT[status.key]}`} />
+            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ring-2 ${DOT[status.key]}`} />
             <span className="font-medium truncate max-w-[10rem]">{property.name}</span>
         </Link>
     )
@@ -73,6 +75,12 @@ export default function Buildings() {
                 </button>
             </div>
 
+            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-600" aria-label="Leyenda de estados">
+                {LEGEND.map(([key, label]) => (
+                    <li key={key} className="flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ring-2 ${DOT[key]}`} />{label}</li>
+                ))}
+            </ul>
+
             {!buildingsAvailable && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
                     <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -89,7 +97,7 @@ export default function Buildings() {
             )}
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                {rows.withBuilding.map(({ building, units, total, occupied, rent, late }) => (
+                {rows.withBuilding.map(({ building, units, total, occupied, rent, pending, late }) => (
                     <section key={building.id} className="bg-white rounded-xl border border-brand-200 shadow-sm p-3"
                         style={{ borderColor: colors[building.id].border, borderTop: `4px solid ${colors[building.id].solid}` }}>
                         <div className="flex items-start gap-3">
@@ -112,11 +120,11 @@ export default function Buildings() {
                                 className="p-1.5 rounded-md border border-red-100 text-red-500 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                         </div>
 
-                        <dl className="grid grid-cols-4 gap-2 mt-3 text-center">
-                            {[['Unidades', total], ['Ocupadas', `${occupied}/${total}`], ['Renta mensual', formatCurrency(rent)], ['Atrasadas', late]].map(([label, value]) => (
+                        <dl className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3 text-center">
+                            {[['Unidades', total], ['Ocupadas', `${occupied}/${total}`], ['Renta mensual', formatCurrency(rent)], ['Pendientes', pending], ['Atrasadas', late]].map(([label, value]) => (
                                 <div key={label} className="rounded-lg px-1 py-1.5" style={{ background: colors[building.id].soft }}>
                                     <dt className="text-[9px] font-bold uppercase tracking-wide text-gray-500">{label}</dt>
-                                    <dd className={`text-[13px] font-bold leading-tight ${label === 'Atrasadas' && late > 0 ? 'text-red-600' : 'text-ink'}`}>{value}</dd>
+                                    <dd className={`text-[13px] font-bold leading-tight ${label === 'Atrasadas' && late > 0 ? 'text-red-600' : label === 'Pendientes' && pending > 0 ? 'text-yellow-600' : 'text-ink'}`}>{value}</dd>
                                 </div>
                             ))}
                         </dl>
