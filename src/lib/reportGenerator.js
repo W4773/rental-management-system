@@ -92,7 +92,7 @@ export function generatePaymentsReport({ property, tenant, building, payments, p
         margin: { left: 14, right: 14, bottom: 22 }
     })
 
-    drawFooter(doc, `Generado el ${format(new Date(), 'dd/MM/yyyy')} - ${brand}${settings.phone ? ' - ' + settings.phone : ''}`)
+    drawFooter(doc, `Generado el ${format(new Date(), 'dd/MM/yyyy')} - Alquiler Pro${settings.phone ? ' - ' + settings.phone : ''}`)
     const safe = (property?.name || 'propiedad').replace(/[^\w-]+/g, '_')
     doc.save(`Reporte_${safe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`)
     return doc

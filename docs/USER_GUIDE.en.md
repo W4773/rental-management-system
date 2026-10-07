@@ -94,7 +94,7 @@ On the property detail, section **Pagos → Selección múltiple**: tick the pen
 
 ### Optional receipt
 
-**Your name on documents:** the header, the *Arrendador* block, the signature and the watermark of receipts, reports and letters use the *Nombre del arrendador* from **Ajustes → Factura** (if empty, your account name; if that is empty too, your email). The watermark sits behind the text.
+**Your name on documents:** the header, the *Arrendador* block, the signature and the watermark of receipts, reports and letters use the *Nombre del arrendador* from **Ajustes → Factura** (if empty, your account name; if that is empty too, your email). The watermark sits behind the text. "Alquiler Pro" only appears in the footer. These settings belong to the **team**: every member prints the same data (requires migration 009).
 
 After saving, the app asks **¿Desea imprimir el recibo?** — *Sí, imprimir* downloads the PDF; *Ahora no* continues without printing. You can always print it later from the history (printer icon).
 

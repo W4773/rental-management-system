@@ -9,6 +9,10 @@ export function useUserSettings() {
 
     useEffect(() => {
         fetchSettings()
+        // Several components read these settings (receipts, letters, Ajustes): keep them in sync after a save
+        const onUpdated = () => fetchSettings()
+        window.addEventListener('settings:updated', onUpdated)
+        return () => window.removeEventListener('settings:updated', onUpdated)
     }, [])
 
     async function fetchSettings() {
@@ -39,6 +43,7 @@ export function useUserSettings() {
                 .single()
             if (error) throw error
             setSettings(data)
+            window.dispatchEvent(new Event('settings:updated'))
             return { data, error: null }
         } catch (err) {
             return { data: null, error: err.message }

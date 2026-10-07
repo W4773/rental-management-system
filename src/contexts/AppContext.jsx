@@ -23,6 +23,7 @@ import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
 import { useAuth } from './AuthContext'
 import { resolveDisplayName } from '../lib/displayName'
+import { useTeam } from '../hooks/useTeam'
 
 const AppContext = createContext(null)
 
@@ -45,8 +46,9 @@ export function AppProvider({ children }) {
     const activityHook = useActivityLog()
     const { settings: rawSettings } = useUserSettings()
     const { user } = useAuth()
+    const { members, owner: teamOwner } = useTeam()
     // Every PDF reads the name to show (header, owner, signature, watermark) from settings.display_name
-    const settings = useMemo(() => ({ ...(rawSettings || {}), display_name: resolveDisplayName(rawSettings, user) }), [rawSettings, user])
+    const settings = useMemo(() => ({ ...(rawSettings || {}), display_name: resolveDisplayName(rawSettings, user, { ownerEmail: teamOwner?.email, size: members.length }) }), [rawSettings, user, members, teamOwner])
     const toastApi = useToast()
 
     const [refreshTrigger, setRefreshTrigger] = useState(0)

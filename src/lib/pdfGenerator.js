@@ -5,6 +5,8 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parseLocalDate, drawWatermark } from './pdfHelpers'
 
+// Product name printed only in the footer; the owner's name goes everywhere else
+const PRODUCT_NAME = 'Alquiler Pro'
 const GOLD = [184, 150, 46]
 const DARK = [26, 26, 26]
 const GRAY = [90, 79, 58]
@@ -50,7 +52,6 @@ export async function generateReceiptPDF(paymentOrList, property, tenant, userSe
 
     // Name shown on the document: landlord name, else account name (resolved in AppContext)
     const ownerName = userSettings.display_name || userSettings.landlord_name || 'Alquiler Pro'
-    const businessName = userSettings.business_name || ownerName
     const landlordName = ownerName
     const landlordPhone = userSettings.phone || ''
     const landlordEmail = userSettings.email || 'info@optimard.com'
@@ -286,7 +287,7 @@ export async function generateReceiptPDF(paymentOrList, property, tenant, userSe
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(...LIGHT_GRAY)
-    doc.text(`${businessName} · ${landlordEmail} · ${landlordPhone}`, pageWidth / 2, footerY, { align: 'center' })
+    doc.text([PRODUCT_NAME, landlordEmail, landlordPhone].filter(Boolean).join(' · '), pageWidth / 2, footerY, { align: 'center' })
 
     doc.setFont('times', 'italic')
     doc.setFontSize(7.5)
