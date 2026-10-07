@@ -1,12 +1,18 @@
 /**
- * Name shown on receipts, reports and letters (header, owner block, signature, watermark):
- * the landlord name from Ajustes → Factura, else the account name, else the email's local part.
+ * Name shown on receipts, reports and letters (header, owner block, signature, watermark).
+ * Priority: the landlord name from Ajustes → Factura (shared by the whole team); if empty,
+ * the account name. Inside a team the fallback is the owner's account (email) for everyone, so
+ * two members never print different names.
+ * `team` = { ownerEmail, size } from list_workspace_members (optional).
  */
-export function resolveDisplayName(settings, user) {
+export function resolveDisplayName(settings, user, team = null) {
     const clean = (v) => (typeof v === 'string' ? v.trim() : '')
+    const local = (email) => clean(email?.split('@')[0])
+    const inTeam = team && team.size > 1 && team.ownerEmail
     return clean(settings?.landlord_name)
+        || (inTeam ? local(team.ownerEmail) : '')
         || clean(user?.user_metadata?.name)
-        || clean(user?.email?.split('@')[0])
+        || local(user?.email)
         || 'Alquiler Pro'
 }
 

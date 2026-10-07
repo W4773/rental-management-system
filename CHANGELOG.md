@@ -5,6 +5,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.9.1] - 2026-10-07
+
+### Cambiado
+- **Pie de los documentos**: el nombre "Alquiler Pro" queda únicamente en la parte de abajo (recibo, reporte y carta); arriba, en el bloque de arrendador, en la firma y en la marca de agua va el nombre del arrendador.
+- **Configuración compartida por el equipo**: los ajustes de documentos (nombre del arrendador, teléfono, correo, pie, firma y plantilla de la carta) son del equipo, no de cada usuario. Nueva migración `supabase/migrations/009_shared_settings.sql` para que los miembros los lean, los editen y suban la firma. Si el nombre del arrendador está vacío, dentro de un equipo se usa la cuenta del titular (igual para todos) en lugar de la cuenta de cada persona.
+- Al guardar los ajustes, recibos, reportes y cartas usan los datos nuevos sin recargar la página.
+
 ## [1.9.0] - 2026-10-07
 
 ### Cambiado

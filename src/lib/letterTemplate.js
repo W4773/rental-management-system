@@ -242,7 +242,7 @@ export async function generateCollectionLetter({ property, tenant, building, sta
 
     doc.setFontSize(8)
     doc.setTextColor(...PDF_COLORS.muted)
-    doc.text(`Carta generada el ${dateLabel(today.toISOString().slice(0, 10))}`, w / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' })
+    doc.text(`Alquiler Pro · Carta generada el ${dateLabel(today.toISOString().slice(0, 10))}`, w / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' })
     return doc
 }
 

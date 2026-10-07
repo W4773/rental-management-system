@@ -7,8 +7,7 @@ import {
     buildLetterValues, renderTemplate, SAMPLE_LETTER_INPUT, generateCollectionLetter
 } from '../../lib/letterTemplate'
 import { normalizeText } from '../../lib/paymentStatus'
-import { useAuth } from '../../contexts/AuthContext'
-import { resolveDisplayName } from '../../lib/displayName'
+import { useApp } from '../../contexts/AppContext'
 
 const Toggle = ({ label, checked, onChange }) => (
     <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -19,8 +18,8 @@ const Toggle = ({ label, checked, onChange }) => (
 
 export default function LetterSettings({ showToast }) {
     const { settings: rawSettings, loading, updateSettings, uploadSignature } = useUserSettings()
-    const { user } = useAuth()
-    const settings = useMemo(() => (rawSettings ? { ...rawSettings, display_name: resolveDisplayName(rawSettings, user) } : { display_name: resolveDisplayName(null, user) }), [rawSettings, user])
+    const { settings: appSettings } = useApp()
+    const settings = useMemo(() => ({ ...(rawSettings || {}), display_name: appSettings?.display_name }), [rawSettings, appSettings?.display_name])
     const [form, setForm] = useState(DEFAULT_LETTER)
     const [saving, setSaving] = useState(false)
     const bodyRef = useRef(null)
