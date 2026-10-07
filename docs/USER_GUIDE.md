@@ -94,6 +94,8 @@ En el detalle de la propiedad, sección **Pagos → Selección múltiple**: marc
 
 ### Recibo opcional
 
+**Tu nombre en los documentos:** el encabezado, el bloque *Arrendador*, la firma y la marca de agua de recibos, reportes y cartas usan el *Nombre del arrendador* de **Ajustes → Factura** (si está vacío, el nombre de tu cuenta; si tampoco, tu correo). La marca de agua va detrás del texto.
+
 Al guardar, la app pregunta **¿Desea imprimir el recibo?** — *Sí, imprimir* descarga el PDF; *Ahora no* continúa sin imprimir. Siempre puedes imprimirlo después desde el historial (icono de impresora).
 
 ### Editar o eliminar un pago

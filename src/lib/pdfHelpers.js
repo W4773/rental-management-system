@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { initialsOf } from './displayName'
 
 export const PDF_COLORS = {
     brand: [154, 125, 36],
@@ -42,11 +43,11 @@ export function drawHeader(doc, title, subtitle, brand = 'Alquiler Pro') {
     doc.setTextColor(...PDF_COLORS.brand)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(13)
-    doc.text((brand || 'AP').trim().slice(0, 2).toUpperCase(), 22, 19.5, { align: 'center' })
+    doc.text(initialsOf(brand), 22, 19.5, { align: 'center' })
 
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(16)
-    doc.text(brand, 36, 16)
+    doc.text(brand, 36, 16, { maxWidth: w - 36 - 70 })
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     doc.text('Gestión de alquileres', 36, 22)
@@ -85,4 +86,30 @@ export function drawField(doc, label, value, x, y, maxWidth = 80) {
     doc.setFontSize(10.5)
     doc.setTextColor(...PDF_COLORS.ink)
     doc.text(String(value || '-'), x, y + 5.5, { maxWidth })
+}
+
+/**
+ * Diagonal watermark with the owner's name. Call it BEFORE drawing any content so it stays
+ * behind the text; it is faint (low opacity) and sized to fit the page diagonal.
+ */
+export function drawWatermark(doc, text) {
+    const label = (text || '').trim().toUpperCase()
+    if (!label) return
+    const w = doc.internal.pageSize.getWidth()
+    const h = doc.internal.pageSize.getHeight()
+    doc.saveGraphicsState()
+    doc.setGState(new doc.GState({ opacity: 0.09 }))
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...PDF_COLORS.brand)
+    doc.setFontSize(100)
+    const maxLen = Math.min(w, h) * 1.15 // length available along the 45° diagonal
+    const fontSize = Math.max(18, Math.min(62, (100 * maxLen) / doc.getTextWidth(label)))
+    doc.setFontSize(fontSize)
+    const len = doc.getTextWidth(label)
+    // centre the rotated text on the page
+    const rad = Math.PI / 4
+    const x = w / 2 - (Math.cos(rad) * len) / 2
+    const y = h / 2 + (Math.sin(rad) * len) / 2
+    doc.text(label, x, y, { angle: 45 })
+    doc.restoreGraphicsState()
 }

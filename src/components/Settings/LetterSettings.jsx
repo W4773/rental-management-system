@@ -7,6 +7,8 @@ import {
     buildLetterValues, renderTemplate, SAMPLE_LETTER_INPUT, generateCollectionLetter
 } from '../../lib/letterTemplate'
 import { normalizeText } from '../../lib/paymentStatus'
+import { useAuth } from '../../contexts/AuthContext'
+import { resolveDisplayName } from '../../lib/displayName'
 
 const Toggle = ({ label, checked, onChange }) => (
     <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -16,7 +18,9 @@ const Toggle = ({ label, checked, onChange }) => (
 )
 
 export default function LetterSettings({ showToast }) {
-    const { settings, loading, updateSettings, uploadSignature } = useUserSettings()
+    const { settings: rawSettings, loading, updateSettings, uploadSignature } = useUserSettings()
+    const { user } = useAuth()
+    const settings = useMemo(() => (rawSettings ? { ...rawSettings, display_name: resolveDisplayName(rawSettings, user) } : { display_name: resolveDisplayName(null, user) }), [rawSettings, user])
     const [form, setForm] = useState(DEFAULT_LETTER)
     const [saving, setSaving] = useState(false)
     const bodyRef = useRef(null)
@@ -178,14 +182,18 @@ export default function LetterSettings({ showToast }) {
 
                 <div>
                     <p className="accessible-label">Vista previa (con datos de ejemplo)</p>
-                    <div className="bg-white border border-gray-300 shadow-md rounded-sm overflow-hidden text-[12px] leading-relaxed text-gray-800" data-testid="letter-preview">
+                    <div className="relative bg-white border border-gray-300 shadow-md rounded-sm overflow-hidden text-[12px] leading-relaxed text-gray-800" data-testid="letter-preview">
+                        {/* Watermark with the owner's name, behind the text (same as the PDF) */}
+                        <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+                            <span className="font-extrabold uppercase whitespace-nowrap text-center" style={{ color: '#9a7d24', opacity: 0.09, transform: 'rotate(-45deg)', fontSize: values['Nombre del propietario'].length > 18 ? '34px' : '52px' }}>{values['Nombre del propietario']}</span>
+                        </div>
                         {form.letterhead && (
-                            <div className="px-6 py-3 text-white" style={{ background: '#9a7d24' }}>
-                                <p className="font-bold text-base">{values['Empresa']}</p>
+                            <div className="relative z-10 px-6 py-3 text-white" style={{ background: '#9a7d24' }}>
+                                <p className="font-bold text-base">{values['Nombre del propietario']}</p>
                                 <p className="text-[11px] opacity-90">{[settings?.phone, settings?.email].filter(Boolean).join('  ·  ') || 'Gestión de alquileres'}</p>
                             </div>
                         )}
-                        <div className="px-6 py-4 space-y-2">
+                        <div className="relative z-10 px-6 py-4 space-y-2">
                             <p className="text-right text-gray-500">{values['Fecha']}</p>
                             <div>
                                 <p className="font-bold">{values['Nombre del inquilino']}</p>
@@ -208,8 +216,8 @@ export default function LetterSettings({ showToast }) {
                                 <div className="pt-4">
                                     {signatureUrl && <img src={signatureUrl} alt="" style={{ maxHeight: '48px', maxWidth: '150px', objectFit: 'contain' }} />}
                                     <div className={`w-40 border-t border-gray-700 ${signatureUrl ? '' : 'mt-6'}`} />
-                                    <p className="font-bold">{values['Nombre del propietario'] || values['Empresa']}</p>
-                                    <p className="text-gray-500">{values['Nombre del propietario'] ? values['Empresa'] : 'Administración'}</p>
+                                    <p className="font-bold">{values['Nombre del propietario']}</p>
+                                    <p className="text-gray-500">{settings?.business_name && settings.business_name !== values['Nombre del propietario'] ? settings.business_name : 'Arrendador'}</p>
                                 </div>
                             )}
                         </div>
