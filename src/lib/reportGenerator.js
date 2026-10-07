@@ -26,7 +26,8 @@ export function summarizePayments(payments) {
  * @param {{property, tenant, building, payments, periodLabel}} opts
  */
 export function generatePaymentsReport({ property, tenant, building, payments, periodLabel, settings = {} }) {
-    const brand = settings.business_name || 'Alquiler Pro'
+    // Same name as receipts and letters: landlord name, else account name (settings.display_name)
+    const brand = settings.display_name || settings.landlord_name || 'Alquiler Pro'
     const rows = [...payments]
         .filter(p => parseFloat(p.amount_paid) > 0)
         .sort((a, b) => a.payment_month.localeCompare(b.payment_month))

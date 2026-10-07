@@ -21,6 +21,8 @@ import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
 import ReportModal from '../components/Modals/ReportModal'
 import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
+import { useAuth } from './AuthContext'
+import { resolveDisplayName } from '../lib/displayName'
 
 const AppContext = createContext(null)
 
@@ -41,7 +43,10 @@ export function AppProvider({ children }) {
     const utilityHook = useUtilityReadings()
     const buildingsHook = useBuildings()
     const activityHook = useActivityLog()
-    const { settings } = useUserSettings()
+    const { settings: rawSettings } = useUserSettings()
+    const { user } = useAuth()
+    // Every PDF reads the name to show (header, owner, signature, watermark) from settings.display_name
+    const settings = useMemo(() => ({ ...(rawSettings || {}), display_name: resolveDisplayName(rawSettings, user) }), [rawSettings, user])
     const toastApi = useToast()
 
     const [refreshTrigger, setRefreshTrigger] = useState(0)

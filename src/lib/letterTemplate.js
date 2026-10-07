@@ -2,7 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { addDays, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { PDF_COLORS, money, dateLabel } from './pdfHelpers'
+import { PDF_COLORS, money, dateLabel, drawWatermark } from './pdfHelpers'
 import { normalizeText, monthKeyOf, hasMoney } from './paymentStatus'
 import { loadImageAsDataUrl } from './pdfGenerator'
 
@@ -80,6 +80,7 @@ const longDate = (d) => format(d, "d 'de' MMMM 'de' yyyy", { locale: es })
 
 /** Values for every variable, from one tenant's current situation. */
 export function buildLetterValues({ property, tenant, building, status, settings = {}, today = new Date() }) {
+    const ownerName = settings.display_name || settings.landlord_name || 'Alquiler Pro'
     return {
         'Nombre del inquilino': tenant?.name || '',
         'Cédula': tenant?.identity_number || '',
@@ -92,8 +93,8 @@ export function buildLetterValues({ property, tenant, building, status, settings
         'Renta mensual': money(property?.monthly_rent),
         'Fecha': longDate(today),
         'Fecha límite': longDate(addDays(today, 5)),
-        'Nombre del propietario': settings.landlord_name || '',
-        'Empresa': settings.business_name || 'Alquiler Pro',
+        'Nombre del propietario': ownerName,
+        'Empresa': settings.business_name || ownerName,
         'Teléfono': settings.phone || '',
         'Correo': settings.email || ''
     }
@@ -136,6 +137,10 @@ export async function generateCollectionLetter({ property, tenant, building, sta
     const w = doc.internal.pageSize.getWidth()
     const margin = 22
     let y = 24
+    const ownerName = values['Nombre del propietario']
+
+    // Watermark first so it stays behind the text
+    drawWatermark(doc, ownerName)
 
     if (cfg.letterhead) {
         doc.setFillColor(...PDF_COLORS.brand)
@@ -143,7 +148,7 @@ export async function generateCollectionLetter({ property, tenant, building, sta
         doc.setTextColor(255, 255, 255)
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(16)
-        doc.text(values['Empresa'], margin, 14)
+        doc.text(ownerName, margin, 14)
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(9)
         const contact = [userSettings.phone, userSettings.email].filter(Boolean).join('  ·  ')
@@ -228,11 +233,11 @@ export async function generateCollectionLetter({ property, tenant, building, sta
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(10)
         doc.setTextColor(...PDF_COLORS.ink)
-        doc.text(values['Nombre del propietario'] || values['Empresa'], margin, y + 5)
+        doc.text(ownerName, margin, y + 5)
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(8.5)
         doc.setTextColor(...PDF_COLORS.muted)
-        doc.text(values['Nombre del propietario'] ? values['Empresa'] : 'Administración', margin, y + 10)
+        doc.text(userSettings.business_name && userSettings.business_name !== ownerName ? userSettings.business_name : 'Arrendador', margin, y + 10)
     }
 
     doc.setFontSize(8)

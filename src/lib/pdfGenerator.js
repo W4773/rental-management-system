@@ -3,7 +3,7 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { parseLocalDate } from './pdfHelpers'
+import { parseLocalDate, drawWatermark } from './pdfHelpers'
 
 const GOLD = [184, 150, 46]
 const DARK = [26, 26, 26]
@@ -48,12 +48,17 @@ export async function generateReceiptPDF(paymentOrList, property, tenant, userSe
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 22
 
-    const businessName = userSettings.business_name || 'AlquilerPro'
-    const landlordName = userSettings.landlord_name || ''
+    // Name shown on the document: landlord name, else account name (resolved in AppContext)
+    const ownerName = userSettings.display_name || userSettings.landlord_name || 'Alquiler Pro'
+    const businessName = userSettings.business_name || ownerName
+    const landlordName = ownerName
     const landlordPhone = userSettings.phone || ''
     const landlordEmail = userSettings.email || 'info@optimard.com'
     const footerNote = userSettings.invoice_footer || 'Este documento constituye un recibo de pago válido.'
     const signatureUrl = userSettings.signature_url || null
+
+    // === WATERMARK (first, so it stays behind everything) ===
+    drawWatermark(doc, ownerName)
 
     // === TOP GOLD RULE ===
     doc.setDrawColor(...GOLD)
@@ -64,7 +69,18 @@ export async function generateReceiptPDF(paymentOrList, property, tenant, userSe
     doc.setFont('times', 'bold')
     doc.setFontSize(22)
     doc.setTextColor(...DARK)
-    doc.text(businessName.toUpperCase(), pageWidth / 2, 24, { align: 'center', charSpace: 1.5 })
+    const headerName = ownerName.toUpperCase()
+    const tracking = 1.5
+    const available = pageWidth - margin * 2
+    let headerSize = 22
+    doc.setFontSize(headerSize)
+    // Shrink long names until they fit between the margins (letter-spacing included), then centre by hand
+    while (headerSize > 11 && doc.getTextWidth(headerName) + tracking * (headerName.length - 1) > available) {
+        headerSize -= 0.5
+        doc.setFontSize(headerSize)
+    }
+    const headerWidth = doc.getTextWidth(headerName) + tracking * (headerName.length - 1)
+    doc.text(headerName, (pageWidth - headerWidth) / 2, 24, { charSpace: tracking })
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
@@ -126,7 +142,7 @@ export async function generateReceiptPDF(paymentOrList, property, tenant, userSe
     doc.setFont('times', 'bold')
     doc.setFontSize(13)
     doc.setTextColor(...DARK)
-    doc.text(landlordName || 'Arrendador', margin, y)
+    doc.text(landlordName, margin, y, { maxWidth: colMid - margin - 6 })
     doc.text(tenant.name, colMid, y)
 
     y += 6
@@ -292,15 +308,6 @@ export async function generateReceiptPDF(paymentOrList, property, tenant, userSe
     doc.setDrawColor(...GOLD)
     doc.setLineWidth(1.2)
     doc.line(margin, footerY + 15, pageWidth - margin, footerY + 15)
-
-    // === ANTI-FORGERY DIAGONAL WATERMARK ===
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(62)
-    doc.setTextColor(242, 237, 224)
-    doc.text('ALQUILER PRO', pageWidth / 2, doc.internal.pageSize.getHeight() * 0.44, { align: 'center', angle: 45 })
-    doc.setFontSize(28)
-    doc.setTextColor(245, 241, 231)
-    doc.text('DOCUMENTO AUTÉNTICO', pageWidth / 2, doc.internal.pageSize.getHeight() * 0.68, { align: 'center', angle: 45 })
 
     const suffix = list.length > 1 ? `${list.length}-meses` : format(parseLocalDate(payment.payment_month), 'MMM-yyyy', { locale: es })
     doc.save(`Recibo_${(tenant.name || 'inquilino').split(' ')[0]}_${suffix}.pdf`)

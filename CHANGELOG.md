@@ -5,6 +5,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.9.0] - 2026-10-07
+
+### Cambiado
+- **Tu nombre en los documentos**: recibos, reportes de pago y cartas de cobro muestran tu nombre (el *Nombre del arrendador* de Ajustes → Factura; si está vacío, el nombre de tu cuenta y, si tampoco, tu correo) en el encabezado, en el bloque "Arrendador" y en la línea de firma, en lugar de "Alquiler Pro" / "Arrendador".
+- **Marca de agua detrás del contenido**: ahora se dibuja primero (tenue, con tu nombre) y ya no tapa el texto; se eliminó la segunda marca fija "Documento auténtico". Las cartas de cobro también la llevan, y la vista previa de Ajustes la muestra.
+- Los nombres largos se reducen para caber entre los márgenes del encabezado.
+
 ## [1.8.0] - 2026-10-06
 
 ### Cambiado
