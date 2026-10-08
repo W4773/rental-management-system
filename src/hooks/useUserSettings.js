@@ -1,36 +1,71 @@
 // src/hooks/useUserSettings.js
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore } from 'react'
 import { supabase } from '../lib/supabase'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
+import { cacheGet, cacheSet } from '../lib/localCache'
 
-export function useUserSettings() {
-    const [settings, setSettings] = useState(null)
-    const [loading, setLoading] = useState(true)
+// The settings row is shared by every component that reads it (receipts, letters, Ajustes): one copy,
+// one request, kept in IndexedDB so it is there instantly on the next visit.
+let state = { settings: null, loading: true }
+let started = false
+let inflight = null
+const listeners = new Set()
 
-    useEffect(() => {
-        fetchSettings()
-        // Several components read these settings (receipts, letters, Ajustes): keep them in sync after a save
-        const onUpdated = () => fetchSettings()
-        window.addEventListener('settings:updated', onUpdated)
-        return () => window.removeEventListener('settings:updated', onUpdated)
-    }, [])
+const emit = () => listeners.forEach(l => l())
+const setState = (patch) => { state = { ...state, ...patch }; emit() }
 
-    async function fetchSettings() {
+async function userId() {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.user?.id || null
+}
+
+async function fetchSettings() {
+    if (inflight) return inflight
+    inflight = (async () => {
         try {
             const ownerId = await getEffectiveOwnerId()
             if (!ownerId) return
-            const { data } = await supabase
-                .from('user_settings')
-                .select('*')
-                .eq('user_id', ownerId)
-                .maybeSingle()
-            setSettings(data)
+            const { data, error } = await supabase.from('user_settings').select('*').eq('user_id', ownerId).maybeSingle()
+            if (error) throw error
+            setState({ settings: data, loading: false })
+            const uid = await userId()
+            if (uid) cacheSet(`u:${uid}:settings`, data)
         } catch (err) {
-            console.error('Error fetching user settings:', err)
+            console.warn('Could not fetch user settings:', err.message)
+            setState({ loading: false })
         } finally {
-            setLoading(false)
+            inflight = null
         }
-    }
+    })()
+    return inflight
+}
+
+async function start() {
+    if (started) return
+    started = true
+    try {
+        const uid = await userId()
+        const cached = uid ? await cacheGet(`u:${uid}:settings`) : undefined
+        if (cached !== undefined && state.loading) setState({ settings: cached, loading: false })
+    } catch { /* no cache */ }
+    fetchSettings()
+}
+
+const subscribe = (listener) => { listeners.add(listener); start(); return () => listeners.delete(listener) }
+const getSnapshot = () => state
+
+export function resetSettingsStore() {
+    state = { settings: null, loading: true }
+    started = false
+    emit()
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('network:restored', () => { if (started) fetchSettings() })
+}
+
+export function useUserSettings() {
+    const { settings, loading } = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
     async function updateSettings(updates) {
         try {
@@ -42,8 +77,9 @@ export function useUserSettings() {
                 .select()
                 .single()
             if (error) throw error
-            setSettings(data)
-            window.dispatchEvent(new Event('settings:updated'))
+            setState({ settings: data, loading: false })
+            const uid = await userId()
+            if (uid) cacheSet(`u:${uid}:settings`, data)
             return { data, error: null }
         } catch (err) {
             return { data: null, error: err.message }

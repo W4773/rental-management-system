@@ -1,47 +1,11 @@
-import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useTable, refreshTable, patchTable, getTableState } from '../lib/dataStore'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
 
 export function useTenants() {
-    const [tenants, setTenants] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
-
-    useEffect(() => {
-        fetchTenants()
-
-        // Subscribe to real-time changes
-        const subscription = supabase
-            .channel('tenants-channel')
-            .on('postgres_changes',
-                { event: '*', schema: 'rental', table: 'tenants' },
-                fetchTenants
-            )
-            .subscribe()
-
-        return () => {
-            subscription.unsubscribe()
-        }
-    }, [])
-
-    async function fetchTenants() {
-        try {
-            const { data, error: fetchError } = await supabase
-                .from('tenants')
-                .select('*')
-                .order('created_at', { ascending: false })
-
-            if (fetchError) throw fetchError
-            setTenants(data || [])
-            setError(null)
-        } catch (err) {
-            console.error('Error fetching tenants:', err)
-            setError(err.message)
-        } finally {
-            setLoading(false)
-        }
-    }
+    const { data: tenants, loading, error } = useTable('tenants')
+    const fetchTenants = () => refreshTable('tenants')
 
     async function addTenant(tenantData) {
         try {
@@ -54,6 +18,7 @@ export function useTenants() {
                 .select()
 
             if (insertError) throw insertError
+            patchTable('tenants', { upsert: data || [] })
             logActivity({ action: 'tenant.assign', entityType: 'tenant', entityId: data?.[0]?.id, meta: { name: tenantData.name, property_id: tenantData.property_id } })
             return { data: data?.[0], error: null }
         } catch (err) {
@@ -71,6 +36,7 @@ export function useTenants() {
                 .select()
 
             if (updateError) throw updateError
+            patchTable('tenants', { upsert: data || [] })
             const known = tenants.find(t => t.id === id) || data?.[0]
             logActivity({
                 action: updates.end_date ? 'tenant.unassign' : 'tenant.update',
@@ -93,6 +59,7 @@ export function useTenants() {
                 .eq('id', id)
 
             if (deleteError) throw deleteError
+            patchTable('tenants', { remove: [id] })
             return { error: null }
         } catch (err) {
             console.error('Error deleting tenant:', err)
@@ -105,6 +72,11 @@ export function useTenants() {
     }
 
     async function getActiveTenantForProperty(propertyId) {
+        // The shared copy is kept live; only fall back to the network if it has not loaded yet
+        const local = getTableState('tenants')
+        if (!local.loading || local.data.length > 0) {
+            return { data: local.data.find(t => t.property_id === propertyId && !t.end_date) || null, error: null }
+        }
         try {
             const { data, error: fetchError } = await supabase
                 .from('tenants')

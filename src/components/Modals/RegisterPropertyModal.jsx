@@ -1,3 +1,4 @@
+import { refreshTable } from '../../lib/dataStore'
 import { useState, useEffect } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
@@ -185,6 +186,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             const freeze = await supabase.from('rent_payments').update({ rent_amount: parseFloat(propertyToEdit.monthly_rent) })
                 .eq('property_id', propertyToEdit.id).or('rent_amount.is.null,rent_amount.eq.0')
             if (freeze.error) console.warn('Could not freeze old rent on payments:', freeze.error.message)
+            else refreshTable('rent_payments')
             // 2) Keep the price history so unpaid earlier months keep the old price too
             ;({ data: saved, error } = await updateProperty(propertyToEdit.id, { ...propertyData, rent_history: withRentChange(propertyToEdit, newRent, rentFrom) }))
             if (error && /rent_history/i.test(error)) {

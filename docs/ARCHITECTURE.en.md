@@ -25,9 +25,19 @@ flowchart LR
 |---|---|---|
 | Pages | `src/pages` | Screens and routes: `/`, `/propiedades`, `/edificios`, `/edificios/:id`, `/inquilinos`, `/finanzas`, `/gastos`, `/settings`, `/login`, `/register`. |
 | Components | `src/components` | Reusable UI: property list and detail, yearly strip, modals (payment, edit, void, building, tenant…), searchable selector. |
-| State | `src/contexts/AppContext.jsx` | Loads properties, tenants, payments, utilities, buildings, settings and activity once; exposes `openX()` to open modals and `refreshAll()` (no page reloads). |
-| Data | `src/hooks` | One hook per table with the CRUD operations against Supabase; they log activity. |
+| State | `src/contexts/AppContext.jsx` | Gathers properties, tenants, payments, utilities, buildings, settings and activity; exposes `openX()` to open modals and `refreshAll()` (no page reloads). |
+| Data | `src/hooks` + `src/lib/dataStore.js` | One shared copy per table (`useSyncExternalStore`); hooks do the CRUD against Supabase, patch that copy with the result and log activity. |
+| Network | `src/lib/{resilientFetch,networkStatus,localCache,outbox}.js` | See "Slow networks and offline mode". |
 | Domain | `src/lib` | Pure, easily testable business rules. |
+
+## Slow networks and offline mode
+
+- **Shared store** (`dataStore`): one request per table (simultaneous calls are folded into one), one realtime channel per table whose INSERT/UPDATE/DELETE events are **applied to the local copy** (no re-download), and a full refresh only on reconnect or when returning to the tab.
+- **Local cache** (`localCache`, per-user IndexedDB): the app paints from the last saved data and revalidates in the background (stale-while-revalidate). Cleared on sign-out.
+- **Resilient fetch** (`resilientFetch`, injected into `createClient`): time limits (20 s reads / 30 s writes), retries with growing waits for **reads only**, and instant rejection of writes when offline is known. It feeds `networkStatus` (offline after 2 consecutive failures, "slow" above 6 s) and a light probe detects when the network is back.
+- **Outbox** (`outbox`): payments made offline carry a client-generated `id` (`crypto.randomUUID`), show up at once (`_pending`) and are sent in order when the network returns; a duplicate key (23505) counts as already sent, so retries are idempotent. A server error leaves the item `failed` (retry/discard). The queue is kept per user even across sign-out.
+- **Light loading**: `React.lazy` routes, dynamic `import()` of jsPDF/autotable, vendor `manualChunks` and non-blocking fonts.
+- Limit: without a service worker, cold-opening the page with no connection is not possible.
 
 ## Domain: key modules (`src/lib`)
 

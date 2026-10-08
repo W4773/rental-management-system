@@ -1,45 +1,15 @@
 // src/hooks/useUtilityReadings.js
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { useTable, refreshTable, patchTable } from '../lib/dataStore'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
 
 export function useUtilityReadings(utilityType = null) {
-    const [readings, setReadings] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
-
-    useEffect(() => {
-        fetchReadings()
-        const channel = `utility-${utilityType || 'all'}`
-        const subscription = supabase
-            .channel(channel)
-            .on('postgres_changes',
-                { event: '*', schema: 'rental', table: 'gas_consumption' },
-                fetchReadings
-            )
-            .subscribe()
-        return () => subscription.unsubscribe()
-    }, [utilityType])
-
-    async function fetchReadings() {
-        try {
-            let query = supabase
-                .from('gas_consumption')
-                .select('*')
-                .order('reading_date', { ascending: false })
-            if (utilityType) query = query.eq('utility_type', utilityType)
-            const { data, error: fetchError } = await query
-            if (fetchError) throw fetchError
-            setReadings(data || [])
-            setError(null)
-        } catch (err) {
-            console.error('Error fetching utility readings:', err)
-            setError(err.message)
-        } finally {
-            setLoading(false)
-        }
-    }
+    const { data: allReadings, loading, error } = useTable('gas_consumption')
+    // The shared copy holds every type; each screen filters its own
+    const readings = useMemo(() => utilityType ? allReadings.filter(r => r.utility_type === utilityType) : allReadings, [allReadings, utilityType])
+    const fetchReadings = () => refreshTable('gas_consumption')
 
     async function addReading(readingData) {
         try {
@@ -55,6 +25,7 @@ export function useUtilityReadings(utilityType = null) {
                 .insert([payload])
                 .select()
             if (insertError) throw insertError
+            patchTable('gas_consumption', { upsert: data || [] })
             logActivity({ action: 'utility.create', entityType: 'utility', entityId: data?.[0]?.id, meta: { type: payload.utility_type, property_id: payload.property_id, amount: payload.total_cost } })
             return { data: data?.[0], error: null }
         } catch (err) {
@@ -71,6 +42,7 @@ export function useUtilityReadings(utilityType = null) {
                 .eq('id', id)
                 .select()
             if (updateError) throw updateError
+            patchTable('gas_consumption', { upsert: data || [] })
             const known = readings.find(r => r.id === id) || data?.[0]
             logActivity({
                 action: updates.paid === true ? 'utility.paid' : 'utility.update',
