@@ -1,3 +1,5 @@
+import { rentForMonth } from './rentHistory'
+
 // Single source of truth for "how is this property/tenant doing on rent".
 // Mirrors the logic the app already used in PropertiesList / PropertyCarousel / TenantSection.
 
@@ -91,7 +93,6 @@ export function getPaymentStatus(property, tenant, payments, today = new Date())
     const mine = payments.filter(p => p.property_id === property.id)
     const cy = today.getFullYear()
     const cm = today.getMonth()
-    const rent = parseFloat(property.monthly_rent || 0)
 
     let [y, m] = trackingStart(tenant, mine, today)
 
@@ -111,7 +112,7 @@ export function getPaymentStatus(property, tenant, payments, today = new Date())
         if (st.status === 'paid') {
             paidThrough = st.key
         } else if (st.status !== 'void' && !isFutureMonth) {
-            const owed = Math.max(0, parseFloat(mine.find(p => monthKeyOf(p) === st.key && hasMoney(p))?.rent_amount || rent) - st.total)
+            const owed = Math.max(0, st.rent - st.total)
             if (isCurrent) currentUnpaid = true
             else { overdue.push(st.key); owedAmount += owed }
         }
@@ -182,7 +183,8 @@ export function getMonthStatus(payments, property, year, monthIndex, today = new
     const monthRows = payments.filter(p => monthKeyOf(p) === key)
     const rows = monthRows.filter(hasMoney)
     const total = rows.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0)
-    const rent = parseFloat(rows[0]?.rent_amount || property.monthly_rent)
+    // Months with money keep the rent stored in their rows; others use the price in force that month
+    const rent = parseFloat(rows[0]?.rent_amount || monthRows[0]?.rent_amount || rentForMonth(property, key))
 
     // Editing metadata: real payments lock the month; "marks" are explicit pending / void rows;
     // auto rows are the paid history generated when a tenant was registered.

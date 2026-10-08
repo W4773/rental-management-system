@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { rentForMonth } from '../lib/rentHistory'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
@@ -75,8 +76,8 @@ export const useDashboardMetrics = (year = new Date().getFullYear(), refreshTrig
                                         property_id: tenant.property_id,
                                         tenant_id: tenant.id,
                                         payment_month: `${y}-${m}-01`,
-                                        rent_amount: property.monthly_rent,
-                                        amount_paid: property.monthly_rent,
+                                        rent_amount: rentForMonth(property, `${y}-${m}`),
+                                        amount_paid: rentForMonth(property, `${y}-${m}`),
                                         remaining_balance: 0,
                                         payment_date: `${y}-${m}-01`,
                                         payment_method: 'historical',
@@ -179,7 +180,7 @@ export const useDashboardMetrics = (year = new Date().getFullYear(), refreshTrig
 
                             // If no payment found for this past month, it's overdue
                             if (!monthPayment) {
-                                const rentAmount = parseFloat(property.monthly_rent || 0)
+                                const rentAmount = rentForMonth(property, `${checkYear}-${String(checkMonth + 1).padStart(2, '0')}`)
                                 overdueAmount += rentAmount
 
                                 const monthName = checkDate.toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })

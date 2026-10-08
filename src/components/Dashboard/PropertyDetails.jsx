@@ -66,6 +66,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     const [editMonths, setEditMonths] = useState([])
     const [editingPayment, setEditingPayment] = useState(null)
     const [voidModal, setVoidModal] = useState(false)
+    const [saving, setSaving] = useState(false)
 
     // Reset local selections when switching property
     useEffect(() => {
@@ -128,27 +129,44 @@ export default function PropertyDetails({ property, onDeleted }) {
             const missing = /voided|void_reason/i.test(res.error)
             toast.error(missing
                 ? 'Falta ejecutar supabase/migrations/006_payment_void.sql en Supabase para marcar meses como nulos.'
-                : 'No se pudo guardar: ' + res.error, 8000)
+                : 'No se pudo guardar: ' + res.error, 9000)
             return false
         }
         if (res.done.length > 0) toast.success(`${res.done.length} mes(es) ${verb}`)
         if (res.skipped.length > 0) toast.warning(`${res.skipped.length} mes(es) se omitieron porque tienen pagos registrados: edita o elimina el pago primero.`, 7000)
+        if (res.done.length === 0 && res.skipped.length === 0) toast.info('No había cambios que aplicar.')
         return true
     }
-    const markPending = async () => {
-        const res = await setMonthsState(property, activeTenant, editMonths, 'pending')
-        if (reportMarking(res, 'marcados como pendientes')) { refreshAll(); exitEditMode() }
+    // Always ends with a message and re-enables the buttons, whatever happens on the way
+    const runEdit = async (action, verb) => {
+        if (saving) return
+        setSaving(true)
+        try {
+            const res = await action()
+            if (reportMarking(res, verb)) { refreshAll(); exitEditMode() }
+        } catch (err) {
+            console.error('Error editing months:', err)
+            toast.error('No se pudo guardar: ' + (err?.message || 'error desconocido'), 9000)
+        } finally {
+            setSaving(false)
+        }
     }
-    const markVoid = async (reason) => {
-        const res = await setMonthsState(property, activeTenant, editMonths, 'void', { reason })
-        setVoidModal(false)
-        if (reportMarking(res, 'marcados como nulos')) { refreshAll(); exitEditMode() }
-    }
+    const markPending = () => runEdit(() => setMonthsState(property, activeTenant, editMonths, 'pending'), 'marcados como pendientes')
+    const markVoid = (reason) => { setVoidModal(false); return runEdit(() => setMonthsState(property, activeTenant, editMonths, 'void', { reason }), 'marcados como nulos') }
     const clearMarks = async () => {
-        const res = await clearMonthMarks(property, editMonths)
-        if (res.error) return toast.error('No se pudo quitar la marca: ' + res.error, 6000)
-        toast.success(`${res.count} marca(s) quitada(s)`)
-        refreshAll(); exitEditMode()
+        if (saving) return
+        setSaving(true)
+        try {
+            const res = await clearMonthMarks(property, editMonths)
+            if (res.error) { toast.error('No se pudo quitar la marca: ' + res.error, 9000); return }
+            toast.success(res.count > 0 ? `${res.count} marca(s) quitada(s)` : 'No había marcas que quitar.')
+            refreshAll(); exitEditMode()
+        } catch (err) {
+            console.error('Error clearing marks:', err)
+            toast.error('No se pudo quitar la marca: ' + (err?.message || 'error desconocido'), 9000)
+        } finally {
+            setSaving(false)
+        }
     }
     const pendingMonthKeys = Array.from({ length: 12 }, (_, i) => getMonthStatus(propertyPayments, property, year, i))
         .filter(m => m.status === 'pending' || m.status === 'partial' || m.status === 'current')
@@ -412,14 +430,14 @@ export default function PropertyDetails({ property, onDeleted }) {
                     ) : (
                         <>
                             <span className="font-semibold">{editMonths.length} mes(es)</span>
-                            <button className="px-2.5 py-1 rounded-md bg-red-500/90 hover:bg-red-500 font-semibold flex items-center gap-1" onClick={markPending}>
-                                <Wallet className="w-3.5 h-3.5" /> Marcar pendiente
+                            <button className="px-2.5 py-1 rounded-md bg-red-500/90 hover:bg-red-500 font-semibold flex items-center gap-1" onClick={markPending} disabled={saving}>
+                                <Wallet className="w-3.5 h-3.5" /> {saving ? 'Guardando…' : 'Marcar pendiente'}
                             </button>
-                            <button className="px-2.5 py-1 rounded-md bg-white/15 hover:bg-white/25 font-semibold flex items-center gap-1" onClick={() => setVoidModal(true)}>
+                            <button className="px-2.5 py-1 rounded-md bg-white/15 hover:bg-white/25 font-semibold flex items-center gap-1" onClick={() => setVoidModal(true)} disabled={saving}>
                                 <Ban className="w-3.5 h-3.5" /> Marcar nulo…
                             </button>
                             {selectedHaveMarks && (
-                                <button className="px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 flex items-center gap-1" onClick={clearMarks}>
+                                <button className="px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 flex items-center gap-1" onClick={clearMarks} disabled={saving}>
                                     <Eraser className="w-3.5 h-3.5" /> Quitar marca
                                 </button>
                             )}

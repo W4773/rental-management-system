@@ -157,7 +157,7 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
 
                 const { data: newTenant, error: tenantError } = await createTenantWithHistory(
                     { addTenant, generateHistoricalPayments },
-                    { propertyId: formData.property_id, monthlyRent: selectedProperty.monthly_rent, values: formData }
+                    { propertyId: formData.property_id, monthlyRent: selectedProperty.monthly_rent, property: selectedProperty, values: formData }
                 )
                 if (tenantError) throw new Error(tenantError)
 

@@ -10,7 +10,7 @@ La app usa **Supabase (PostgreSQL)** con el esquema **`rental`** (el cliente lo 
 
 | Tabla | Para qué | Columnas principales |
 |---|---|---|
-| `properties` | Propiedades | `id`, `user_id`, `name`, `address`, `monthly_rent`, `bedrooms`, `bathrooms`, `property_type`, `unit_number`, `square_meters`, `notes`, `contract_start_date`, `annual_increase_pct`, `increase_type`, **`increase_start_date`** (005), **`building_id`** (002) |
+| `properties` | Propiedades | `id`, `user_id`, `name`, `address`, `monthly_rent`, `bedrooms`, `bathrooms`, `property_type`, `unit_number`, `square_meters`, `notes`, `contract_start_date`, **`rent_history`** (010), `annual_increase_pct`, `increase_type`, **`increase_start_date`** (005), **`building_id`** (002) |
 | `tenants` | Inquilinos (activo = `end_date` nulo) | `id`, `user_id`, `property_id`, `name`, `identity_number`, `phone`, `email`, `start_date`, `end_date`, **`deposit_amount`** (007) |
 | `rent_payments` | Un registro por pago o marca de mes | `id`, `user_id`, `property_id`, `tenant_id`, `payment_month`, `rent_amount`, `amount_paid`, `remaining_balance`, `payment_date`, `payment_method`, `payment_type`, `payment_status`, `reference`, `notes`, `auto_generated`, **`voided`**, **`void_reason`** (006) |
 | `gas_consumption` | Lecturas de gas, luz y agua | `id`, `user_id`, `property_id`, `utility_type`, `reading_date`, `previous_reading`, `current_reading`, `price_per_unit`, `consumption_volume`, `total_cost`, `paid`, `payment_date` |
@@ -41,6 +41,7 @@ Ejecuta **cada archivo completo** en el *SQL Editor* de Supabase, del proyecto c
 | 007 | [`007_tenant_deposit.sql`](../supabase/migrations/007_tenant_deposit.sql) | `tenants.deposit_amount` (el depósito pasa al inquilino; copia el que tuviera la propiedad). | Guardar un inquilino con depósito avisa; lo demás funciona. |
 | 008 | [`008_letter_template.sql`](../supabase/migrations/008_letter_template.sql) | `user_settings.letter_settings` (plantilla de la carta de cobro). | Guardar la plantilla avisa; la carta usa el diseño base. |
 | 009 | [`009_shared_settings.sql`](../supabase/migrations/009_shared_settings.sql) | Políticas para que el equipo comparta `user_settings` y la carpeta de firmas del titular. | Los miembros pueden ver los ajustes vacíos o no poder guardarlos/subir la firma. |
+| 010 | [`010_rent_history.sql`](../supabase/migrations/010_rent_history.sql) | `properties.rent_history` (historial de precios por mes). | Cambiar el precio avisa; los atrasos anteriores usarían el precio nuevo. |
 
 ### Verificación (solo lectura)
 
@@ -105,6 +106,7 @@ Run **each file in full** in the Supabase *SQL Editor* of the right project, **i
 | 007 | `007_tenant_deposit.sql` | `tenants.deposit_amount` (the deposit moves to the tenant; copies the one stored on the property). | Saving a tenant with a deposit warns; everything else works. |
 | 008 | `008_letter_template.sql` | `user_settings.letter_settings` (collection-letter template). | Saving the template warns; the letter uses the base design. |
 | 009 | `009_shared_settings.sql` | Policies so the team shares `user_settings` and the owner's signature folder. | Members may see empty settings or fail to save / upload the signature. |
+| 010 | `010_rent_history.sql` | `properties.rent_history` (per-month price history). | Changing the price warns; earlier unpaid months would use the new price. |
 
 ## Security
 
