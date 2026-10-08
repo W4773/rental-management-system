@@ -5,6 +5,22 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.11.0] - 2026-10-08
+
+### Agregado
+- **Funciona con internet lento o inestable**: la app guarda en el equipo los últimos datos (propiedades, inquilinos, pagos, servicios, edificios y ajustes) y los muestra al instante al abrir; se actualizan en segundo plano. Si la conexión cae con la página abierta, se sigue viendo todo y aparece un aviso "Sin conexión · datos guardados (hace X)" con botón **Reintentar**; con conexión lenta se avisa "Conexión lenta".
+- **Registrar pagos sin conexión**: el pago se guarda en una cola del equipo, aparece de inmediato con la marca **"Por enviar"** (se puede imprimir su recibo) y se envía solo, en orden y una sola vez, al volver la conexión (también tras recargar). Cada pago lleva un identificador propio, así un reintento nunca lo duplica. Si el servidor rechaza alguno, queda visible con opciones de reintentar o descartar. Los pagos sin enviar se conservan en el equipo hasta llegar al servidor.
+- Las demás acciones (editar, borrar, marcar meses…) sin conexión responden al instante "Sin conexión: esta acción necesita internet" en lugar de quedarse esperando.
+- Peticiones con tiempo límite y reintentos con espera creciente (solo lecturas; las escrituras nunca se repiten solas).
+
+### Cambiado
+- **Mucho menos tráfico**: una sola copia de los datos compartida por toda la app (antes cada ventana pedía las mismas tablas varias veces: ~11 peticiones al abrir), cambios en vivo aplicados directamente sin volver a descargar las tablas, métricas calculadas en memoria y refresco solo de lo necesario tras cada acción.
+- **Carga inicial ~85 % más ligera**: el código principal baja de ~1.05 MB a ~160 KB; las páginas pesadas y la librería de PDF se descargan solo cuando se usan, y la fuente ya no bloquea la pantalla.
+- Al cerrar sesión se borran del equipo los datos guardados.
+
+### Limitaciones
+- Sin conexión no se puede **abrir** la página desde cero (no es una app instalable/PWA); sí funciona si ya estaba abierta o se recarga con red lenta.
+
 ## [1.10.0] - 2026-10-08
 
 ### Agregado

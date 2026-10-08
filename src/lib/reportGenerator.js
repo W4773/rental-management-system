@@ -1,5 +1,3 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { format } from 'date-fns'
 import { PDF_COLORS, drawHeader, drawFooter, drawField, money, monthLabel, dateLabel } from './pdfHelpers'
 
@@ -25,12 +23,14 @@ export function summarizePayments(payments) {
  * Elegant PDF statement of payments to send to a tenant.
  * @param {{property, tenant, building, payments, periodLabel}} opts
  */
-export function generatePaymentsReport({ property, tenant, building, payments, periodLabel, settings = {} }) {
+export async function generatePaymentsReport({ property, tenant, building, payments, periodLabel, settings = {} }) {
     // Same name as receipts and letters: landlord name, else account name (settings.display_name)
     const brand = settings.display_name || settings.landlord_name || 'Alquiler Pro'
     const rows = [...payments]
         .filter(p => parseFloat(p.amount_paid) > 0)
         .sort((a, b) => a.payment_month.localeCompare(b.payment_month))
+    // jsPDF is heavy: it is downloaded only when a document is actually generated
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
     const doc = new jsPDF()
     const w = doc.internal.pageSize.getWidth()
     const { totalPaid, totalPending, monthsCount } = summarizePayments(rows)

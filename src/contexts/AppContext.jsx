@@ -8,6 +8,9 @@ import { useActivityLog } from '../hooks/useActivityLog'
 import { useUserSettings } from '../hooks/useUserSettings'
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
 import { useAlerts } from '../hooks/useAlerts'
+import { useHistoryBackfill } from '../hooks/useHistoryBackfill'
+import { refreshTable, refreshAllTables } from '../lib/dataStore'
+import { startOutbox, stopOutbox } from '../lib/outbox'
 import { useToast } from '../components/Common/Toast'
 import { getPaymentStatus } from '../lib/paymentStatus'
 import { logActivity } from '../lib/activityLog'
@@ -51,12 +54,14 @@ export function AppProvider({ children }) {
     const settings = useMemo(() => ({ ...(rawSettings || {}), display_name: resolveDisplayName(rawSettings, user, { ownerEmail: teamOwner?.email, size: members.length }) }), [rawSettings, user, members, teamOwner])
     const toastApi = useToast()
 
-    const [refreshTrigger, setRefreshTrigger] = useState(0)
-    const baseMetrics = useDashboardMetrics(new Date().getFullYear(), refreshTrigger)
-
     const { properties } = propsHook
     const { tenants } = tenantsHook
     const { payments } = paymentsHook
+    const baseMetrics = useDashboardMetrics({ properties, tenants, payments, loading: propsHook.loading || tenantsHook.loading || paymentsHook.loading })
+    useHistoryBackfill({ properties, tenants, payments })
+
+    // Payments made without a connection are sent from here once we are back (and kept across reloads)
+    useEffect(() => { startOutbox(); return () => { stopOutbox() } }, [user?.id])
     const { readings: utilityReadings } = utilityHook
     const { buildings } = buildingsHook
     const alerts = useAlerts(payments, tenants, properties)
@@ -72,11 +77,6 @@ export function AppProvider({ children }) {
         return { ...baseMetrics, overdueAmount }
     }, [baseMetrics, tenants, properties, payments])
 
-    // The metrics hook may backfill historical payments on load: reload payments once it finishes
-    useEffect(() => {
-        if (!baseMetrics.loading) paymentsHook.refresh()
-    }, [baseMetrics.loading])
-
     const [paymentModal, setPaymentModal] = useState({ open: false, initial: null })
     const [propertyModal, setPropertyModal] = useState({ open: false, property: null, buildingId: null })
     const [buildingModal, setBuildingModal] = useState({ open: false, building: null })
@@ -87,12 +87,20 @@ export function AppProvider({ children }) {
     const [receipt, setReceipt] = useState(null)
     const [alertsOpen, setAlertsOpen] = useState(false)
 
-    const refreshAll = () => {
-        setRefreshTrigger(n => n + 1)
-        return Promise.all([
-            propsHook.refresh(), tenantsHook.refresh(), paymentsHook.refresh(), utilityHook.refresh(), buildingsHook.refresh(), activityHook.refresh()
-        ])
+    // Our own writes already update the shared copy of each table, so by default only the activity log is
+    // reloaded; pass { all: true } (or table names) to re-download data that changed on the server side.
+    const refreshAll = (opts = {}) => {
+        const tables = opts.all ? undefined : opts.tables
+        return Promise.all([activityHook.refresh(), opts.all || opts.tables ? refreshAllTables(tables) : null])
     }
+
+    // Payments saved offline reach the server on their own: tell the user when that happens
+    useEffect(() => {
+        const onSynced = (e) => toastApi.success(`${e.detail.sent} pago${e.detail.sent === 1 ? '' : 's'} enviado${e.detail.sent === 1 ? '' : 's'} al servidor`)
+        window.addEventListener('outbox:synced', onSynced)
+        return () => window.removeEventListener('outbox:synced', onSynced)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const loading = propsHook.loading || tenantsHook.loading || paymentsHook.loading
 
@@ -139,6 +147,18 @@ export function AppProvider({ children }) {
         }
     }
 
+    // The server removes the dependants of a deleted property / building: reload just those tables
+    const deleteProperty = async (...args) => {
+        const res = await propsHook.deleteProperty(...args)
+        if (!res?.error) refreshAllTables(['tenants', 'rent_payments', 'gas_consumption'])
+        return res
+    }
+    const deleteBuilding = async (...args) => {
+        const res = await buildingsHook.deleteBuilding(...args)
+        if (!res?.error) refreshAllTables(['properties'])
+        return res
+    }
+
     const value = {
         generateLetter,
         properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts,
@@ -150,8 +170,8 @@ export function AppProvider({ children }) {
         updatePayment: paymentsHook.updatePayment,
         setMonthsState: paymentsHook.setMonthsState,
         clearMonthMarks: paymentsHook.clearMonthMarks,
-        deleteProperty: propsHook.deleteProperty,
-        deleteBuilding: buildingsHook.deleteBuilding,
+        deleteProperty,
+        deleteBuilding,
         updateProperty: propsHook.updateProperty,
         toast: toastApi,
         refreshAll,

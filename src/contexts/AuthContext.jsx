@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { clearEffectiveOwnerCache } from '../lib/effectiveOwner'
+import { resetStore } from '../lib/dataStore'
+import { resetSettingsStore } from '../hooks/useUserSettings'
 
 const AuthContext = createContext({})
 
@@ -15,18 +17,30 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null)
     const [loading, setLoading] = useState(true)
+    const lastUid = useRef(null)
+
+    // Drops everything kept for a user (cached tables, settings, owner id). Unsent payments stay stored for that same user only so nothing leaks to the next session
+    const forgetUser = (uid) => {
+        clearEffectiveOwnerCache(uid)
+        resetSettingsStore()
+        return resetStore()
+    }
 
     useEffect(() => {
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
+            lastUid.current = session?.user?.id ?? null
             setUser(session?.user ?? null)
             setLoading(false)
         })
 
-        // Listen for auth changes — clear the workspace-owner cache on any session change
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            clearEffectiveOwnerCache()
-            setUser(session?.user ?? null)
+        // Listen for auth changes. Token refreshes keep the caches; a sign-out or another user clears them.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            const uid = session?.user?.id ?? null
+            const previous = lastUid.current
+            if (previous && (event === 'SIGNED_OUT' || uid !== previous)) forgetUser(previous)
+            lastUid.current = uid
+            setUser(prev => (prev?.id === uid && event === 'TOKEN_REFRESHED') ? prev : (session?.user ?? null))
         })
 
         return () => subscription.unsubscribe()
@@ -63,7 +77,6 @@ export const AuthProvider = ({ children }) => {
 
     const signOut = async () => {
         try {
-            clearEffectiveOwnerCache()
             const { error } = await supabase.auth.signOut()
             if (error) throw error
             return { error: null }

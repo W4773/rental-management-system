@@ -1,47 +1,12 @@
-import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useTable, refreshTable, patchTable } from '../lib/dataStore'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
 
 export function useProperties() {
-    const [properties, setProperties] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
-
-    useEffect(() => {
-        fetchProperties()
-
-        // Subscribe to real-time changes
-        const subscription = supabase
-            .channel('properties-channel')
-            .on('postgres_changes',
-                { event: '*', schema: 'rental', table: 'properties' },
-                fetchProperties
-            )
-            .subscribe()
-
-        return () => {
-            subscription.unsubscribe()
-        }
-    }, [])
-
-    async function fetchProperties() {
-        try {
-            const { data, error: fetchError } = await supabase
-                .from('properties')
-                .select('*')
-                .order('name')
-
-            if (fetchError) throw fetchError
-            setProperties(data || [])
-            setError(null)
-        } catch (err) {
-            console.error('Error fetching properties:', err)
-            setError(err.message)
-        } finally {
-            setLoading(false)
-        }
-    }
+    // One shared, cached copy of the table (see lib/dataStore.js)
+    const { data: properties, loading, error } = useTable('properties')
+    const fetchProperties = () => refreshTable('properties')
 
     async function addProperty(propertyData) {
         try {
@@ -54,6 +19,7 @@ export function useProperties() {
                 .select()
 
             if (insertError) throw insertError
+            patchTable('properties', { upsert: data || [] })
             logActivity({ action: 'property.create', entityType: 'property', entityId: data?.[0]?.id, meta: { name: propertyData.name, rent: propertyData.monthly_rent } })
             return { data: data?.[0], error: null }
         } catch (err) {
@@ -71,6 +37,7 @@ export function useProperties() {
                 .select()
 
             if (updateError) throw updateError
+            patchTable('properties', { upsert: data || [] })
             if (!silent) {
                 const name = updates.name || data?.[0]?.name || properties.find(p => p.id === id)?.name
                 logActivity({ action: 'property.update', entityType: 'property', entityId: id, meta: { name, fields: Object.keys(updates) } })
@@ -90,6 +57,7 @@ export function useProperties() {
                 .eq('id', id)
 
             if (deleteError) throw deleteError
+            patchTable('properties', { remove: [id] })
             logActivity({ action: 'property.delete', entityType: 'property', entityId: id, meta: { name: properties.find(p => p.id === id)?.name } })
             return { error: null }
         } catch (err) {

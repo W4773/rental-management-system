@@ -1,6 +1,4 @@
 // src/lib/pdfGenerator.js
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parseLocalDate, drawWatermark } from './pdfHelpers'
@@ -46,6 +44,7 @@ export async function generateReceiptPDF(paymentOrList, property, tenant, userSe
     const periodLabel = list.length > 1
         ? `${monthName(list[0].payment_month)} - ${monthName(list[list.length - 1].payment_month)}`
         : monthName(payment.payment_month)
+    const [{ default: jsPDF }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]) // heavy: loaded only when a receipt is generated
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 22

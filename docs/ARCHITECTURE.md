@@ -25,9 +25,19 @@ flowchart LR
 |---|---|---|
 | Páginas | `src/pages` | Pantallas y rutas: `/`, `/propiedades`, `/edificios`, `/edificios/:id`, `/inquilinos`, `/finanzas`, `/gastos`, `/settings`, `/login`, `/register`. |
 | Componentes | `src/components` | UI reutilizable: lista y detalle de propiedad, cuadrícula anual, modales (pago, edición, nulos, edificio, inquilino…), selector con buscador. |
-| Estado | `src/contexts/AppContext.jsx` | Carga una sola vez propiedades, inquilinos, pagos, servicios, edificios, ajustes y actividad; expone `openX()` para abrir modales y `refreshAll()` (sin recargar la página). |
-| Datos | `src/hooks` | Un hook por tabla con las operaciones CRUD contra Supabase; registran la actividad. |
+| Estado | `src/contexts/AppContext.jsx` | Reúne propiedades, inquilinos, pagos, servicios, edificios, ajustes y actividad; expone `openX()` para abrir modales y `refreshAll()` (sin recargar la página). |
+| Datos | `src/hooks` + `src/lib/dataStore.js` | Una copia compartida por tabla (`useSyncExternalStore`); los hooks hacen el CRUD contra Supabase, parchean esa copia con el resultado y registran la actividad. |
+| Red | `src/lib/{resilientFetch,networkStatus,localCache,outbox}.js` | Ver "Red lenta y modo sin conexión". |
 | Dominio | `src/lib` | Reglas de negocio puras y fáciles de probar. |
+
+## Red lenta y modo sin conexión
+
+- **Almacén compartido** (`dataStore`): una petición por tabla (las llamadas simultáneas se funden en una), un canal realtime por tabla cuyos eventos INSERT/UPDATE/DELETE se **aplican a la copia local** (sin volver a descargar), y refresco completo solo al reconectar o al volver a la pestaña.
+- **Caché local** (`localCache`, IndexedDB por usuario): al abrir se pinta con lo último guardado y se revalida en segundo plano (stale-while-revalidate). Se borra al cerrar sesión.
+- **Fetch resistente** (`resilientFetch`, inyectado en `createClient`): tiempo límite (20 s lectura / 30 s escritura), reintentos con espera creciente **solo en lecturas**, y rechazo inmediato de escrituras cuando se sabe que no hay conexión. Informa a `networkStatus` (offline tras 2 fallos seguidos, "lenta" si tarda >6 s) y un sondeo ligero detecta cuándo vuelve la red.
+- **Cola de envío** (`outbox`): los pagos sin conexión llevan `id` generado en el cliente (`crypto.randomUUID`), se muestran al instante (`_pending`) y se envían en orden al volver la red; una clave duplicada (23505) cuenta como ya enviado, así los reintentos son idempotentes. Un error del servidor deja el elemento `failed` (reintentar/descartar). La cola se conserva por usuario aunque se cierre sesión.
+- **Carga ligera**: rutas con `React.lazy`, jsPDF/autotable con `import()` dinámico, `manualChunks` de librerías y fuentes no bloqueantes.
+- Límite: sin service worker, abrir la página en frío sin conexión no es posible.
 
 ## Dominio: piezas clave (`src/lib`)
 

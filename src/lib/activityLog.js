@@ -1,5 +1,7 @@
 import { supabase } from './supabase'
 import { getEffectiveOwnerId } from './effectiveOwner'
+import { getNetworkState } from './networkStatus'
+import { enqueueActivity, isNetworkError } from './outbox'
 
 export const ACTIVITY_EVENT = 'activity:logged'
 
@@ -14,7 +16,7 @@ export async function logActivity({ action, entityType, entityId = null, meta = 
         const { data: { session } } = await supabase.auth.getSession()
         const user = session?.user
         if (!ownerId || !user) return
-        const { error } = await supabase.from('activity_log').insert([{
+        const entry = {
             user_id: ownerId,
             actor_id: user.id,
             actor_email: user.email,
@@ -22,7 +24,11 @@ export async function logActivity({ action, entityType, entityId = null, meta = 
             entity_type: entityType,
             entity_id: entityId ? String(entityId) : null,
             meta
-        }])
+        }
+        // No connection: keep the entry in the outbox so it is recorded (with its real time) once we are back
+        if (!getNetworkState().online) return enqueueActivity(entry)
+        const { error } = await supabase.from('activity_log').insert([entry])
+        if (error && isNetworkError(error)) return enqueueActivity(entry)
         if (!error && typeof window !== 'undefined') window.dispatchEvent(new Event(ACTIVITY_EVENT))
     } catch {
         // logging must never break the action being logged

@@ -1,5 +1,3 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { addDays, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { PDF_COLORS, money, dateLabel, drawWatermark } from './pdfHelpers'
@@ -133,6 +131,8 @@ export function owedRows({ property, tenant, payments = [], status }) {
 export async function generateCollectionLetter({ property, tenant, building, status, payments = [], userSettings = {}, letter, today = new Date() }) {
     const cfg = resolveLetterSettings(letter)
     const values = buildLetterValues({ property, tenant, building, status, settings: userSettings, today })
+    // jsPDF is heavy: it is downloaded only when a document is actually generated
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
     const doc = new jsPDF()
     const w = doc.internal.pageSize.getWidth()
     const margin = 22

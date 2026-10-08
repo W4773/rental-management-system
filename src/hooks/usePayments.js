@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useTable, refreshTable, patchTable } from '../lib/dataStore'
+import { getNetworkState, OFFLINE_MESSAGE } from '../lib/networkStatus'
+import { newId, enqueuePayment, isNetworkError } from '../lib/outbox'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
 import { monthKeyOf, hasMoney } from '../lib/paymentStatus'
@@ -18,6 +20,7 @@ function withTimeout(promise, ms = REQUEST_TIMEOUT_MS) {
 
 /** Runs a Supabase call with a time limit; on a timeout it refreshes the session once and retries. */
 async function guarded(makeRequest) {
+    if (!getNetworkState().online) throw new Error(OFFLINE_MESSAGE) // answer at once instead of waiting on a dead connection
     try {
         return await withTimeout(makeRequest())
     } catch (err) {
@@ -35,60 +38,32 @@ async function fetchPropertyRows(propertyId) {
 }
 
 export function usePayments() {
-    const [payments, setPayments] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
+    // One shared, cached copy of the table (see lib/dataStore.js)
+    const { data: payments, loading, error } = useTable('rent_payments')
+    const fetchPayments = () => refreshTable('rent_payments')
 
-    useEffect(() => {
-        fetchPayments()
-
-        // Subscribe to real-time changes
-        const subscription = supabase
-            .channel('payments-channel')
-            .on('postgres_changes',
-                { event: '*', schema: 'rental', table: 'rent_payments' },
-                fetchPayments
-            )
-            .subscribe()
-
-        return () => {
-            subscription.unsubscribe()
-        }
-    }, [])
-
-    async function fetchPayments() {
-        try {
-            const { data, error: fetchError } = await supabase
-                .from('rent_payments')
-                .select('*')
-                .order('payment_month', { ascending: false })
-
-            if (fetchError) throw fetchError
-            setPayments(data || [])
-            setError(null)
-        } catch (err) {
-            console.error('Error fetching payments:', err)
-            setError(err.message)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    // `silent`: the caller logs its own (aggregated) activity entry, e.g. paying several months at once
+    // `silent`: the caller logs its own (aggregated) activity entry, e.g. paying several months at once.
+    // Works without a connection: the payment gets its id here, is queued, shows up at once marked as
+    // pending, and is sent when the connection is back (a repeated send is harmless thanks to the id).
     async function addPayment(paymentData, { silent = false } = {}) {
         try {
             const ownerId = await getEffectiveOwnerId()
             if (!ownerId) throw new Error('No autenticado')
 
-            const { data, error: insertError } = await supabase
-                .from('rent_payments')
-                .insert([{ ...paymentData, user_id: ownerId }])
-                .select()
+            const row = { ...paymentData, id: paymentData.id || newId(), user_id: ownerId }
+            const activity = (!silent && parseFloat(paymentData.amount_paid) > 0)
+                ? { action: 'payment.create', entityType: 'payment', entityId: row.id, meta: { property_id: paymentData.property_id, tenant_id: paymentData.tenant_id, months: [paymentData.payment_month?.slice(0, 7)], amount: paymentData.amount_paid } }
+                : null
 
-            if (insertError) throw insertError
-            if (!silent && parseFloat(paymentData.amount_paid) > 0) {
-                logActivity({ action: 'payment.create', entityType: 'payment', entityId: data?.[0]?.id, meta: { property_id: paymentData.property_id, tenant_id: paymentData.tenant_id, months: [paymentData.payment_month?.slice(0, 7)], amount: paymentData.amount_paid } })
+            if (!getNetworkState().online) return { data: await enqueuePayment(row), error: null, queued: true }
+
+            const { data, error: insertError } = await supabase.from('rent_payments').insert([row]).select()
+            if (insertError) {
+                if (isNetworkError(insertError)) return { data: await enqueuePayment(row), error: null, queued: true }
+                throw insertError
             }
+            patchTable('rent_payments', { upsert: data || [] })
+            if (activity) logActivity(activity)
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding payment:', err)
@@ -105,6 +80,7 @@ export function usePayments() {
                 .select()
 
             if (updateError) throw updateError
+            patchTable('rent_payments', { upsert: data || [] })
             if (!silent) {
                 const row = data?.[0] || payments.find(p => p.id === id)
                 logActivity({ action: 'payment.update', entityType: 'payment', entityId: id, meta: { property_id: row?.property_id, tenant_id: row?.tenant_id, months: [monthKeyOf(row)], amount: row?.amount_paid } })
@@ -124,6 +100,7 @@ export function usePayments() {
                 .eq('id', id)
 
             if (deleteError) throw deleteError
+            patchTable('rent_payments', { remove: [id] })
             const old = payments.find(p => p.id === id)
             logActivity({ action: 'payment.delete', entityType: 'payment', entityId: id, meta: { property_id: old?.property_id, tenant_id: old?.tenant_id, months: [old?.payment_month?.slice(0, 7)], amount: old?.amount_paid } })
             return { error: null }
@@ -187,14 +164,16 @@ export function usePayments() {
             }
 
             for (const { ids, payload } of updates) {
-                const { data, error } = await guarded(() => supabase.from('rent_payments').update(payload).in('id', ids).select('id'))
+                const { data, error } = await guarded(() => supabase.from('rent_payments').update(payload).in('id', ids).select('*'))
                 if (error) throw error
                 if ((data || []).length !== ids.length) throw new Error(`La base de datos solo actualizó ${(data || []).length} de ${ids.length} registros (revisa los permisos).`)
+                patchTable('rent_payments', { upsert: data })
             }
             if (inserts.length > 0) {
-                const { data, error } = await guarded(() => supabase.from('rent_payments').insert(inserts).select('id'))
+                const { data, error } = await guarded(() => supabase.from('rent_payments').insert(inserts).select('*'))
                 if (error) throw error
                 if ((data || []).length !== inserts.length) throw new Error(`La base de datos solo guardó ${(data || []).length} de ${inserts.length} meses (revisa los permisos).`)
+                patchTable('rent_payments', { upsert: data })
             }
 
             // Verify what is stored now
@@ -212,7 +191,6 @@ export function usePayments() {
                     meta: { property_id: property.id, tenant_id: tenant.id, months: done, reason: reason || undefined }
                 })
             }
-            await fetchPayments()
             return { done, skipped, error: null }
         } catch (err) {
             console.error('Error marking months:', err)
@@ -232,9 +210,9 @@ export function usePayments() {
                 const { data, error } = await guarded(() => supabase.from('rent_payments').delete().in('id', ids).select('id'))
                 if (error) throw error
                 if ((data || []).length !== ids.length) throw new Error(`La base de datos solo quitó ${(data || []).length} de ${ids.length} marcas (revisa los permisos).`)
+                patchTable('rent_payments', { remove: ids })
                 logActivity({ action: 'payment.unmark', entityType: 'payment', entityId: property.id, meta: { property_id: property.id, months: monthKeys } })
             }
-            await fetchPayments()
             return { count: ids.length, error: null }
         } catch (err) {
             console.error('Error clearing marks:', err)
@@ -321,6 +299,7 @@ export function usePayments() {
                 .select()
 
             if (insertError) throw insertError
+            patchTable('rent_payments', { upsert: data || [] })
             return { data: data || [], error: null }
         } catch (err) {
             console.error('Error generating historical payments:', err)

@@ -190,6 +190,9 @@ To generate the letter for a tenant with pending months use the **Carta de cobro
 
 ## 14. FAQ
 
+**What happens if the internet goes down?**
+The app shows the last saved data and a yellow "Sin conexión" (offline) bar. You can keep browsing everything and **record payments**: they appear tagged **Por enviar** (pending), you can print their receipt, and they are sent automatically when the connection returns (exactly once, even if you reload). Editing, deleting or marking months needs internet and tells you so at once. The only thing you cannot do is open the page from scratch with no connection.
+
 **Why does a tenant show "Pendiente" if they already paid?**
 Check the month: what is owed is the **previous month**, not the current one. Record that payment or, if it was not charged, mark it void in [Edit months](#6-fixing-history-edit-months).
 

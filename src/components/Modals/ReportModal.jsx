@@ -34,7 +34,7 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
         return [...set].sort().reverse()
     }, [payments, currentYear])
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         const property = properties.find(p => p.id === propertyId)
         if (!property) return setError('Seleccione una propiedad')
 
@@ -54,7 +54,7 @@ export default function ReportModal({ isOpen, onClose, initial, properties, tena
             || tenants.find(t => t.property_id === propertyId && !t.end_date)
             || tenants.find(t => t.id === rows[0].tenant_id)
         const building = buildings.find(b => b.id === property.building_id)
-        generatePaymentsReport({ property, tenant, building, payments: rows, periodLabel, settings: settings || {} })
+        await generatePaymentsReport({ property, tenant, building, payments: rows, periodLabel, settings: settings || {} })
         logActivity({ action: 'document.report', entityType: 'document', entityId: property.id, meta: { property_id: property.id, period: periodLabel, count: rows.length } })
         onClose()
     }

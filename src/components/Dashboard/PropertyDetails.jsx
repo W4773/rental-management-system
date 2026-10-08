@@ -352,7 +352,7 @@ export default function PropertyDetails({ property, onDeleted }) {
                                     <span className={`w-2 h-2 rounded-full shrink-0 ${payment.payment_status === 'paid' ? 'bg-green-500' : 'bg-amber-400'}`} />
                                     <div className="min-w-0 flex-1 leading-tight">
                                         <p className="text-[13px] font-medium capitalize">{monthLabel(payment.payment_month)}</p>
-                                        <p className="text-[11px] text-gray-500">{formatDate(payment.payment_date)}</p>
+                                        <p className="text-[11px] text-gray-500">{formatDate(payment.payment_date)}{payment._pending && <span className="ml-1.5 px-1.5 py-px rounded bg-amber-100 text-amber-800 font-semibold">Por enviar</span>}</p>
                                     </div>
                                     <span className={`text-[13px] font-semibold ${payment.payment_status === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>
                                         {formatCurrency(payment.amount_paid)}
@@ -360,10 +360,10 @@ export default function PropertyDetails({ property, onDeleted }) {
                                     <button onClick={() => generateReceiptPDF(payment, property, tenantFor(payment), settings || {})}
                                         aria-label="Imprimir recibo" title="Imprimir recibo"
                                         className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Printer className="w-4 h-4" /></button>
-                                    <button onClick={() => setEditingPayment(payment)}
+                                    <button onClick={() => setEditingPayment(payment)} disabled={payment._pending}
                                         aria-label="Editar pago" title="Editar pago"
                                         className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Pencil className="w-4 h-4" /></button>
-                                    <button onClick={() => setDeleteIds([payment.id])}
+                                    <button onClick={() => setDeleteIds([payment.id])} disabled={payment._pending}
                                         aria-label="Eliminar pago" title="Eliminar pago"
                                         className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                                 </li>
