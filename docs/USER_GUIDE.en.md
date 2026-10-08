@@ -57,6 +57,8 @@ Shows the building's data, its indicators (units, occupancy, monthly rent, overd
 
 **All-in-one registration.** At the bottom of the form, below the *opcional* line, you can enter the **current tenant** (name, ID, phone, email, move-in date and deposit) and everything is saved in a single step. Leave it empty to create only the property.
 
+**Changing the price.** When you edit the price of a property that already has a tenant or payments, choose **from which month it applies** (the next one by default). Payments already collected and earlier months keep their amount: history is never altered (migration 010 is needed to also keep the price of earlier arrears).
+
 **Annual increase (optional).** Choose a percentage or a fixed amount and, optionally, the **date of the first increase**: the day it takes effect for the first time; it then repeats every year on that date. The property detail shows a line such as *"Aumento anual: 5% · próximo el 01/01/2027 → RD$19,425"*. It is informational: the rent does not change by itself.
 
 To edit or delete a property use the icons in the top-right corner of its detail. Deleting also removes its history; the app asks for confirmation.

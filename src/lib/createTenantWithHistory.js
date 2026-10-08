@@ -3,7 +3,7 @@
  * Shared by "Asignar inquilino" and the optional tenant section of "Registrar propiedad".
  * `hooks` = { addTenant, generateHistoricalPayments } from useTenants / usePayments.
  */
-export async function createTenantWithHistory({ addTenant, generateHistoricalPayments }, { propertyId, monthlyRent, values }) {
+export async function createTenantWithHistory({ addTenant, generateHistoricalPayments }, { propertyId, monthlyRent, property = null, values }) {
     const deposit = parseFloat(values.deposit_amount)
     const { data: tenant, error } = await addTenant({
         property_id: propertyId,
@@ -16,7 +16,7 @@ export async function createTenantWithHistory({ addTenant, generateHistoricalPay
         ...(deposit > 0 ? { deposit_amount: deposit } : {})
     })
     if (error) return { data: null, error }
-    await generateHistoricalPayments(propertyId, tenant.id, values.start_date, monthlyRent)
+    await generateHistoricalPayments(propertyId, tenant.id, values.start_date, property || monthlyRent)
     return { data: tenant, error: null }
 }
 

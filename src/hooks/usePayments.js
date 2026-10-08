@@ -3,6 +3,36 @@ import { supabase } from '../lib/supabase'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
 import { monthKeyOf, hasMoney } from '../lib/paymentStatus'
+import { rentForMonth } from '../lib/rentHistory'
+
+const REQUEST_TIMEOUT_MS = 15000
+
+/** A request that never answers becomes a visible error instead of a silent freeze. */
+function withTimeout(promise, ms = REQUEST_TIMEOUT_MS) {
+    let timer
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('La solicitud tardó demasiado en responder. Revisa tu conexión e inténtalo de nuevo.')), ms)
+    })
+    return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer))
+}
+
+/** Runs a Supabase call with a time limit; on a timeout it refreshes the session once and retries. */
+async function guarded(makeRequest) {
+    try {
+        return await withTimeout(makeRequest())
+    } catch (err) {
+        if (!/tardó demasiado/.test(err.message)) throw err
+        try { await withTimeout(supabase.auth.getSession(), 5000) } catch { /* retry anyway */ }
+        return await withTimeout(makeRequest())
+    }
+}
+
+/** All rent_payments rows of one property, read straight from the database. */
+async function fetchPropertyRows(propertyId) {
+    const { data, error } = await guarded(() => supabase.from('rent_payments').select('*').eq('property_id', propertyId))
+    if (error) throw error
+    return data || []
+}
 
 export function usePayments() {
     const [payments, setPayments] = useState([])
@@ -105,54 +135,76 @@ export function usePayments() {
 
     /**
      * Marks months of a property as owed ('pending') or not charged ('void' = "nulo").
-     * Months with real payments are skipped and reported. Rows are replaced insert-first, so a failure
-     * never loses the previous state. Explicit rows (not just "no row") are needed so the metrics
-     * back-fill does not turn old months back into "paid".
+     * Months with real payments are skipped and reported. It works on what is in the database right
+     * now (not on possibly stale screen state), converts existing rows IN PLACE (no delete needed),
+     * inserts rows only for months with none, checks how many rows were really affected and re-reads
+     * to verify, and gives up with a visible error instead of hanging. Explicit rows (not just "no row")
+     * are needed so the metrics back-fill does not turn old months back into "paid".
      */
     async function setMonthsState(property, tenant, monthKeys, state, { reason = '' } = {}) {
         try {
             const ownerId = await getEffectiveOwnerId()
             if (!ownerId) throw new Error('No autenticado')
-            const rent = parseFloat(property.monthly_rent || 0)
+
+            const fresh = await fetchPropertyRows(property.id)
             const skipped = []
-            const toInsert = []
-            const toDelete = []
             const done = []
+            const updates = [] // { ids, payload }
+            const inserts = []
 
             for (const key of monthKeys) {
-                const rows = payments.filter(p => p.property_id === property.id && monthKeyOf(p) === key)
+                const rows = fresh.filter(p => monthKeyOf(p) === key)
                 if (rows.some(p => hasMoney(p) && !p.auto_generated)) { skipped.push(key); continue }
-                toDelete.push(...rows.map(r => r.id))
                 done.push(key)
-                toInsert.push({
-                    property_id: property.id,
-                    tenant_id: tenant.id,
-                    payment_month: `${key}-01`,
+                const rent = rows[0]?.rent_amount ? parseFloat(rows[0].rent_amount) : rentForMonth(property, key)
+                const mark = {
                     rent_amount: rent,
                     amount_paid: 0,
                     remaining_balance: rent,
-                    // The table requires a date and a known method even for unpaid rows: use the month's first day
-                    // and the same 'historical' method the generated history rows already use
-                    payment_date: `${key}-01`,
-                    payment_method: 'historical',
                     payment_type: 'full',
                     payment_status: 'pending',
                     auto_generated: false,
-                    user_id: ownerId,
                     notes: state === 'void' ? (reason ? `Nulo: ${reason}` : 'Nulo') : 'Marcado como pendiente',
-                    ...(state === 'void' ? { voided: true, void_reason: reason || null } : {})
-                })
+                    voided: state === 'void',
+                    void_reason: state === 'void' ? (reason || null) : null
+                }
+                // `voided` columns only travel when needed, so "pendiente" works before migration 006
+                if (state !== 'void') { delete mark.voided; delete mark.void_reason }
+                if (rows.length > 0) {
+                    updates.push({ ids: rows.map(r => r.id), payload: state !== 'void' && rows.some(r => r.voided) ? { ...mark, voided: false, void_reason: null } : mark })
+                } else {
+                    inserts.push({
+                        ...mark,
+                        property_id: property.id,
+                        tenant_id: tenant.id,
+                        payment_month: `${key}-01`,
+                        // The table requires a date and a known method even for unpaid rows
+                        payment_date: `${key}-01`,
+                        payment_method: 'historical',
+                        user_id: ownerId
+                    })
+                }
             }
 
-            if (toInsert.length > 0) {
-                const { error: insertError } = await supabase.from('rent_payments').insert(toInsert)
-                if (insertError) throw insertError
+            for (const { ids, payload } of updates) {
+                const { data, error } = await guarded(() => supabase.from('rent_payments').update(payload).in('id', ids).select('id'))
+                if (error) throw error
+                if ((data || []).length !== ids.length) throw new Error(`La base de datos solo actualizó ${(data || []).length} de ${ids.length} registros (revisa los permisos).`)
             }
-            if (toDelete.length > 0) {
-                const { error: deleteError } = await supabase.from('rent_payments').delete().in('id', toDelete)
-                if (deleteError) throw deleteError
+            if (inserts.length > 0) {
+                const { data, error } = await guarded(() => supabase.from('rent_payments').insert(inserts).select('id'))
+                if (error) throw error
+                if ((data || []).length !== inserts.length) throw new Error(`La base de datos solo guardó ${(data || []).length} de ${inserts.length} meses (revisa los permisos).`)
             }
+
+            // Verify what is stored now
             if (done.length > 0) {
+                const after = await fetchPropertyRows(property.id)
+                const wrong = done.filter(key => {
+                    const rows = after.filter(p => monthKeyOf(p) === key)
+                    return rows.length === 0 || rows.some(p => hasMoney(p)) || (state === 'void' && !rows.some(p => p.voided))
+                })
+                if (wrong.length > 0) throw new Error(`No se aplicó el cambio en ${wrong.length} mes(es): ${wrong.join(', ')}. Recarga e inténtalo de nuevo.`)
                 logActivity({
                     action: state === 'void' ? 'payment.void' : 'payment.pending',
                     entityType: 'payment',
@@ -164,6 +216,7 @@ export function usePayments() {
             return { done, skipped, error: null }
         } catch (err) {
             console.error('Error marking months:', err)
+            await fetchPayments().catch(() => {})
             return { done: [], skipped: [], error: err.message }
         }
     }
@@ -171,17 +224,20 @@ export function usePayments() {
     /** Removes the explicit pending / void rows of those months (they go back to "no record" = owed). */
     async function clearMonthMarks(property, monthKeys) {
         try {
-            const ids = payments
-                .filter(p => p.property_id === property.id && monthKeys.includes(monthKeyOf(p)) && !hasMoney(p) && !p.auto_generated)
+            const fresh = await fetchPropertyRows(property.id)
+            const ids = fresh
+                .filter(p => monthKeys.includes(monthKeyOf(p)) && !hasMoney(p) && !p.auto_generated)
                 .map(p => p.id)
             if (ids.length > 0) {
-                const { error: deleteError } = await supabase.from('rent_payments').delete().in('id', ids)
-                if (deleteError) throw deleteError
+                const { data, error } = await guarded(() => supabase.from('rent_payments').delete().in('id', ids).select('id'))
+                if (error) throw error
+                if ((data || []).length !== ids.length) throw new Error(`La base de datos solo quitó ${(data || []).length} de ${ids.length} marcas (revisa los permisos).`)
                 logActivity({ action: 'payment.unmark', entityType: 'payment', entityId: property.id, meta: { property_id: property.id, months: monthKeys } })
             }
             await fetchPayments()
             return { count: ids.length, error: null }
         } catch (err) {
+            console.error('Error clearing marks:', err)
             return { count: 0, error: err.message }
         }
     }
@@ -233,6 +289,8 @@ export function usePayments() {
 
             const records = []
             const cursor = new Date(start)
+            // `rentAmount` is a number or the property itself (then each month uses the price in force then)
+            const monthRent = (key) => (rentAmount && typeof rentAmount === 'object') ? rentForMonth(rentAmount, key) : rentAmount
 
             while (cursor < prevMonthStart) {
                 const y = cursor.getFullYear()
@@ -241,8 +299,8 @@ export function usePayments() {
                     property_id: propertyId,
                     tenant_id: tenantId,
                     payment_month: `${y}-${m}-01`,
-                    rent_amount: rentAmount,
-                    amount_paid: rentAmount,
+                    rent_amount: monthRent(`${y}-${m}`),
+                    amount_paid: monthRent(`${y}-${m}`),
                     remaining_balance: 0,
                     payment_date: `${y}-${m}-01`,
                     payment_method: 'historical',

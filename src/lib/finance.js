@@ -1,4 +1,5 @@
 import { getPaymentStatus, getMonthStatus, hasMoney, monthKeyOf } from './paymentStatus'
+import { rentForMonth } from './rentHistory'
 
 const keyOf = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`
 const num = (v) => parseFloat(v) || 0
@@ -74,7 +75,7 @@ export function computeFinance({ properties, tenants, payments, buildings, year,
             const rows = payments.filter(p => p.tenant_id === t.id && monthKeyOf(p) === k)
             if (rows.some(p => p.voided)) continue
             if (getMonthStatus(propertyRows(property.id), property, year, m, today).implicit) continue
-            const rent = num(rows.find(hasMoney)?.rent_amount) || num(property.monthly_rent)
+            const rent = num(rows.find(hasMoney)?.rent_amount) || rentForMonth(property, k)
             monthly[m].expected += rent
             bucket(property).expected += rent
             tenantRow(t).expected += rent

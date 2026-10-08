@@ -57,6 +57,8 @@ Muestra los datos del edificio, sus indicadores (unidades, ocupación, renta men
 
 **Registro todo en uno.** Al final del formulario, bajo la línea *opcional*, puedes registrar al **inquilino actual** (nombre, cédula, teléfono, correo, fecha de ingreso y depósito) y todo se guarda en un solo paso. Si lo dejas vacío, se crea solo la propiedad.
 
+**Cambiar el precio.** Al editar el precio de una propiedad que ya tiene inquilino o pagos, elige **desde qué mes aplica** (por defecto, el siguiente). Los pagos ya cobrados y los meses anteriores conservan su monto: el histórico no se altera (requiere la migración 010 para conservar también el precio de los atrasos anteriores).
+
 **Incremento anual (opcional).** Elige porcentaje o monto fijo y, si quieres, la **fecha del primer aumento**: el día en que entra en vigor por primera vez; luego se repite cada año en la misma fecha. En el detalle de la propiedad verás una línea como *"Aumento anual: 5% · próximo el 01/01/2027 → RD$19,425"*. Es informativo: la renta no cambia sola.
 
 Para editar o eliminar una propiedad usa los iconos de la esquina superior derecha de su detalle. Eliminar borra también su historial; la app te pide confirmación.

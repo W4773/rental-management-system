@@ -7,6 +7,9 @@ import { useProperties } from '../../hooks/useProperties'
 import { useTenants } from '../../hooks/useTenants'
 import { usePayments } from '../../hooks/usePayments'
 import { useApp } from '../../contexts/AppContext'
+import { supabase } from '../../lib/supabase'
+import { logActivity } from '../../lib/activityLog'
+import { withRentChange, nextMonthKey } from '../../lib/rentHistory'
 import { createTenantWithHistory, depositColumnMissing, DEPOSIT_MIGRATION_MESSAGE } from '../../lib/createTenantWithHistory'
 import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
 
@@ -34,7 +37,8 @@ const EMPTY_FORM = {
 
 export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, propertyToEdit = null, buildings = [], onNewBuilding, defaultBuildingId = null }) {
     const { addProperty, updateProperty } = useProperties()
-    const { toast } = useApp()
+    const { toast, tenants: appTenants, payments: appPayments } = useApp()
+    const [rentFrom, setRentFrom] = useState(nextMonthKey())
     const { addTenant } = useTenants()
     const { generateHistoricalPayments } = usePayments()
     const [tenantData, setTenantData] = useState(EMPTY_TENANT)
@@ -43,6 +47,12 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
     const [saving, setSaving] = useState(false)
     const [customAddress, setCustomAddress] = useState(false)
     const selectedBuilding = buildings.find(b => b.id === formData.building_id)
+    // Changing the price of a property that already has history: ask from which month it applies.
+    // Paid months and earlier months keep their price.
+    const newRent = parseFloat(formData.monthly_rent)
+    const rentChanged = !!propertyToEdit && Number.isFinite(newRent) && newRent !== parseFloat(propertyToEdit.monthly_rent)
+    const hasHistory = !!propertyToEdit && (appPayments.some(p => p.property_id === propertyToEdit.id) || appTenants.some(t => t.property_id === propertyToEdit.id))
+    const askEffective = rentChanged && hasHistory
     // With a building that has an address, the unit takes it automatically unless the user opts out
     const addressFromBuilding = Boolean(selectedBuilding?.address) && !customAddress
     const effectiveAddress = addressFromBuilding ? selectedBuilding.address : formData.address
@@ -68,6 +78,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             // A stored address that differs from the building's is a deliberate custom one
             const b = buildings.find(x => x.id === propertyToEdit.building_id)
             setCustomAddress(Boolean(b?.address && propertyToEdit.address && propertyToEdit.address !== b.address))
+            setRentFrom(nextMonthKey())
         } else if (isOpen) {
             setFormData({ ...EMPTY_FORM, building_id: defaultBuildingId || '' })
             setTenantData(EMPTY_TENANT)
@@ -167,9 +178,25 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         else if (propertyToEdit?.building_id) propertyData.building_id = null
 
         setSaving(true)
-        const { data: saved, error } = propertyToEdit
-            ? await updateProperty(propertyToEdit.id, propertyData)
-            : await addProperty(propertyData)
+        let saved, error
+        if (propertyToEdit && askEffective) {
+            if (!/^\d{4}-\d{2}$/.test(rentFrom)) { setSaving(false); setErrors({ monthly_rent: 'Elige el mes desde el que aplica el nuevo precio' }); return }
+            // 1) Freeze: payment rows without their own rent keep the OLD price
+            const freeze = await supabase.from('rent_payments').update({ rent_amount: parseFloat(propertyToEdit.monthly_rent) })
+                .eq('property_id', propertyToEdit.id).or('rent_amount.is.null,rent_amount.eq.0')
+            if (freeze.error) console.warn('Could not freeze old rent on payments:', freeze.error.message)
+            // 2) Keep the price history so unpaid earlier months keep the old price too
+            ;({ data: saved, error } = await updateProperty(propertyToEdit.id, { ...propertyData, rent_history: withRentChange(propertyToEdit, newRent, rentFrom) }))
+            if (error && /rent_history/i.test(error)) {
+                ;({ data: saved, error } = await updateProperty(propertyToEdit.id, propertyData))
+                if (!error) toast.warning('Precio guardado, pero falta ejecutar supabase/migrations/010_rent_history.sql en Supabase: sin ella, los meses anteriores sin cobrar usarán el precio nuevo.', 12000)
+            }
+            if (!error) logActivity({ action: 'property.rent_change', entityType: 'property', entityId: propertyToEdit.id, meta: { name: propertyData.name, from: parseFloat(propertyToEdit.monthly_rent), to: newRent, effective: rentFrom } })
+        } else {
+            ;({ data: saved, error } = propertyToEdit
+                ? await updateProperty(propertyToEdit.id, propertyData)
+                : await addProperty(propertyData))
+        }
         if (error) {
             setSaving(false)
             const duplicate = /duplicate|unique/i.test(error)
@@ -352,6 +379,17 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                                     min="0"
                                     step="0.01"
                                 />
+                                {askEffective && (
+                                    <div className="-mt-1 mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
+                                        <p className="font-semibold">Cambio de precio: {`RD$ ${parseFloat(propertyToEdit.monthly_rent).toLocaleString('en-US')} → RD$ ${newRent.toLocaleString('en-US')}`}</p>
+                                        <label className="flex items-center gap-2">
+                                            Aplicar el nuevo precio desde
+                                            <input type="month" value={rentFrom} onChange={(e) => setRentFrom(e.target.value)} aria-label="Aplicar nuevo precio desde"
+                                                className="px-2 py-1 border border-amber-300 rounded bg-white text-sm" />
+                                        </label>
+                                        <p>Los pagos ya cobrados y los meses anteriores a esa fecha conservan su monto: el histórico no se altera.</p>
+                                    </div>
+                                )}
                                 <FormInput
                                     label="Fecha inicio contrato"
                                     name="contract_start_date"

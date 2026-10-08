@@ -5,6 +5,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.10.0] - 2026-10-08
+
+### Agregado
+- **Cambiar el precio sin alterar el histórico**: al editar el precio de una propiedad con inquilino o pagos, el formulario pide **"Aplicar el nuevo precio desde"** (propone el mes siguiente). Los pagos ya cobrados no cambian nunca y los meses anteriores sin cobrar conservan el precio que tenían. El historial de precios se guarda en `properties.rent_history` (migración `supabase/migrations/010_rent_history.sql`; sin ella el precio se guarda igual y la app avisa que los atrasos usarán el precio nuevo). El estado, las facturas pendientes, Finanzas y el historial generado usan el precio vigente de cada mes, y el cambio queda en el registro de actividad.
+
+### Corregido
+- **"Marcar pendiente / nulo / Quitar marca" ya no falla en silencio**: trabaja sobre los datos actuales de la base, convierte los registros existentes en lugar de borrarlos, comprueba cuántos registros se afectaron y verifica el resultado; los botones muestran "Guardando…" y siempre termina con un mensaje (éxito, "sin cambios" o el error). Una petición que no responde se corta a los 15 s con un aviso claro, tras reintentar una vez.
+
 ## [1.9.1] - 2026-10-07
 
 ### Cambiado

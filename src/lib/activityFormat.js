@@ -70,6 +70,8 @@ export function describeActivity(entry, { properties = [], tenants = [], buildin
             return { kind: 'document', tone: 'update', title: 'Recibo generado', subtitle: join(tenant?.name, propName, monthsText(meta.months)) }
         case 'document.report':
             return { kind: 'document', tone: 'update', title: 'Reporte de pagos generado', subtitle: join(propName, meta.period) }
+        case 'property.rent_change':
+            return { kind: 'property', tone: 'update', title: 'Precio de propiedad cambiado', subtitle: join(meta.name, meta.from != null && meta.to != null ? `RD$${Number(meta.from).toLocaleString('en-US')} → RD$${Number(meta.to).toLocaleString('en-US')}` : '', meta.effective ? `desde ${meta.effective}` : '') }
         case 'document.letter':
             return { kind: 'document', tone: 'update', title: 'Carta de cobro generada', subtitle: join(meta.name || tenant?.name, propName, meta.months ? `${meta.months} mes(es)` : '') }
         default:
