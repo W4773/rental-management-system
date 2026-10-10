@@ -172,11 +172,13 @@ export function calculateCollectionRate(income, expected) {
 /**
  * Format currency (Dominican Pesos)
  */
+// Building an Intl.NumberFormat is slow and this runs hundreds of times per screen: create it once
+const currencyFormat = new Intl.NumberFormat('es-DO', {
+    style: 'currency',
+    currency: 'DOP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+})
 export function formatCurrency(amount) {
-    return new Intl.NumberFormat('es-DO', {
-        style: 'currency',
-        currency: 'DOP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount || 0)
+    return currencyFormat.format(amount || 0)
 }

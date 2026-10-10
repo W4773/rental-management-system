@@ -159,7 +159,9 @@ export function AppProvider({ children }) {
         return res
     }
 
-    const value = {
+    // The context only changes when data does, so screens do not redraw for unrelated state (modals, toasts…).
+    // Functions inside read the latest data through the same dependencies.
+    const value = useMemo(() => ({
         generateLetter,
         properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts,
         activity: activityHook.entries,
@@ -185,7 +187,8 @@ export function AppProvider({ children }) {
         openReport: (initial = null) => setReportModal({ open: true, initial }),
         openAlerts: () => setAlertsOpen(true),
         offerReceipt: setReceipt
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts, activityHook.entries, activityHook.available, buildingsHook.available])
 
     return (
         <AppContext.Provider value={value}>

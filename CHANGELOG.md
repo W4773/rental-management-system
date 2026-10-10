@@ -5,6 +5,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.12.2] - 2026-10-10
+
+### Mejorado
+- **La app responde antes tras abrirla**: en pruebas con ~90 propiedades y 2,100 pagos el tiempo con la pantalla bloqueada baja ~55 % (de 3.7 s a 1.6 s en un equipo lento simulado). Se formatean los montos con un formateador reutilizado, los pagos se agrupan una sola vez por propiedad, el estado de pago se calcula una vez por cambio de datos, los cambios de varias tablas llegan a la pantalla juntos y las pantallas ya no se redibujan por estados ajenos (ventanas, avisos).
+
+### Corregido
+- El aviso "No se aplicó el cambio en N mes(es)" ahora incluye el detalle de lo que la base conserva (monto, estado, origen) para poder identificar la causa exacta desde el propio mensaje.
+
 ## [1.12.1] - 2026-10-10
 
 ### Corregido

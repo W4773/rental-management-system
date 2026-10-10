@@ -4,7 +4,22 @@ import { rentForMonth } from './rentHistory'
 // Mirrors the logic the app already used in PropertiesList / PropertyCarousel / TenantSection.
 
 /** 'YYYY-MM' of a rent_payments row (payment_month may come with a time part). */
-export const monthKeyOf = (payment) => payment?.payment_month?.split('T')[0].slice(0, 7) || ''
+export const monthKeyOf = (payment) => payment?.payment_month?.slice(0, 7) || '' // 'YYYY-MM-DD' or ISO timestamp
+
+/** Rows of one property, grouped once per payments array (the array is replaced on every change, so the cache never goes stale). */
+const groupCache = new WeakMap()
+export function rowsOfProperty(payments, propertyId) {
+    let groups = groupCache.get(payments)
+    if (!groups) {
+        groups = new Map()
+        for (const p of payments) {
+            const list = groups.get(p.property_id)
+            if (list) list.push(p); else groups.set(p.property_id, [p])
+        }
+        groupCache.set(payments, groups)
+    }
+    return groups.get(propertyId) || []
+}
 
 /** Rows that actually carry money. */
 export const hasMoney = (payment) => parseFloat(payment?.amount_paid || 0) > 0
@@ -64,7 +79,7 @@ function trackingStart(tenant, rows, today = new Date()) {
  */
 export function getPendingBills(property, tenant, payments, upToKey, today = new Date()) {
     if (!property || !tenant) return []
-    const mine = payments.filter(p => p.property_id === property.id)
+    const mine = rowsOfProperty(payments, property.id)
     let [y, m] = trackingStart(tenant, mine, today)
     const bills = []
     while (keyOf(y, m) <= upToKey) {
@@ -87,10 +102,23 @@ export function getPendingBills(property, tenant, payments, upToKey, today = new
  *  - ATRASADO  : two or more past months owed (the previous month and one or more before it)
  * Returns { key, label, badgeClass, detail, overdueMonths, monthsOwed, owedAmount, paidThrough }.
  */
+const statusCache = new WeakMap() // payments array -> property object -> 'tenant|day' -> status
 export function getPaymentStatus(property, tenant, payments, today = new Date()) {
+    if (!property || !tenant) return computePaymentStatus(property, tenant, payments, today)
+    let byProperty = statusCache.get(payments)
+    if (!byProperty) { byProperty = new WeakMap(); statusCache.set(payments, byProperty) }
+    let byTenant = byProperty.get(property)
+    if (!byTenant) { byTenant = new Map(); byProperty.set(property, byTenant) }
+    const key = `${tenant.id}|${tenant.start_date}|${tenant.end_date}|${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
+    let status = byTenant.get(key)
+    if (!status) { status = computePaymentStatus(property, tenant, payments, today); byTenant.set(key, status) }
+    return status
+}
+
+function computePaymentStatus(property, tenant, payments, today) {
     if (!property || !tenant) return { ...STATUS.vacant, detail: 'Sin inquilino', overdueMonths: [], monthsOwed: 0, owedAmount: 0, paidThrough: null }
 
-    const mine = payments.filter(p => p.property_id === property.id)
+    const mine = rowsOfProperty(payments, property.id)
     const cy = today.getFullYear()
     const cm = today.getMonth()
 

@@ -206,7 +206,15 @@ export function usePayments() {
                         }
                     })
                 }
-                if (wrong.length > 0) throw new Error(`No se aplicó el cambio en ${wrong.length} mes(es): ${wrong.join(', ')}. Recarga e inténtalo de nuevo.`)
+                if (wrong.length > 0) {
+                    // What the database holds right now, so the message itself is usable as evidence
+                    const seen = wrong.map(key => {
+                        const rows = after.filter(p => monthKeyOf(p) === key)
+                        const sent = written.filter(r => monthKeyOf(r) === key)
+                        return `${key}: ` + (rows.length === 0 ? 'sin filas' : rows.map(r => `monto ${r.amount_paid}, ${r.payment_status}, ${r.auto_generated ? 'auto' : 'real'}, ${r.payment_method}`).join(' | ')) + ` [la base respondió ${sent.length} fila(s) al guardar${sent[0] ? `: monto ${sent[0].amount_paid}` : ''}]`
+                    })
+                    throw new Error(`No se aplicó el cambio en ${wrong.length} mes(es): ${wrong.join(', ')}. Recarga e inténtalo de nuevo. Detalle: ${seen.join(' ; ')}`)
+                }
                 logActivity({
                     action: state === 'void' ? 'payment.void' : 'payment.pending',
                     entityType: 'payment',
