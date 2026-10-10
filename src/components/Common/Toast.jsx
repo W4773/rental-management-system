@@ -78,11 +78,11 @@ export default function Toast({ toasts, onRemove }) {
     }
 
     return (
-        <div className="fixed top-4 right-4 z-50 space-y-2">
+        <div className="fixed top-14 left-3 right-3 md:top-4 md:left-auto md:right-4 z-[70] space-y-2">
             {toasts.map(toast => (
                 <div
                     key={toast.id}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg min-w-[300px] max-w-md animate-fade-in ${getColors(toast.type)}`}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg md:min-w-[300px] max-w-md animate-fade-in ${getColors(toast.type)}`}
                 >
                     <div className="flex-shrink-0">
                         {getIcon(toast.type)}

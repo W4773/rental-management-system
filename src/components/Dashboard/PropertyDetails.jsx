@@ -10,6 +10,7 @@ import { nextIncrease } from '../../lib/rentIncrease'
 import StatusPill from './StatusPill'
 import { useApp } from '../../contexts/AppContext'
 import ConfirmModal from '../Common/ConfirmModal'
+import RowMenu from '../Common/RowMenu'
 import YearlyPaymentGrid from './YearlyPaymentGrid'
 import EditPaymentModal from '../Modals/EditPaymentModal'
 import VoidMonthsModal from '../Modals/VoidMonthsModal'
@@ -232,10 +233,10 @@ export default function PropertyDetails({ property, onDeleted }) {
                         <div className="mt-1.5"><StatusPill status={rentStatus} showDetail align="left" /></div>
                     )}
                 </div>
-                <div className="text-right">
+                <div className="text-right max-md:w-full max-md:text-left">
                     <p className="text-xl font-bold text-brand-700 leading-tight">{formatCurrency(property.monthly_rent)}</p>
                     <p className="text-[11px] text-gray-500 mb-1.5">mensual</p>
-                    <div className="flex items-center gap-1.5 justify-end">
+                    <div className="flex flex-wrap items-center gap-1.5 justify-end max-md:justify-start">
                         {activeTenant && (
                             <button onClick={() => openPayment({ propertyId: property.id })}
                                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">
@@ -294,7 +295,7 @@ export default function PropertyDetails({ property, onDeleted }) {
                 <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-gray-500 uppercase pt-2">
                     <Wallet className="w-3.5 h-3.5" /> Pagos
                 </h3>
-                <div className="flex items-center gap-1.5 pt-2">
+                <div className="flex flex-wrap items-center gap-1.5 pt-2">
                     {selectMode && activeTenant && pendingMonthKeys.length > 0 && (
                         <button onClick={() => setSelectedMonths(allPendingSelected ? [] : pendingMonthKeys)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
@@ -357,15 +358,24 @@ export default function PropertyDetails({ property, onDeleted }) {
                                     <span className={`text-[13px] font-semibold ${payment.payment_status === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>
                                         {formatCurrency(payment.amount_paid)}
                                     </span>
-                                    <button onClick={() => generateReceiptPDF(payment, property, tenantFor(payment), settings || {})}
-                                        aria-label="Imprimir recibo" title="Imprimir recibo"
-                                        className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Printer className="w-4 h-4" /></button>
-                                    <button onClick={() => setEditingPayment(payment)} disabled={payment._pending}
-                                        aria-label="Editar pago" title="Editar pago"
-                                        className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Pencil className="w-4 h-4" /></button>
-                                    <button onClick={() => setDeleteIds([payment.id])} disabled={payment._pending}
-                                        aria-label="Eliminar pago" title="Eliminar pago"
-                                        className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                                    <div className="hidden md:flex items-center gap-2">
+                                        <button onClick={() => generateReceiptPDF(payment, property, tenantFor(payment), settings || {})}
+                                            aria-label="Imprimir recibo" title="Imprimir recibo"
+                                            className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Printer className="w-4 h-4" /></button>
+                                        <button onClick={() => setEditingPayment(payment)} disabled={payment._pending}
+                                            aria-label="Editar pago" title="Editar pago"
+                                            className="p-1 rounded text-gray-400 hover:text-brand-700 hover:bg-brand-50"><Pencil className="w-4 h-4" /></button>
+                                        <button onClick={() => setDeleteIds([payment.id])} disabled={payment._pending}
+                                            aria-label="Eliminar pago" title="Eliminar pago"
+                                            className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                                    </div>
+                                    <div className="md:hidden">
+                                        <RowMenu title={monthLabel(payment.payment_month)} items={[
+                                            { label: 'Imprimir recibo', icon: Printer, onClick: () => generateReceiptPDF(payment, property, tenantFor(payment), settings || {}) },
+                                            !payment._pending && { label: 'Editar pago', icon: Pencil, onClick: () => setEditingPayment(payment) },
+                                            !payment._pending && { label: 'Eliminar pago', icon: Trash2, danger: true, onClick: () => setDeleteIds([payment.id]) }
+                                        ]} />
+                                    </div>
                                 </li>
                             ))}
                         </ul>
@@ -424,7 +434,7 @@ export default function PropertyDetails({ property, onDeleted }) {
 
             {/* Edit-months action bar */}
             {editMode && (
-                <div className="sticky bottom-2 z-20 mx-auto w-fit max-w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-ink text-white shadow-xl text-xs">
+                <div className="sticky bottom-2 max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 mx-auto w-fit max-w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-ink text-white shadow-xl text-xs">
                     {editMonths.length === 0 ? (
                         <span className="opacity-80">Marca los meses que quieres corregir (los que ya tienen pagos registrados están bloqueados).</span>
                     ) : (
@@ -449,7 +459,7 @@ export default function PropertyDetails({ property, onDeleted }) {
 
             {/* Floating multi-select action bar */}
             {selectMode && (
-                <div className="sticky bottom-2 z-20 mx-auto w-fit max-w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-ink text-white shadow-xl text-xs">
+                <div className="sticky bottom-2 max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 mx-auto w-fit max-w-full flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-ink text-white shadow-xl text-xs">
                     {selectedPayments.length === 0 && selectedMonths.length === 0 && (
                         <span className="opacity-80">Marca meses pendientes para pagarlos juntos, o pagos para imprimirlos o eliminarlos.</span>
                     )}

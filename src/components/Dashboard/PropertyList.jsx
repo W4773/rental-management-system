@@ -14,15 +14,15 @@ function Row({ item, selected, onSelect, onPay, dense, color }) {
                 tabIndex={0}
                 onClick={() => onSelect(property)}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect(property)}
-                className={`group flex items-center gap-2 px-3 ${dense ? 'py-1.5' : 'py-2'} cursor-pointer border-l-[3px] transition ${
+                className={`group flex items-center gap-2 px-3 ${dense ? 'py-1.5' : 'py-2'} max-md:py-2.5 cursor-pointer border-l-[3px] transition ${
                     selected ? 'bg-brand-50 border-brand-500' : 'border-transparent hover:bg-gray-50'}`}
                 style={color ? { borderLeftColor: color.solid, background: selected ? color.strong : undefined } : undefined}
             >
                 <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-ink truncate leading-tight">{property.name}</p>
+                    <p className="text-[13px] max-md:text-sm font-semibold text-ink truncate leading-tight">{property.name}</p>
                     <p className="text-[11px] text-gray-500 truncate leading-tight uppercase" style={color && tenant ? { color: color.text } : undefined}>{tenant ? tenant.name : 'Sin inquilino'}</p>
                     {tenant && status.detail && (
-                        <p className={`text-[10px] truncate leading-tight mt-px font-medium ${
+                        <p className={`text-[10px] max-md:text-[11px] truncate leading-tight mt-px font-medium ${
                             status.key === 'late' ? 'text-red-600' : status.key === 'pending' ? 'text-amber-700' : 'text-gray-400'}`}>
                             {status.detail}
                         </p>
@@ -73,7 +73,7 @@ export default function PropertyList({ items, buildings, selectedId, onSelect, o
                 const color = colorize && building ? colors[building.id] : null
                 return (
                     <section key={key}>
-                        <div className="sticky top-0 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-brand-50/90 backdrop-blur border-y border-brand-100"
+                        <div className="sticky top-12 md:top-0 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-brand-50/90 backdrop-blur border-y border-brand-100"
                             style={color ? { background: color.strong, borderColor: color.border, borderLeft: `4px solid ${color.solid}` } : undefined}>
                             <button
                                 onClick={() => setCollapsed(c => ({ ...c, [key]: !c[key] }))}

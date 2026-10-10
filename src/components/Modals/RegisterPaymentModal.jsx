@@ -234,7 +234,7 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
                                 </ul>
                             </div>
                         )}
-                        <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                             <FormInput label="Tipo de pago" name="payment_type" type="select" value={formData.payment_type} onChange={handleChange}>
                                 <option value="full">Completo (todo lo pendiente hasta ese mes)</option>
                                 <option value="partial">Parcial</option>
@@ -254,14 +254,14 @@ export default function RegisterPaymentModal({ isOpen, onClose, onSuccess, initi
                         <option value="check">Cheque</option>
                     </FormInput>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FormInput label="Referencia" name="reference" value={formData.reference} onChange={handleChange} />
                     <FormInput label="Notas" name="notes" value={formData.notes} onChange={handleChange} />
                 </div>
 
                 {errors.submit && <div className="text-red-600 text-sm mb-3">{errors.submit}</div>}
 
-                <div className="flex justify-end gap-2 mt-2">
+                <div className="flex justify-end gap-2 mt-2 sheet-actions">
                     <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
                     <Button type="submit" size="sm" disabled={loading || (!isMulti && monthPaid) || !activeTenant}>
                         {loading ? 'Registrando...' : isMulti ? `Pagar ${fmt(multiTotal)}` : 'Registrar Pago'}

@@ -60,7 +60,7 @@ export default function BuildingDetail() {
 
     return (
         <div className="space-y-3">
-            <Link to="/edificios" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline">
+            <Link to="/edificios" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline max-md:min-h-[44px]">
                 <ArrowLeft className="w-3.5 h-3.5" /> Edificios
             </Link>
 
@@ -74,11 +74,11 @@ export default function BuildingDetail() {
                         <MapPin className="w-3.5 h-3.5 shrink-0" />{building.address || 'Sin dirección'}
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={() => openBuilding(building)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                <div className="flex gap-2 max-md:w-full">
+                    <button onClick={() => openBuilding(building)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 max-md:flex-1 max-md:justify-center">
                         <Pencil className="w-3.5 h-3.5" /> Editar edificio
                     </button>
-                    <button onClick={() => openProperty(null, { buildingId: building.id })} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105">
+                    <button onClick={() => openProperty(null, { buildingId: building.id })} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105 max-md:flex-1 max-md:justify-center">
                         <Plus className="w-3.5 h-3.5" /> Agregar propiedad
                     </button>
                 </div>
@@ -100,10 +100,10 @@ export default function BuildingDetail() {
                         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar propiedad o inquilino..." aria-label="Buscar en este edificio"
                             className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500" />
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 max-md:w-full max-md:overflow-x-auto scrollbar-none">
                         {FILTERS.map(([key, label]) => (
                             <button key={key} onClick={() => setFilter(key)} aria-pressed={filter === key}
-                                className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${filter === key ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'}`}>
+                                className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition max-md:px-4 max-md:shrink-0 max-md:whitespace-nowrap ${filter === key ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'}`}>
                                 {label}
                             </button>
                         ))}
@@ -127,8 +127,8 @@ export default function BuildingDetail() {
                                     </Link>
                                     <p className="text-xs text-gray-500 truncate" style={tenant ? { color: color.text } : undefined}>{tenant ? tenant.name : 'Vacante'}{property.unit_number ? ` · ${property.unit_number}` : ''}</p>
                                 </div>
-                                <span className="text-sm font-semibold text-gray-700 w-28 text-right">{formatCurrency(property.monthly_rent)}</span>
-                                <div className="w-44"><StatusPill status={status} showDetail align="left" /></div>
+                                <span className="text-sm font-semibold text-gray-700 w-28 max-md:w-auto text-right">{formatCurrency(property.monthly_rent)}</span>
+                                <div className="w-44 max-md:w-auto"><StatusPill status={status} showDetail align="left" /></div>
                                 <div className="flex gap-1.5">
                                     {tenant ? (
                                         <button onClick={() => openPayment({ propertyId: property.id })} className="flex items-center gap-1 px-2 py-1 rounded-md border border-brand-200 text-brand-700 text-xs font-semibold hover:bg-brand-50">

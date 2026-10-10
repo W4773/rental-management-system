@@ -223,7 +223,7 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             error={errors.property_id}
                             required
                         />
-                        <div className="flex gap-3 justify-end mt-6">
+                        <div className="flex gap-3 justify-end mt-6 sheet-actions">
                             <Button type="button" variant="secondary" onClick={handleClose}>Cancelar</Button>
                             <Button type="button" variant="primary" onClick={handleNextStep}>Siguiente</Button>
                         </div>
@@ -306,7 +306,7 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
                             </div>
                         )}
 
-                        <div className="flex gap-3 justify-end mt-6">
+                        <div className="flex gap-3 justify-end mt-6 sheet-actions">
                             {!isEditing && !property ? (
                                 <Button type="button" variant="secondary" onClick={() => { setStep(1); setErrors({}) }} disabled={loading}>
                                     Atrás
