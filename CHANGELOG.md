@@ -5,6 +5,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.13.0] - 2026-10-10
+
+### Añadido
+- **Interfaz optimizada para móvil** (pantallas de menos de 768 px; tablet y escritorio no cambian): barra de navegación inferior (Inicio, Propiedades, Inquilinos, Finanzas y "Más" con Edificios, Gastos, Configuración y Cerrar sesión), formularios y alertas como hojas inferiores, áreas táctiles de 44 px e inputs a 16 px (iOS ya no hace zoom al enfocarlos).
+- **Tarjetas en lugar de tablas** en Inquilinos (con "Registrar pago" como acción principal y un menú "⋯"), Gastos y Finanzas (por edificio y por inquilino, con selector de orden).
+- **Propiedades en maestro → detalle** en el móvil (se conserva `?p=<id>`), cuadrícula anual de 4×3 meses y menú de acciones por pago.
+- El registro de actividad de Inicio aparece plegado por defecto en el móvil.
+
 ## [1.12.4] - 2026-10-10
 
 ### Corregido

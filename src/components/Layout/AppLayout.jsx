@@ -19,7 +19,7 @@ export default function AppLayout() {
                     <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
                 </main>
                 <footer className="text-center text-[11px] text-gray-400 pt-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:py-3">
-                    &copy; {new Date().getFullYear()} Alquiler Pro · Desarrollado por Optimard · v1.12.4
+                    &copy; {new Date().getFullYear()} Alquiler Pro · Desarrollado por Optimard · v1.13.0
                 </footer>
                 <BottomNav />
             </div>
