@@ -5,6 +5,7 @@ import { getTableState, patchTable } from '../lib/dataStore'
 import { getNetworkState } from '../lib/networkStatus'
 import { rentForMonth } from '../lib/rentHistory'
 import { newId } from '../lib/outbox'
+import { isHistoryHandled } from '../lib/historyLock'
 
 /**
  * Tenants who started before last month and have no payment rows at all before it get their old
@@ -25,7 +26,7 @@ export function useHistoryBackfill({ properties, tenants, payments }) {
 
         const today = new Date()
         const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-        const todo = tenants.filter(t => !t.end_date && !done.current.has(t.id)).filter(t => {
+        const todo = tenants.filter(t => !t.end_date && !done.current.has(t.id) && !isHistoryHandled(t.id)).filter(t => {
             const start = new Date(t.start_date); start.setDate(1); start.setHours(0, 0, 0, 0)
             return start < prevMonthStart && !payments.some(p => p.tenant_id === t.id && new Date(p.payment_month) < prevMonthStart)
         })
@@ -36,8 +37,15 @@ export function useHistoryBackfill({ properties, tenants, payments }) {
             try {
                 const ownerId = await getEffectiveOwnerId()
                 if (!ownerId) return
+                // Last look at the database itself: skip tenants that already have older rows (another tab, the
+                // registration flow…), and do nothing at all if we cannot be sure.
+                const cutoff = `${prevMonthStart.getFullYear()}-${String(prevMonthStart.getMonth() + 1).padStart(2, '0')}-01`
+                const { data: existing, error: checkError } = await supabase.from('rent_payments').select('tenant_id')
+                    .in('tenant_id', todo.map(t => t.id)).lt('payment_month', cutoff)
+                if (checkError) return
+                const hasHistory = new Set((existing || []).map(r => r.tenant_id))
                 const records = []
-                for (const tenant of todo) {
+                for (const tenant of todo.filter(t => !hasHistory.has(t.id) && !isHistoryHandled(t.id))) {
                     done.current.add(tenant.id)
                     const property = properties.find(p => p.id === tenant.property_id)
                     if (!property) continue

@@ -1,3 +1,5 @@
+import { markHistoryHandled } from './historyLock'
+
 /**
  * Creates a tenant for a property and its generated paid history (months before the last two).
  * Shared by "Asignar inquilino" and the optional tenant section of "Registrar propiedad".
@@ -16,6 +18,7 @@ export async function createTenantWithHistory({ addTenant, generateHistoricalPay
         ...(deposit > 0 ? { deposit_amount: deposit } : {})
     })
     if (error) return { data: null, error }
+    markHistoryHandled(tenant.id) // the background back-fill must not generate the same months
     await generateHistoricalPayments(propertyId, tenant.id, values.start_date, property || monthlyRent)
     return { data: tenant, error: null }
 }

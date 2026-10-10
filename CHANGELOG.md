@@ -5,6 +5,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.12.4] - 2026-10-10
+
+### Corregido
+- **Historial duplicado al registrar un inquilino**: el historial "generado al registrar" podía insertarse dos veces (el registro y la generación en segundo plano coincidían con milisegundos de diferencia), duplicando meses y sumando el doble en Finanzas. Ahora el registro reserva al inquilino, y la generación en segundo plano comprueba la base de datos antes de escribir y no hace nada si no puede asegurarlo. Para los duplicados ya existentes: `supabase/maintenance/dedupe_history.sql` (vista previa + borrado, lo ejecuta el usuario).
+- Las lecturas de datos nunca se responden desde la caché del navegador.
+
+### Diagnóstico
+- El aviso de "No se aplicó el cambio" ahora indica si las filas guardadas se pueden leer por su id, con la propiedad y el titular usados, para distinguir una fila oculta por permisos de una borrada.
+
 ## [1.12.3] - 2026-10-10
 
 ### Cambiado
