@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus, Mail, ChevronDown, ChevronRight, History } from 'lucide-react'
+import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus, Mail, ChevronDown, ChevronRight, History, Phone } from 'lucide-react'
 import { differenceInCalendarMonths } from 'date-fns'
 import { useApp } from '../contexts/AppContext'
 import { formatDate } from '../lib/dateUtils'
@@ -8,10 +8,58 @@ import { formatCurrency } from '../lib/calculations'
 import { normalizeText, getPaymentStatus, hasMoney, monthKeyOf, formatMonthKey } from '../lib/paymentStatus'
 import ConfirmModal from '../components/Common/ConfirmModal'
 import StatusPill from '../components/Dashboard/StatusPill'
+import RowMenu from '../components/Common/RowMenu'
 
 const METHOD = { transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque', historical: 'Histórico', pending: 'Pendiente' }
 
 const Spinner = () => <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
+
+function TenantCard({ tenant, property, building, status, onPay, onLetter, onReport, onEdit, onUnassign }) {
+    const [open, setOpen] = useState(false)
+    return (
+        <li className="bg-white rounded-xl border border-brand-200 shadow-sm p-3">
+            <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                    <p className="font-semibold uppercase leading-tight break-words">{tenant.name}</p>
+                    <p className="text-xs text-gray-600 mt-0.5 break-words">
+                        {property ? property.name : 'Sin propiedad'}{building && <span className="text-gray-400"> · {building.name}</span>}
+                    </p>
+                    {tenant.phone && (
+                        <a href={`tel:${tenant.phone}`} className="inline-flex items-center gap-1 mt-1 text-xs text-brand-700 underline">
+                            <Phone className="w-3 h-3" />{tenant.phone}
+                        </a>
+                    )}
+                </div>
+                <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+                    aria-label={open ? 'Ocultar detalles' : 'Ver detalles'} className="-mt-1 -mr-1 flex items-center justify-center text-gray-400">
+                    {open ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                </button>
+            </div>
+            <div className="mt-1.5"><StatusPill showDetail align="left" status={status} /></div>
+            {open && (
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 text-[13px]">
+                    <div><dt className="text-[10px] font-bold uppercase text-gray-400">Cédula</dt><dd>{tenant.identity_number || '-'}</dd></div>
+                    <div><dt className="text-[10px] font-bold uppercase text-gray-400">Entrada</dt><dd>{formatDate(tenant.start_date)}</dd></div>
+                    <div><dt className="text-[10px] font-bold uppercase text-gray-400">Depósito</dt><dd>{tenant.deposit_amount > 0 ? formatCurrency(tenant.deposit_amount) : '-'}</dd></div>
+                </dl>
+            )}
+            <div className="flex items-center gap-2 mt-3">
+                {property && (
+                    <button type="button" onClick={onPay}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-semibold shadow-sm">
+                        <Wallet className="w-4 h-4" /> Registrar pago
+                    </button>
+                )}
+                <RowMenu title={tenant.name} items={[
+                    property && status.monthsOwed > 0 && { label: 'Carta de cobro', icon: Mail, onClick: onLetter },
+                    property && { label: 'Reporte PDF', icon: FileText, onClick: onReport },
+                    { label: 'Editar inquilino', icon: Pencil, onClick: onEdit },
+                    { label: 'Desvincular inquilino', icon: UserMinus, danger: true, onClick: onUnassign }
+                ]} />
+            </div>
+        </li>
+    )
+}
 
 export default function Tenants() {
     const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, generateLetter, closeTenant, onDataChanged, toast, loading } = useApp()
@@ -43,14 +91,14 @@ export default function Tenants() {
 
     if (loading) return <Spinner />
 
-    const tabClass = (id) => `flex items-center gap-1.5 px-3 py-2 text-[13px] font-semibold border-b-2 -mb-px transition ${
+    const tabClass = (id) => `flex items-center gap-1.5 px-3 py-2 text-[13px] font-semibold border-b-2 -mb-px transition max-md:flex-1 max-md:justify-center ${
         view === id ? 'border-brand-500 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`
 
     return (
         <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-xl font-bold">Inquilinos</h1>
-                <button onClick={() => openTenant()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105">
+                <button onClick={() => openTenant()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105 max-md:w-full max-md:justify-center">
                     <UserPlus className="w-3.5 h-3.5" /> Nuevo inquilino
                 </button>
             </div>
@@ -74,7 +122,8 @@ export default function Tenants() {
             </div>
 
             {view === 'active' ? (
-                <div className="bg-white rounded-xl border border-brand-200 shadow-sm overflow-x-auto">
+                <>
+                <div className="hidden md:block bg-white rounded-xl border border-brand-200 shadow-sm overflow-x-auto">
                     <table className="w-full text-[13px]">
                         <thead className="bg-brand-50 text-[10px] uppercase tracking-wide text-gray-500">
                             <tr>
@@ -123,6 +172,25 @@ export default function Tenants() {
                         </tbody>
                     </table>
                 </div>
+
+                <ul className="md:hidden space-y-2">
+                    {active.length === 0 && (
+                        <li className="bg-white rounded-xl border border-dashed border-brand-200 p-6 text-center text-sm text-gray-500">No hay inquilinos activos.</li>
+                    )}
+                    {active.map(({ tenant, property }) => {
+                        const building = buildings.find(b => b.id === property?.building_id)
+                        const status = getPaymentStatus(property, tenant, payments)
+                        return (
+                            <TenantCard key={tenant.id} tenant={tenant} property={property} building={building} status={status}
+                                onPay={() => openPayment({ propertyId: property.id })}
+                                onLetter={() => generateLetter(property, tenant)}
+                                onReport={() => openReport({ propertyId: property.id, tenantId: tenant.id })}
+                                onEdit={() => openTenant(property, tenant)}
+                                onUnassign={() => setToUnassign(tenant)} />
+                        )
+                    })}
+                </ul>
+                </>
             ) : (
                 <div className="space-y-2">
                     <p className="text-xs text-gray-500 flex items-center gap-1.5">
