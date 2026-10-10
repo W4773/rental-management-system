@@ -74,6 +74,31 @@ function mergeSorted(name, rows) {
     return [...rows].sort(TABLES[name].sort)
 }
 
+// The API answers at most 1000 rows per request: bigger tables must be read page by page,
+// otherwise the oldest rows silently go missing (and vanish from the screen after any refresh).
+const PAGE_SIZE = 1000
+
+/** Reads the whole table in pages. `id` is the final sort key so pages never skip or repeat rows. */
+async function fetchAllRows(name, cfg) {
+    const page = (from) => cfg.build(supabase.from(name).select('*', { count: 'exact' })).order('id').range(from, from + PAGE_SIZE - 1)
+    const first = await page(0)
+    if (first.error) return first
+    const rows = first.data || []
+    const total = first.count ?? rows.length
+    if (rows.length >= total || rows.length < PAGE_SIZE) return { data: rows, error: null }
+
+    const starts = []
+    for (let from = PAGE_SIZE; from < total; from += PAGE_SIZE) starts.push(from)
+    const rest = await Promise.all(starts.map(page))
+    const failed = rest.find(r => r.error)
+    if (failed) return { data: null, error: failed.error }
+
+    // A row written while paging could appear twice: keep one copy per id
+    const byId = new Map()
+    for (const r of [rows, ...rest.map(p => p.data || [])].flat()) byId.set(r.id, r)
+    return { data: [...byId.values()], error: null }
+}
+
 /** Downloads the table (one request at a time per table; extra calls are folded into one re-run). */
 export function refreshTable(name) {
     if (inflight[name]) { dirty[name] = true; return inflight[name] }
@@ -82,7 +107,7 @@ export function refreshTable(name) {
             do {
                 dirty[name] = false
                 const cfg = TABLES[name]
-                const { data, error } = await cfg.build(supabase.from(name).select('*'))
+                const { data, error } = await fetchAllRows(name, cfg)
                 if (error) {
                     if (cfg.optional) { setState(name, { data: [], unavailable: true, loading: false, error: null }); continue }
                     console.error(`Error fetching ${name}:`, error.message)
