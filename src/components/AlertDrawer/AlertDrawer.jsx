@@ -1,5 +1,6 @@
 // src/components/AlertDrawer/AlertDrawer.jsx
 import { useEffect, useRef } from 'react'
+import useIsMobile from '../../hooks/useIsMobile'
 
 function formatDiff(diffDays, isOverdue) {
     if (isOverdue) return diffDays === 1 ? 'Vencido ayer' : `Vencido hace ${diffDays} días`
@@ -37,6 +38,7 @@ function AlertItem({ alert, isOverdue, onPayClick }) {
 export default function AlertDrawer({ isOpen, onClose, overdue = [], upcoming = [], onPayClick }) {
     const drawerRef = useRef(null)
     const total = overdue.length + upcoming.length
+    const isMobile = useIsMobile()
 
     useEffect(() => {
         if (!isOpen) return
@@ -53,14 +55,24 @@ export default function AlertDrawer({ isOpen, onClose, overdue = [], upcoming = 
 
     return (
         <>
-            {isOpen && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.15)', zIndex: 40, backdropFilter: 'blur(1px)' }} aria-hidden="true" />}
+            {isOpen && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.15)', zIndex: 49, backdropFilter: 'blur(1px)' }} aria-hidden="true" />}
             <aside ref={drawerRef} role="dialog" aria-label="Panel de alertas de pago" style={{
-                position: 'fixed', top: 0, right: 0, bottom: 0, width: 300,
-                background: 'var(--wp-surface)', borderLeft: '1px solid var(--wp-border)',
-                boxShadow: '-4px 0 20px rgba(0,0,0,.10)', zIndex: 50,
+                position: 'fixed', bottom: 0, zIndex: 50,
+                background: 'var(--wp-surface)',
                 display: 'flex', flexDirection: 'column',
-                transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
                 transition: 'transform .25s ease',
+                ...(isMobile
+                    ? {
+                        left: 0, right: 0, maxHeight: '85dvh',
+                        borderTop: '1px solid var(--wp-border)', borderRadius: '16px 16px 0 0',
+                        boxShadow: '0 -4px 20px rgba(0,0,0,.10)', paddingBottom: 'env(safe-area-inset-bottom)',
+                        transform: isOpen ? 'translateY(0)' : 'translateY(100%)'
+                    }
+                    : {
+                        top: 0, right: 0, width: 300,
+                        borderLeft: '1px solid var(--wp-border)', boxShadow: '-4px 0 20px rgba(0,0,0,.10)',
+                        transform: isOpen ? 'translateX(0)' : 'translateX(100%)'
+                    }),
             }}>
                 {/* Header */}
                 <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--wp-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
