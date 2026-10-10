@@ -30,7 +30,7 @@ Reglas comunes de móvil:
 
 ## 4. Modales, formularios y tablas → tarjetas
 
-**`Modal.jsx` (un cambio para los 11 modales).** En móvil es una hoja inferior casi a pantalla completa (`h-[92dvh]`, esquinas superiores redondeadas). Los de tamaño `sm` se ajustan al contenido. Header fijo con botón cerrar de 44×44px; el cuerpo hace scroll interno con `overscroll-contain`. Prop opcional `footer` para dejar Cancelar/Guardar `sticky bottom-0` con área segura; los modales que hoy ponen sus botones dentro de `children` se migran de uno en uno. Desde `md:` queda como hoy.
+**`Modal.jsx` (un cambio para los 11 modales).** En móvil es una hoja inferior casi a pantalla completa (`h-[92dvh]`, esquinas superiores redondeadas). Los de tamaño `sm` se ajustan al contenido. Header fijo con botón cerrar de 44×44px; el cuerpo hace scroll interno con `overscroll-contain`. Cancelar/Guardar quedan `sticky bottom-0` con área segura mediante una clase CSS `.sheet-actions` que se añade a la fila de botones de los modales largos (en lugar de un prop `footer`, que obligaría a sacar los botones del `<form>`). Desde `md:` queda como hoy.
 
 **Formularios.** `FormInput` a 16px y altura mínima 44px en móvil. Los `grid-cols-2/3` de los modales pasan a 1 columna en móvil (2 columnas solo en pares cortos, p. ej. mes y año). `RegisterPropertyModal` apila sus dos mitades. Selects y fechas usan el control nativo.
 
