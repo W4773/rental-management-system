@@ -194,12 +194,21 @@ export function usePayments() {
                     after = await fetchPropertyRows(property.id)
                     wrong = notApplied(after)
                 }
+                let visibleById = null
+                if (wrong.length > 0) {
+                    // Can the same session read those very rows by id? Tells a hidden-by-policy row from a deleted one
+                    const ids = written.filter(r => wrong.includes(monthKeyOf(r))).map(r => r.id)
+                    if (ids.length > 0) {
+                        const probe = await guarded(() => supabase.from('rent_payments').select('id, property_id, payment_month, amount_paid, user_id').in('id', ids))
+                        visibleById = probe.error ? `error: ${probe.error.message}` : `${(probe.data || []).length} de ${ids.length}${probe.data?.[0] ? ` (property_id ${probe.data[0].property_id === property.id ? 'igual' : 'distinto: ' + probe.data[0].property_id}, user_id ${probe.data[0].user_id})` : ''}`
+                    }
+                }
                 if (wrong.length > 0) {
                     const brief = (p) => ({ id: p.id, month: p.payment_month, amount_paid: p.amount_paid, remaining_balance: p.remaining_balance, rent_amount: p.rent_amount, payment_status: p.payment_status, payment_type: p.payment_type, payment_method: p.payment_method, auto_generated: p.auto_generated, voided: p.voided, tenant_id: p.tenant_id })
                     logError({
                         source: 'app', message: `Marcar ${state === 'void' ? 'nulo' : 'pendiente'}: la base no refleja el cambio en ${wrong.join(', ')}`,
                         context: {
-                            state, months: wrong, property_id: property.id, tenant_id: tenant.id,
+                            state, months: wrong, property_id: property.id, tenant_id: tenant.id, visibleById, ownerId,
                             sent: [...updates.map(u => ({ ids: u.ids, payload: u.payload })), ...inserts.map(i => ({ insert: i.payment_month }))],
                             answered: written.filter(r => wrong.includes(monthKeyOf(r))).map(brief),
                             storedNow: after.filter(r => wrong.includes(monthKeyOf(r))).map(brief)
@@ -213,7 +222,7 @@ export function usePayments() {
                         const sent = written.filter(r => monthKeyOf(r) === key)
                         return `${key}: ` + (rows.length === 0 ? 'sin filas' : rows.map(r => `monto ${r.amount_paid}, ${r.payment_status}, ${r.auto_generated ? 'auto' : 'real'}, ${r.payment_method}`).join(' | ')) + ` [la base respondió ${sent.length} fila(s) al guardar${sent[0] ? `: monto ${sent[0].amount_paid}` : ''}]`
                     })
-                    throw new Error(`No se aplicó el cambio en ${wrong.length} mes(es): ${wrong.join(', ')}. Recarga e inténtalo de nuevo. Detalle: ${seen.join(' ; ')}`)
+                    throw new Error(`No se aplicó el cambio en ${wrong.length} mes(es): ${wrong.join(', ')}. Recarga e inténtalo de nuevo. Detalle: ${seen.join(' ; ')} · leídas por id: ${visibleById ?? 'n/a'} · propiedad ${property.id} · titular ${ownerId}`)
                 }
                 logActivity({
                     action: state === 'void' ? 'payment.void' : 'payment.pending',

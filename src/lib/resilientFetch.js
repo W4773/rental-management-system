@@ -32,6 +32,8 @@ export function resilientFetch(input, init = {}) {
     if (!idempotent && !getNetworkState().online && !url.includes('/auth/v1/')) {
         return Promise.reject(new TypeError(OFFLINE_MESSAGE))
     }
+    // Data reads must always reach the server: never answer them from the browser cache
+    if (idempotent && url.includes('/rest/v1/')) init = { ...init, cache: 'no-store' }
     const attempts = idempotent ? RETRIES + 1 : 1
     const timeoutMs = idempotent ? READ_TIMEOUT_MS : WRITE_TIMEOUT_MS
 
