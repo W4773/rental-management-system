@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { friendlyDbError } from '../lib/dbErrors'
 import { useTable, refreshTable, patchTable } from '../lib/dataStore'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
@@ -24,7 +25,7 @@ export function useProperties() {
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding property:', err)
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, propertyData) }
         }
     }
 
@@ -45,7 +46,7 @@ export function useProperties() {
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error updating property:', err)
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, updates) }
         }
     }
 

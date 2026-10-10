@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { friendlyDbError } from '../lib/dbErrors'
 import { useTable, refreshTable, patchTable } from '../lib/dataStore'
 import { getNetworkState, OFFLINE_MESSAGE } from '../lib/networkStatus'
 import { newId, enqueuePayment, isNetworkError } from '../lib/outbox'
@@ -67,7 +68,7 @@ export function usePayments() {
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding payment:', err)
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, paymentData) }
         }
     }
 
@@ -88,7 +89,7 @@ export function usePayments() {
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error updating payment:', err)
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, updates) }
         }
     }
 

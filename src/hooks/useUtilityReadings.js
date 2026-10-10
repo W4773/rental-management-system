@@ -1,6 +1,7 @@
 // src/hooks/useUtilityReadings.js
 import { useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { friendlyDbError } from '../lib/dbErrors'
 import { useTable, refreshTable, patchTable } from '../lib/dataStore'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
@@ -30,7 +31,7 @@ export function useUtilityReadings(utilityType = null) {
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding utility reading:', err)
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, readingData) }
         }
     }
 
@@ -52,7 +53,7 @@ export function useUtilityReadings(utilityType = null) {
             })
             return { data: data?.[0], error: null }
         } catch (err) {
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, updates) }
         }
     }
 

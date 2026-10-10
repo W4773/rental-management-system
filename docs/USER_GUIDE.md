@@ -190,6 +190,9 @@ Para generar la carta de un inquilino con meses pendientes usa el botón **Carta
 
 ## 14. Preguntas frecuentes
 
+**Algo falló, ¿cómo doy evidencia?**
+Entra a **Ajustes → Registro de errores**, pulsa **Copiar** (o **Descargar JSON**) y envía el contenido. Se guarda 7 días y no incluye contraseñas ni cédulas.
+
 **¿Qué pasa si se cae el internet?**
 La app muestra los últimos datos guardados y un aviso amarillo "Sin conexión". Puedes seguir viendo todo y **registrar pagos**: aparecen con la marca **Por enviar**, puedes imprimir su recibo y se envían solos al volver la conexión (una sola vez, aunque recargues). Editar, borrar o marcar meses necesita internet y te lo indica al instante. Lo único que no se puede es abrir la página desde cero sin conexión.
 

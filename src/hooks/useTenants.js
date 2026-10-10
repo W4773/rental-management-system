@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { friendlyDbError } from '../lib/dbErrors'
 import { useTable, refreshTable, patchTable, getTableState } from '../lib/dataStore'
 import { getEffectiveOwnerId } from '../lib/effectiveOwner'
 import { logActivity } from '../lib/activityLog'
@@ -23,7 +24,7 @@ export function useTenants() {
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error adding tenant:', err)
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, tenantData) }
         }
     }
 
@@ -47,7 +48,7 @@ export function useTenants() {
             return { data: data?.[0], error: null }
         } catch (err) {
             console.error('Error updating tenant:', err)
-            return { data: null, error: err.message }
+            return { data: null, error: friendlyDbError(err, updates) }
         }
     }
 

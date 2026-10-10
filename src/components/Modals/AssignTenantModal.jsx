@@ -3,7 +3,7 @@ import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import PropertyPicker, { PropertyInfo } from '../Common/PropertyPicker'
 import Button from '../Common/Button'
-import { validateCedula, validatePhone, validateEmail, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
+import { validateCedula, validatePhone, validateEmail, validateMoney, validateNotFutureDate, formatCedulaInput, formatPhoneInput } from '../../lib/validators'
 import { useTenants } from '../../hooks/useTenants'
 import { Building2 } from 'lucide-react'
 import { createTenantWithHistory, depositColumnMissing, DEPOSIT_MIGRATION_MESSAGE } from '../../lib/createTenantWithHistory'
@@ -115,9 +115,8 @@ export default function AssignTenantModal({ isOpen, onClose, onSuccess, property
         const dateError = validateNotFutureDate(formData.start_date)
         if (dateError) newErrors.start_date = dateError
 
-        if (formData.deposit_amount !== '' && !(parseFloat(formData.deposit_amount) >= 0)) {
-            newErrors.deposit_amount = 'El depósito debe ser un monto válido'
-        }
+        const depositError = validateMoney(formData.deposit_amount, 'El depósito')
+        if (depositError) newErrors.deposit_amount = depositError
 
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
