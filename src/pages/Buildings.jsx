@@ -103,24 +103,26 @@ export default function Buildings() {
                 {rows.withBuilding.map(({ building, units, total, occupied, rent, pending, late }) => (
                     <section key={building.id} className="bg-white rounded-xl border border-brand-200 shadow-sm p-3"
                         style={{ borderColor: colors[building.id].border, borderTop: `4px solid ${colors[building.id].solid}` }}>
-                        <div className="flex items-start gap-3">
+                        <div className="flex flex-wrap items-start gap-3">
                             <span className="w-9 h-9 rounded-lg text-white flex items-center justify-center shrink-0" style={{ background: colors[building.id].solid }}>
                                 <Building2 className="w-4 h-4" />
                             </span>
-                            <Link to={`/edificios/${building.id}`} className="min-w-0 flex-1 group" title="Ver detalle del edificio">
+                            <Link to={`/edificios/${building.id}`} className="min-w-0 flex-1 basis-40 group" title="Ver detalle del edificio">
                                 <h2 className="font-bold leading-tight truncate group-hover:underline" style={{ color: colors[building.id].text }}>{building.name}</h2>
                                 <p className="flex items-center gap-1 text-xs text-gray-500 truncate">
                                     <MapPin className="w-3 h-3 shrink-0" />{building.address || 'Sin dirección'}
                                 </p>
                             </Link>
+                            <div className="flex items-center gap-2 max-md:w-full max-md:justify-end">
                             <Link to={`/edificios/${building.id}`} aria-label={`Ver ${building.name}`} title="Ver detalle"
-                                className="flex items-center gap-0.5 px-2 py-1.5 rounded-md border border-brand-200 text-brand-700 text-xs font-semibold hover:bg-brand-50">
+                                className="flex items-center gap-0.5 px-2 py-1.5 rounded-md border border-brand-200 text-brand-700 text-xs font-semibold hover:bg-brand-50 max-md:min-h-[44px] max-md:justify-center">
                                 Ver <ChevronRight className="w-3.5 h-3.5" />
                             </Link>
                             <button onClick={() => openBuilding(building)} aria-label={`Editar ${building.name}`} title="Editar edificio"
                                 className="p-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"><Pencil className="w-4 h-4" /></button>
                             <button onClick={() => setToDelete(building)} aria-label={`Eliminar ${building.name}`} title="Eliminar edificio"
                                 className="p-1.5 rounded-md border border-red-100 text-red-500 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                            </div>
                         </div>
 
                         <dl className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3 text-center">
