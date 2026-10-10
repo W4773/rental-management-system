@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { friendlyDbError } from '../lib/dbErrors'
+import { logError } from '../lib/errorLog'
 import { useTable, refreshTable, patchTable } from '../lib/dataStore'
 import { getNetworkState, OFFLINE_MESSAGE } from '../lib/networkStatus'
 import { newId, enqueuePayment, isNetworkError } from '../lib/outbox'
@@ -164,26 +165,47 @@ export function usePayments() {
                 }
             }
 
+            const written = [] // rows the database answered with, kept as evidence if the check below fails
             for (const { ids, payload } of updates) {
                 const { data, error } = await guarded(() => supabase.from('rent_payments').update(payload).in('id', ids).select('*'))
                 if (error) throw error
                 if ((data || []).length !== ids.length) throw new Error(`La base de datos solo actualizó ${(data || []).length} de ${ids.length} registros (revisa los permisos).`)
+                written.push(...data)
                 patchTable('rent_payments', { upsert: data })
             }
             if (inserts.length > 0) {
                 const { data, error } = await guarded(() => supabase.from('rent_payments').insert(inserts).select('*'))
                 if (error) throw error
                 if ((data || []).length !== inserts.length) throw new Error(`La base de datos solo guardó ${(data || []).length} de ${inserts.length} meses (revisa los permisos).`)
+                written.push(...data)
                 patchTable('rent_payments', { upsert: data })
             }
 
             // Verify what is stored now
             if (done.length > 0) {
-                const after = await fetchPropertyRows(property.id)
-                const wrong = done.filter(key => {
-                    const rows = after.filter(p => monthKeyOf(p) === key)
+                const notApplied = (rowsNow) => done.filter(key => {
+                    const rows = rowsNow.filter(p => monthKeyOf(p) === key)
                     return rows.length === 0 || rows.some(p => hasMoney(p)) || (state === 'void' && !rows.some(p => p.voided))
                 })
+                let after = await fetchPropertyRows(property.id)
+                let wrong = notApplied(after)
+                if (wrong.length > 0) { // one more look in case the read raced the write
+                    await new Promise(r => setTimeout(r, 700))
+                    after = await fetchPropertyRows(property.id)
+                    wrong = notApplied(after)
+                }
+                if (wrong.length > 0) {
+                    const brief = (p) => ({ id: p.id, month: p.payment_month, amount_paid: p.amount_paid, remaining_balance: p.remaining_balance, rent_amount: p.rent_amount, payment_status: p.payment_status, payment_type: p.payment_type, payment_method: p.payment_method, auto_generated: p.auto_generated, voided: p.voided, tenant_id: p.tenant_id })
+                    logError({
+                        source: 'app', message: `Marcar ${state === 'void' ? 'nulo' : 'pendiente'}: la base no refleja el cambio en ${wrong.join(', ')}`,
+                        context: {
+                            state, months: wrong, property_id: property.id, tenant_id: tenant.id,
+                            sent: [...updates.map(u => ({ ids: u.ids, payload: u.payload })), ...inserts.map(i => ({ insert: i.payment_month }))],
+                            answered: written.filter(r => wrong.includes(monthKeyOf(r))).map(brief),
+                            storedNow: after.filter(r => wrong.includes(monthKeyOf(r))).map(brief)
+                        }
+                    })
+                }
                 if (wrong.length > 0) throw new Error(`No se aplicó el cambio en ${wrong.length} mes(es): ${wrong.join(', ')}. Recarga e inténtalo de nuevo.`)
                 logActivity({
                     action: state === 'void' ? 'payment.void' : 'payment.pending',

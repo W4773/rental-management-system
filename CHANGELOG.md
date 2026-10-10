@@ -5,6 +5,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.12.1] - 2026-10-10
+
+### Corregido
+- **"Marcar pendiente / nulo" — "No se aplicó el cambio en N mes(es)"**: la comprobación posterior al guardado ahora vuelve a leer una vez más (por si la lectura se adelantó a la escritura) y, si aun así la base no refleja el cambio, deja en **Ajustes → Registro de errores** la evidencia completa (qué se envió, qué respondió la base y cómo quedaron las filas) para identificar la causa exacta.
+
 ## [1.12.0] - 2026-10-10
 
 ### Corregido
