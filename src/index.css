@@ -1439,3 +1439,61 @@
   display: inline-flex;
   align-items: center;
 }
+/* ===== MOBILE (< 768px) ===== */
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-sheet-up { animation: sheetUp .22s ease-out; }
+
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+@media (min-width: 768px) {
+  .animate-sheet-up { animation: none; }
+}
+
+@media (max-width: 767px) {
+  /* 16px stops iOS from zooming when an input gets focus; 44px is a comfortable touch height */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select {
+    min-height: 44px;
+  }
+
+  /* Touch targets. Opt out with .no-touch (e.g. inline text links built as buttons). */
+  button:not(.no-touch),
+  [role='button']:not(.no-touch) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Action row stuck to the bottom of a bottom sheet (add the class to a modal's button row).
+     Negative margins cancel the sheet body padding (px-4, pb-3 + safe area) so it spans edge to edge. */
+  .sheet-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    gap: 0.5rem;
+    margin: 1rem -1rem calc(-0.75rem - env(safe-area-inset-bottom));
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .sheet-actions > * {
+    flex: 1 1 0;
+  }
+
+  .login-container {
+    padding: 1.75rem 1.25rem;
+    border-radius: 20px;
+  }
+}
