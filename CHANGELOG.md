@@ -5,6 +5,17 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.12.0] - 2026-10-10
+
+### Corregido
+- **"Numeric field overflow" al registrar una propiedad**: un valor (típicamente un aumento fijo en RD$, p. ej. 5,000) no cabía en una columna numérica estrecha. Nueva migración `supabase/migrations/011_numeric_ranges.sql` que amplía las columnas de dinero y medidas (sin tocar datos). Además los formularios validan topes (precio, aumento %, aumento fijo, m², depósito) con mensajes claros y, si la base rechaza un número, la app dice qué campos pueden ser los culpables en lugar del error técnico. Consulta de diagnóstico de solo lectura: `supabase/diagnostics/numeric_columns.sql`.
+
+### Agregado
+- **Registro de errores temporal**: cada fallo de la app (errores no controlados, promesas rechazadas, errores de pantalla y respuestas fallidas de la base de datos con la tabla, el código, el detalle y los datos enviados) se guarda con ruta, versión y navegador, y se conserva **7 días**. Los datos sensibles (contraseñas, tokens, cédulas, teléfonos, correos) se ocultan, los repetidos se agrupan y, sin conexión, se guardan en el equipo y se envían al volver. Se consulta en **Ajustes → Registro de errores** (Copiar, Descargar JSON, Vaciar para el titular). Requiere `supabase/migrations/012_error_log.sql`; sin ella se guarda solo en el equipo.
+
+### Cambiado
+- La generación de historial en segundo plano ahora exige que ninguna de las tablas haya fallado al cargarse.
+
 ## [1.11.0] - 2026-10-08
 
 ### Agregado

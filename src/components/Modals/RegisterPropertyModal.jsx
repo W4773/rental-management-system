@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import Modal from '../Common/Modal'
 import FormInput from '../Common/FormInput'
 import Button from '../Common/Button'
-import { validatePropertyName, validateMonthlyRent } from '../../lib/validators'
+import { validatePropertyName, validateMonthlyRent, validateIncrease, validateSquareMeters, validateMoney } from '../../lib/validators'
 import { useProperties } from '../../hooks/useProperties'
 import { useTenants } from '../../hooks/useTenants'
 import { usePayments } from '../../hooks/usePayments'
@@ -125,6 +125,11 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
         const rentError = validateMonthlyRent(formData.monthly_rent)
         if (rentError) newErrors.monthly_rent = rentError
 
+        const increaseError = validateIncrease(formData.annual_increase_pct, formData.increase_type)
+        if (increaseError) newErrors.annual_increase_pct = increaseError
+        const sqmError = validateSquareMeters(formData.square_meters)
+        if (sqmError) newErrors.square_meters = sqmError
+
         if (formData.increase_start_date && !(parseFloat(formData.annual_increase_pct) > 0)) {
             newErrors.annual_increase_pct = 'Indica el porcentaje o monto del aumento para usar la fecha de entrada en vigor'
         }
@@ -142,9 +147,8 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
             if (emailError) newErrors.tenant_email = emailError
             const dateError = validateNotFutureDate(tenantData.start_date)
             if (dateError) newErrors.tenant_start_date = dateError
-            if (tenantData.deposit_amount !== '' && !(parseFloat(tenantData.deposit_amount) >= 0)) {
-                newErrors.tenant_deposit_amount = 'El depósito debe ser un monto válido'
-            }
+            const depositError = validateMoney(tenantData.deposit_amount, 'El depósito')
+            if (depositError) newErrors.tenant_deposit_amount = depositError
         }
 
         setErrors(newErrors)

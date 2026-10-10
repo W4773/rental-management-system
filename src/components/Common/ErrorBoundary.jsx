@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { logError } from '../../lib/errorLog'
 
 /** Keeps a render error in one screen from blanking the whole app; shows the cause so it can be reported. */
 export default class ErrorBoundary extends Component {
@@ -11,6 +12,7 @@ export default class ErrorBoundary extends Component {
 
     componentDidCatch(error, info) {
         console.error('Error de interfaz:', error, info?.componentStack)
+        logError({ source: 'react', error, context: { componentStack: String(info?.componentStack || '').split('\n').slice(0, 8).join('\n') } })
     }
 
     render() {

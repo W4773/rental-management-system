@@ -190,6 +190,9 @@ To generate the letter for a tenant with pending months use the **Carta de cobro
 
 ## 14. FAQ
 
+**Something failed: how do I provide evidence?**
+Go to **Settings → Registro de errores**, press **Copy** (or **Download JSON**) and send the content. It is kept for 7 days and excludes passwords and national ids.
+
 **What happens if the internet goes down?**
 The app shows the last saved data and a yellow "Sin conexión" (offline) bar. You can keep browsing everything and **record payments**: they appear tagged **Por enviar** (pending), you can print their receipt, and they are sent automatically when the connection returns (exactly once, even if you reload). Editing, deleting or marking months needs internet and tells you so at once. The only thing you cannot do is open the page from scratch with no connection.
 

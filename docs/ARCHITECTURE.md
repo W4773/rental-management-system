@@ -39,6 +39,10 @@ flowchart LR
 - **Carga ligera**: rutas con `React.lazy`, jsPDF/autotable con `import()` dinámico, `manualChunks` de librerías y fuentes no bloqueantes.
 - Límite: sin service worker, abrir la página en frío sin conexión no es posible.
 
+## Registro de errores
+
+`src/lib/errorLog.js` captura `window.onerror`, `unhandledrejection`, errores de React (`ErrorBoundary`) y toda respuesta HTTP fallida de PostgREST (hook en `resilientFetch`, con tabla, operación, código, detalle, consulta y datos enviados). Antes de guardar se **redactan** secretos y se enmascaran cédulas/teléfonos; se deduplica (misma huella en 60 s) y se limita la ráfaga. Las entradas pasan por un búfer en IndexedDB y se envían a `rental.error_log` (migración 012: RLS por workspace, borrado automático a 7 días mediante trigger) cuando hay conexión. Visor: Ajustes → Registro de errores. `friendlyDbError` (`src/lib/dbErrors.js`) traduce errores como `numeric field overflow` a un mensaje accionable.
+
 ## Dominio: piezas clave (`src/lib`)
 
 | Módulo | Qué hace |

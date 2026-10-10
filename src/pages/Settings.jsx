@@ -2,6 +2,7 @@ import { useState } from 'react'
 import InvoiceSettings from '../components/Settings/InvoiceSettings'
 import LetterSettings from '../components/Settings/LetterSettings'
 import TeamSection from '../components/Settings/TeamSection'
+import ErrorLogSettings from '../components/Settings/ErrorLogSettings'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../contexts/AppContext'
@@ -11,6 +12,7 @@ const TABS = [
     { id: 'invoice', label: 'Factura' },
     { id: 'letter', label: 'Carta de cobro' },
     { id: 'team', label: 'Equipo' },
+    { id: 'errors', label: 'Registro de errores' },
 ]
 
 export default function Settings() {
@@ -150,6 +152,8 @@ export default function Settings() {
                     {activeTab === 'letter' && <LetterSettings showToast={showToast} />}
 
                     {activeTab === 'team' && <TeamSection />}
+
+                    {activeTab === 'errors' && <ErrorLogSettings />}
                 </div>
             </main>
         </div>

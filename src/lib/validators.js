@@ -19,6 +19,37 @@ export function validateMonthlyRent(rent) {
     if (isNaN(rentNum) || rentNum <= 0) {
         return 'El precio debe ser mayor a 0'
     }
+    if (rentNum > LIMITS.money) return `El precio no puede superar RD$ ${LIMITS.money.toLocaleString('en-US')}`
+    return null
+}
+
+/** Largest values the database columns can hold (migration 011); forms stop anything bigger with a clear message. */
+export const LIMITS = { money: 99999999.99, squareMeters: 99999, percent: 100 }
+
+/** Optional money amount (deposit, payment…): empty is fine; otherwise 0..limit. */
+export function validateMoney(value, label = 'El monto') {
+    if (value === '' || value == null) return null
+    const n = parseFloat(value)
+    if (!(n >= 0)) return `${label} debe ser un monto válido`
+    if (n > LIMITS.money) return `${label} no puede superar RD$ ${LIMITS.money.toLocaleString('en-US')}`
+    return null
+}
+
+/** Annual increase: a percentage (0-100) or a fixed RD$ amount (up to the money limit). */
+export function validateIncrease(value, type = 'percentage') {
+    if (value === '' || value == null) return null
+    const n = parseFloat(value)
+    if (!(n >= 0)) return 'El aumento debe ser un número válido'
+    if (type === 'percentage' && n > LIMITS.percent) return 'El porcentaje no puede superar 100%'
+    if (type !== 'percentage' && n > LIMITS.money) return `El monto del aumento no puede superar RD$ ${LIMITS.money.toLocaleString('en-US')}`
+    return null
+}
+
+export function validateSquareMeters(value) {
+    if (value === '' || value == null) return null
+    const n = parseFloat(value)
+    if (!(n > 0)) return 'Los metros cuadrados deben ser mayores a 0'
+    if (n > LIMITS.squareMeters) return `Los metros cuadrados no pueden superar ${LIMITS.squareMeters.toLocaleString('en-US')}`
     return null
 }
 

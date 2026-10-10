@@ -1,9 +1,17 @@
 import { reportRequest, getNetworkState, OFFLINE_MESSAGE } from './networkStatus'
+import { logHttpFailure } from './errorLog'
 
 const READ_TIMEOUT_MS = 20000
 const WRITE_TIMEOUT_MS = 30000
 const RETRIES = 2
 const RETRY_STATUS = new Set([502, 503, 504])
+
+/** Leaves evidence of failed API calls (what was sent and what the database answered) in the error log. */
+function noteFailure(response, method, url, init) {
+    // 406 = "no row" answer of .single(); auth/token calls and the log's own writes are not logged
+    if (response.ok || response.status === 406 || !url.includes('/rest/v1/') || url.includes('/rest/v1/error_log')) return
+    response.clone().text().then(text => logHttpFailure({ method, url, status: response.status, requestBody: init.body, responseText: text })).catch(() => {})
+}
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
@@ -48,6 +56,7 @@ export function resilientFetch(input, init = {}) {
                     continue
                 }
                 reportRequest(true, Date.now() - started)
+                noteFailure(response, method, url, init)
                 return response
             } catch (err) {
                 clearTimeout(timer)

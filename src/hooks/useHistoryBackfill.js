@@ -19,7 +19,7 @@ export function useHistoryBackfill({ properties, tenants, payments }) {
     useEffect(() => {
         const fresh = ['properties', 'tenants', 'rent_payments'].every(n => {
             const s = getTableState(n)
-            return s.fetchedAt && !s.fromCache && !s.loading
+            return s.fetchedAt && !s.fromCache && !s.loading && !s.error
         })
         if (!fresh || busy.current || !getNetworkState().online) return
 
