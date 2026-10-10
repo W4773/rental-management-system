@@ -29,17 +29,17 @@ export default function Home() {
                     <h1 className="text-xl font-bold text-ink leading-tight">Inicio</h1>
                     <p className="text-xs text-gray-500 first-letter:uppercase">{today} · {properties.length} propiedades</p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <button onClick={() => openTenant()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50">
+                <div className="flex flex-wrap items-center gap-1.5 max-md:w-full">
+                    <button onClick={() => openTenant()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50 max-md:flex-1 max-md:justify-center">
                         <UserPlus className="w-3.5 h-3.5" /> Inquilino
                     </button>
-                    <button onClick={() => openProperty()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50">
+                    <button onClick={() => openProperty()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50 max-md:flex-1 max-md:justify-center">
                         <Plus className="w-3.5 h-3.5" /> Propiedad
                     </button>
-                    <button onClick={() => openBuilding()} className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50">
+                    <button onClick={() => openBuilding()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50 max-md:flex-1 max-md:justify-center">
                         <Building2 className="w-3.5 h-3.5" /> Edificio
                     </button>
-                    <button onClick={() => openPayment()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-600 text-white text-xs font-semibold shadow-sm hover:brightness-105">
+                    <button onClick={() => openPayment()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-600 text-white text-xs font-semibold shadow-sm hover:brightness-105 max-md:order-first max-md:w-full max-md:justify-center">
                         <Wallet className="w-3.5 h-3.5" /> Registrar pago
                     </button>
                 </div>
@@ -62,7 +62,7 @@ export default function Home() {
                         <h2 className="flex items-center gap-1.5 text-sm font-bold"><Building2 className="w-4 h-4 text-brand-600" />Propiedades activas</h2>
                         <span className="text-xs text-gray-500">{filters.filtered.length} de {properties.length}</span>
                     </header>
-                    <div className="max-h-[calc(100vh-330px)] min-h-[260px] overflow-y-auto">
+                    <div className="md:max-h-[calc(100vh-330px)] md:min-h-[260px] md:overflow-y-auto">
                         <PropertyList
                             items={filters.filtered}
                             buildings={buildings}

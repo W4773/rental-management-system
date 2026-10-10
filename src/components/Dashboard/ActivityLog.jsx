@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Wallet, DoorOpen, User, Building2, Flame, Zap, Droplets, FileText, Users, ScrollText } from 'lucide-react'
 import { formatDistanceToNowStrict, differenceInDays, format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -26,6 +27,7 @@ const when = (iso) => {
  */
 export default function ActivityLog({ entries, available, properties, tenants, buildings, payments }) {
     const context = { properties, tenants, buildings }
+    const [open, setOpen] = useState(false) // phone: folded by default
 
     let items
     if (available) {
@@ -48,18 +50,22 @@ export default function ActivityLog({ entries, available, properties, tenants, b
 
     return (
         <section className="bg-white rounded-xl border border-brand-200 shadow-sm overflow-hidden">
-            <header className="px-3 py-2 border-b border-gray-100">
+            <header className={`flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 ${open ? '' : 'max-md:border-b-0'}`}>
                 <h2 className="flex items-center gap-1.5 text-sm font-bold"><ScrollText className="w-4 h-4 text-brand-500" />Registro de actividad</h2>
+                <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+                    className="md:hidden text-xs font-semibold text-brand-700">
+                    {open ? 'Ocultar' : 'Ver actividad reciente'}
+                </button>
             </header>
             {!available && (
-                <p className="px-3 py-1.5 text-[11px] bg-amber-50 text-amber-800 border-b border-amber-100">
+                <p className={`px-3 py-1.5 text-[11px] bg-amber-50 text-amber-800 border-b border-amber-100 ${open ? '' : 'max-md:hidden'}`}>
                     Mostrando solo pagos. Ejecuta <code className="font-mono">004_activity_log.sql</code> en Supabase para registrar todas las acciones.
                 </p>
             )}
             {items.length === 0 ? (
-                <p className="p-6 text-center text-sm text-gray-500">Aún no hay actividad registrada.</p>
+                <p className={`p-6 text-center text-sm text-gray-500 ${open ? '' : 'max-md:hidden'}`}>Aún no hay actividad registrada.</p>
             ) : (
-                <ul className="divide-y divide-gray-100 max-h-[calc(100vh-330px)] min-h-[260px] overflow-y-auto">
+                <ul className={`divide-y divide-gray-100 max-md:max-h-[70dvh] md:max-h-[calc(100vh-330px)] md:min-h-[260px] overflow-y-auto ${open ? '' : 'max-md:hidden'}`}>
                     {items.map(({ id, Icon, tone, title, subtitle, by, at }) => (
                         <li key={id} className="flex items-start gap-2 px-3 py-2">
                             <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${TONE[tone]}`}><Icon className="w-3.5 h-3.5" /></span>
