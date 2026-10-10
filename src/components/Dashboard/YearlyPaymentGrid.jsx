@@ -32,7 +32,7 @@ export default function YearlyPaymentGrid({ property, payments, year, onYearChan
                     <button onClick={() => onYearChange(year + 1)} aria-label="Año siguiente" className="p-0.5 rounded hover:bg-gray-100"><ChevronRight className="w-4 h-4" /></button>
                 </div>
             </div>
-            <div className="grid grid-cols-6 gap-1.5">
+            <div className="grid grid-cols-4 md:grid-cols-6 gap-1.5">
                 {Array.from({ length: 12 }, (_, i) => {
                     const m = getMonthStatus(payments, property, year, i)
                     const { key, status } = m
@@ -55,14 +55,14 @@ export default function YearlyPaymentGrid({ property, payments, year, onYearChan
                             title={`${name} ${year}: ${LABELS[status]}${reason}${hint}`}
                             aria-pressed={selecting ? isSelected : undefined}
                             style={status === 'void' ? VOID_STRIPES : undefined}
-                            className={`relative h-11 rounded-lg flex flex-col items-center justify-center leading-none transition ${STYLES[status]} ${
+                            className={`relative h-12 md:h-11 rounded-lg flex flex-col items-center justify-center leading-none transition ${STYLES[status]} ${
                                 actionable ? 'cursor-pointer hover:brightness-95 hover:scale-[1.04]' : 'cursor-default'} ${
                                 isSelected ? 'ring-2 ring-offset-1 ring-ink' : ''} ${
                                 editMode && editable && !isSelected ? 'ring-1 ring-ink/30' : ''} ${selectMode && unpaid && !isSelected ? 'ring-1 ring-ink/30' : ''} ${
                                 editMode && !editable && status !== 'future' ? 'opacity-60' : ''}`}
                         >
-                            <span className="text-[11px] font-bold uppercase">{name}</span>
-                            <span className="text-[9px] opacity-90 mt-0.5">{LABELS[status]}</span>
+                            <span className="text-xs md:text-[11px] font-bold uppercase">{name}</span>
+                            <span className="text-[10px] md:text-[9px] opacity-90 mt-0.5">{LABELS[status]}</span>
                             {isSelected && <Check className="w-3 h-3 absolute top-0.5 right-0.5" />}
                             {editMode && m.locked && <Lock className="w-2.5 h-2.5 absolute top-0.5 right-0.5 opacity-80" />}
                         </button>
