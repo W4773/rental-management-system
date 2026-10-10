@@ -31,6 +31,7 @@ const inflight = {}
 const dirty = {}
 const channels = {}
 const started = {}
+const live = {} // realtime channel connected: while true, changes arrive by themselves
 const persistTimers = {}
 let userKey = null
 
@@ -170,6 +171,7 @@ function startRealtime(name) {
             refreshTable(name)
         })
         .subscribe((status) => {
+            live[name] = status === 'SUBSCRIBED'
             if (status === 'SUBSCRIBED') {
                 // After a reconnection we may have missed events
                 if (everSubscribed) refreshTable(name)
@@ -217,6 +219,7 @@ export async function resetStore() {
         clearTimeout(persistTimers[name])
         try { channels[name]?.unsubscribe() } catch { /* ignore */ }
         channels[name] = null
+        live[name] = false
         started[name] = false
         inflight[name] = null
         setState(name, initial())
@@ -228,8 +231,17 @@ export async function resetStore() {
 }
 
 if (typeof window !== 'undefined') {
-    // Back online, or back to the tab: revalidate (cheap: one request per table, folded together)
-    const revalidate = () => { for (const name of Object.keys(TABLES)) if (started[name]) refreshTable(name) }
-    window.addEventListener(NETWORK_RESTORED, revalidate)
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') revalidate() })
+    // Back online: events may have been missed, so re-download. Back to the tab: with the realtime channel
+    // connected the copy is already current, so only re-download when it is not or the data is old.
+    const STALE_MS = 5 * 60 * 1000
+    const revalidate = (onlyIfStale) => () => {
+        for (const name of Object.keys(TABLES)) {
+            if (!started[name]) continue
+            const fresh = live[name] && states[name].fetchedAt && Date.now() - states[name].fetchedAt < STALE_MS
+            if (onlyIfStale && fresh) continue
+            refreshTable(name)
+        }
+    }
+    window.addEventListener(NETWORK_RESTORED, revalidate(false))
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') revalidate(true)() })
 }
