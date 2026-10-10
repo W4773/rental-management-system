@@ -3,12 +3,14 @@ import ErrorBoundary from '../Common/ErrorBoundary'
 import { AppProvider } from '../../contexts/AppContext'
 import Header from './Header'
 import NetworkBanner from '../Common/NetworkBanner'
+import StartupGate from '../Common/StartupGate'
 
 export default function AppLayout() {
     const location = useLocation()
     return (
         <ErrorBoundary>
         <AppProvider>
+            <StartupGate />
             <div className="min-h-screen bg-[#faf7f2] flex flex-col">
                 <Header />
                 <NetworkBanner />
@@ -16,7 +18,7 @@ export default function AppLayout() {
                     <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
                 </main>
                 <footer className="text-center text-[11px] text-gray-400 py-3">
-                    &copy; {new Date().getFullYear()} Alquiler Pro · Desarrollado por Optimard · v1.12.2
+                    &copy; {new Date().getFullYear()} Alquiler Pro · Desarrollado por Optimard · v1.12.3
                 </footer>
             </div>
         </AppProvider>

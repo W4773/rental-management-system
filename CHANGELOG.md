@@ -5,6 +5,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.12.3] - 2026-10-10
+
+### Cambiado
+- **Pantalla de carga al abrir la app**: en lugar de mostrar de inmediato una pantalla que aún no responde, se muestra una pantalla de carga con el logo hasta que los datos están cargados **y** la pantalla terminó de dibujarse; al desaparecer, todo responde al primer clic (en pruebas con ~2,100 pagos y un equipo lento simulado: 0 ms de bloqueo después de la pantalla de carga). Si la conexión es muy lenta (más de 12 s) se avisa y se ofrece "Entrar de todos modos".
+
+### Diagnóstico
+- `supabase/diagnostics/rent_payments_internals.sql` (solo lectura): triggers, reglas, políticas, restricciones y tareas programadas de `rent_payments`, para encontrar qué elimina las filas "pendiente" justo después de guardarlas (evidencia: la base responde la fila al guardar y al releer ya no existe).
+
 ## [1.12.2] - 2026-10-10
 
 ### Mejorado
