@@ -36,7 +36,18 @@ let userKey = null
 
 for (const name of Object.keys(TABLES)) { states[name] = initial(); listeners[name] = new Set() }
 
-const emit = (name) => listeners[name].forEach(l => l())
+// Several tables usually change within a few milliseconds (cache + network answers): tell the screen once
+const dirtyTables = new Set()
+let emitTimer = null
+const emit = (name) => {
+    dirtyTables.add(name)
+    if (emitTimer) return
+    emitTimer = setTimeout(() => {
+        emitTimer = null
+        const names = [...dirtyTables]; dirtyTables.clear()
+        for (const n of names) listeners[n].forEach(l => l()) // same tick: React folds them into one render
+    }, 30)
+}
 const setState = (name, patch) => { states[name] = { ...states[name], ...patch }; emit(name) }
 
 async function currentUserKey() {
