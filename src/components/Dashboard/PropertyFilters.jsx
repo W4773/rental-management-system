@@ -13,7 +13,7 @@ export default function PropertyFilters({ filters, buildings, compact = false })
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Buscar inquilino o propiedad..."
                     aria-label="Buscar inquilino o propiedad"
-                    className="w-full pl-8 pr-8 py-1.5 text-[13px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    className="w-full pl-8 pr-8 max-md:pr-12 py-1.5 text-[13px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
                 />
                 {query && (
                     <button onClick={() => setQuery('')} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">

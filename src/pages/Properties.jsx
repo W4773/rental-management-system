@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Building2, ChevronLeft } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
@@ -26,7 +26,17 @@ export default function Properties() {
         }
     }, [isMobile, loading, selected, properties])
 
-    const select = (property) => setParams({ p: property.id }, { state: { fromList: true } })
+    // Phone: the list scrolls with the page, so remember where it was and show each view from the right place.
+    const listScroll = useRef(0)
+    useEffect(() => {
+        if (!isMobile) return
+        window.scrollTo(0, selected ? 0 : listScroll.current)
+    }, [isMobile, selected?.id])
+
+    const select = (property) => {
+        listScroll.current = window.scrollY
+        setParams({ p: property.id }, { state: { fromList: true } })
+    }
     // Came from the list in this session -> go back in history; opened by direct link -> just clear the id.
     const backToList = () => (location.state?.fromList ? navigate(-1) : setParams({}, { replace: true }))
 
@@ -62,7 +72,7 @@ export default function Properties() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
                 {showList && (
-                    <aside className="lg:col-span-4 xl:col-span-3 bg-white rounded-xl border border-brand-100 shadow-sm overflow-hidden lg:sticky lg:top-14">
+                    <aside className="lg:col-span-4 xl:col-span-3 bg-white rounded-xl border border-brand-100 shadow-sm md:overflow-hidden max-md:overflow-clip lg:sticky lg:top-14">
                         <div className="p-2 border-b border-gray-100">
                             <PropertyFilters filters={filters} buildings={buildings} compact />
                         </div>

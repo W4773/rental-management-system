@@ -113,7 +113,7 @@ export default function Buildings() {
                                     <MapPin className="w-3 h-3 shrink-0" />{building.address || 'Sin dirección'}
                                 </p>
                             </Link>
-                            <div className="flex items-center gap-2 max-md:w-full max-md:justify-end">
+                            <div className="flex items-start gap-3 max-md:items-center max-md:gap-2 max-md:w-full max-md:justify-end">
                             <Link to={`/edificios/${building.id}`} aria-label={`Ver ${building.name}`} title="Ver detalle"
                                 className="flex items-center gap-0.5 px-2 py-1.5 rounded-md border border-brand-200 text-brand-700 text-xs font-semibold hover:bg-brand-50 max-md:min-h-[44px] max-md:justify-center">
                                 Ver <ChevronRight className="w-3.5 h-3.5" />

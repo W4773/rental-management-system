@@ -57,7 +57,7 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-                <section className="lg:col-span-3 bg-white rounded-xl border border-brand-100 shadow-sm overflow-hidden">
+                <section className="lg:col-span-3 bg-white rounded-xl border border-brand-100 shadow-sm md:overflow-hidden max-md:overflow-clip">
                     <header className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
                         <h2 className="flex items-center gap-1.5 text-sm font-bold"><Building2 className="w-4 h-4 text-brand-600" />Propiedades activas</h2>
                         <span className="text-xs text-gray-500">{filters.filtered.length} de {properties.length}</span>
