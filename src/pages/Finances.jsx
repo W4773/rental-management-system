@@ -21,6 +21,13 @@ const Card = ({ title, subtitle, children, className = '' }) => (
     </section>
 )
 
+const Stat = ({ label, value, className = '' }) => (
+    <div className="min-w-0">
+        <dt className="text-[9px] font-bold uppercase tracking-wide text-gray-500">{label}</dt>
+        <dd className={`text-[13px] font-semibold break-words ${className}`}>{value}</dd>
+    </div>
+)
+
 const propertyLink = (property) => property ? `/propiedades?p=${property.id}` : null
 const tenantLink = (row) => row.active && row.property
     ? propertyLink(row.property)
@@ -169,7 +176,7 @@ export default function Finances() {
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <Card title="Resumen por edificio" className="xl:col-span-2" subtitle={`Año ${year}`}>
-                    <div className="overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-[12px]">
                             <thead className="text-[10px] uppercase tracking-wide text-gray-500">
                                 <tr className="text-right"><th className="text-left py-1.5">Edificio</th><th>Unid.</th><th>Ocup.</th><th>Cobrado</th><th>Esperado</th><th>Tasa</th><th>Pendiente</th><th>Pend./Atras.</th></tr>
@@ -191,6 +198,39 @@ export default function Finances() {
                             </tfoot>
                         </table>
                     </div>
+                    <ul className="md:hidden space-y-2">
+                        {data.buildingRows.map(b => (
+                            <li key={b.id} className="rounded-lg border border-gray-100 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="font-semibold text-[13px] min-w-0 break-words">
+                                        {b.building ? <Link to={`/edificios/${b.id}`} className="hover:text-brand-700">{b.building.name}</Link> : 'Sin edificio'}
+                                    </p>
+                                    <span className="text-[11px] text-gray-500 shrink-0">{b.units} unid. · {b.occupied}/{b.units} ocup.</span>
+                                </div>
+                                <dl className="grid grid-cols-3 gap-2 mt-2">
+                                    <Stat label="Cobrado" value={formatCurrency(b.collected)} />
+                                    <Stat label="Esperado" value={formatCurrency(b.expected)} />
+                                    <Stat label="Tasa" value={b.rate === null ? '—' : `${b.rate}%`} />
+                                </dl>
+                                <div className="flex items-center justify-between gap-2 mt-2 text-xs">
+                                    <span className={b.owed > 0 ? 'font-bold text-red-600' : 'text-gray-400'}>Pendiente {formatCurrency(b.owed)}</span>
+                                    <span><span className="text-yellow-600 font-semibold">{b.pendingCount}</span> pend. / <span className="text-red-600 font-semibold">{b.lateCount}</span> atras.</span>
+                                </div>
+                            </li>
+                        ))}
+                        <li className="rounded-lg bg-brand-50 p-3">
+                            <p className="text-xs font-bold mb-1">Total · {properties.length} unidades</p>
+                            <dl className="grid grid-cols-3 gap-2">
+                                <Stat label="Cobrado" value={formatCurrency(totals.collected)} />
+                                <Stat label="Esperado" value={formatCurrency(totals.expected)} />
+                                <Stat label="Tasa" value={totals.rate === null ? '—' : `${totals.rate}%`} />
+                            </dl>
+                            <p className="mt-2 text-xs">
+                                <span className="font-bold text-red-600">Pendiente {formatCurrency(totals.owed)}</span>
+                                {' · '}{totals.pendingCount} pend. / {totals.lateCount} atras.
+                            </p>
+                        </li>
+                    </ul>
                 </Card>
                 <Card title="Cobrado por año" subtitle="Histórico de todos los años con pagos.">
                     <YearBars rows={data.yearly} color={GOLD} />
@@ -211,7 +251,26 @@ export default function Finances() {
                         <Download className="w-3.5 h-3.5" /> Exportar CSV
                     </button>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="md:hidden flex items-center gap-2 mb-2">
+                    <label htmlFor="orden-inquilinos" className="text-xs text-gray-600 shrink-0">Ordenar por</label>
+                    <select id="orden-inquilinos" value={sort.key}
+                        onChange={(e) => setSort({ key: e.target.value, dir: e.target.value === 'name' || e.target.value === 'building' ? 'asc' : 'desc' })}
+                        className="flex-1 min-w-0 px-2 text-sm border border-gray-200 rounded-lg bg-white">
+                        <option value="owed">Pendiente</option>
+                        <option value="name">Inquilino</option>
+                        <option value="building">Propiedad</option>
+                        <option value="collected">Cobrado</option>
+                        <option value="expected">Esperado</option>
+                        <option value="rate">Tasa</option>
+                        <option value="months">Meses deb.</option>
+                    </select>
+                    <button type="button" onClick={() => setSort(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))}
+                        aria-label={`Orden ${sort.dir === 'asc' ? 'ascendente' : 'descendente'}; tocar para invertir`}
+                        className="flex items-center justify-center rounded-lg border border-gray-200 text-gray-600">
+                        <ArrowUpDown className="w-4 h-4" />
+                    </button>
+                </div>
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-[12px]">
                         <thead className="text-[10px] text-gray-500">
                             <tr className="text-right">
@@ -245,6 +304,40 @@ export default function Finances() {
                         </tbody>
                     </table>
                 </div>
+                <ul className="md:hidden space-y-2">
+                    {tenantRows.length === 0 && <li className="p-6 text-center text-sm text-gray-500">No hay inquilinos que coincidan.</li>}
+                    {tenantRows.map(r => (
+                        <li key={r.tenant.id} className="rounded-lg border border-gray-100 p-3">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                    <p className="font-medium uppercase leading-tight break-words">
+                                        <A to={tenantLink(r)}>{r.tenant.name}</A>
+                                        {!r.active && <span className="ml-1.5 text-[9px] font-bold normal-case bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">Antiguo</span>}
+                                    </p>
+                                    <p className="text-xs text-gray-500 break-words">
+                                        <A to={propertyLink(r.property)}>{r.property?.name}</A>
+                                        {r.building && <> · <A to={`/edificios/${r.building.id}`}>{r.building.name}</A></>}
+                                    </p>
+                                </div>
+                                {r.active && r.monthsOwed > 0 && (
+                                    <button type="button" onClick={() => generateLetter(r.property, r.tenant)} aria-label={`Carta de cobro ${r.tenant.name}`}
+                                        className="flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 shrink-0"><Mail className="w-4 h-4" /></button>
+                                )}
+                            </div>
+                            <dl className="grid grid-cols-3 gap-2 mt-2">
+                                <Stat label="Cobrado" value={formatCurrency(r.collected)} />
+                                <Stat label="Esperado" value={formatCurrency(r.expected)} />
+                                <Stat label="Tasa" value={r.rate === null ? '—' : `${r.rate}%`} />
+                            </dl>
+                            <div className="flex items-center justify-between gap-2 mt-2 text-xs">
+                                <span className={r.owed > 0 ? 'font-bold text-red-600' : 'text-gray-400'}>
+                                    {r.active ? `Pendiente ${formatCurrency(r.owed)} · ${r.monthsOwed} mes(es)` : 'Sin pendiente'}
+                                </span>
+                                {r.status && <StatusPill status={r.status} align="right" />}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             </Card>
         </div>
     )
