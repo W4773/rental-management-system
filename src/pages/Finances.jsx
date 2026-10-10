@@ -24,7 +24,7 @@ const Card = ({ title, subtitle, children, className = '' }) => (
 const Stat = ({ label, value, className = '' }) => (
     <div className="min-w-0">
         <dt className="text-[9px] font-bold uppercase tracking-wide text-gray-500">{label}</dt>
-        <dd className={`text-[13px] font-semibold break-words ${className}`}>{value}</dd>
+        <dd className={`text-xs font-semibold whitespace-nowrap ${className}`}>{value}</dd>
     </div>
 )
 
@@ -207,7 +207,7 @@ export default function Finances() {
                                     </p>
                                     <span className="text-[11px] text-gray-500 shrink-0">{b.units} unid. · {b.occupied}/{b.units} ocup.</span>
                                 </div>
-                                <dl className="grid grid-cols-3 gap-2 mt-2">
+                                <dl className="grid grid-cols-[1fr_1fr_auto] gap-x-3 gap-y-1 mt-2">
                                     <Stat label="Cobrado" value={formatCurrency(b.collected)} />
                                     <Stat label="Esperado" value={formatCurrency(b.expected)} />
                                     <Stat label="Tasa" value={b.rate === null ? '—' : `${b.rate}%`} />
@@ -220,7 +220,7 @@ export default function Finances() {
                         ))}
                         <li className="rounded-lg bg-brand-50 p-3">
                             <p className="text-xs font-bold mb-1">Total · {properties.length} unidades</p>
-                            <dl className="grid grid-cols-3 gap-2">
+                            <dl className="grid grid-cols-[1fr_1fr_auto] gap-x-3 gap-y-1">
                                 <Stat label="Cobrado" value={formatCurrency(totals.collected)} />
                                 <Stat label="Esperado" value={formatCurrency(totals.expected)} />
                                 <Stat label="Tasa" value={totals.rate === null ? '—' : `${totals.rate}%`} />
@@ -324,7 +324,7 @@ export default function Finances() {
                                         className="flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 shrink-0"><Mail className="w-4 h-4" /></button>
                                 )}
                             </div>
-                            <dl className="grid grid-cols-3 gap-2 mt-2">
+                            <dl className="grid grid-cols-[1fr_1fr_auto] gap-x-3 gap-y-1 mt-2">
                                 <Stat label="Cobrado" value={formatCurrency(r.collected)} />
                                 <Stat label="Esperado" value={formatCurrency(r.expected)} />
                                 <Stat label="Tasa" value={r.rate === null ? '—' : `${r.rate}%`} />

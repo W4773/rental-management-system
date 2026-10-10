@@ -129,7 +129,7 @@ export default function Buildings() {
                             {[['Unidades', total], ['Ocupadas', `${occupied}/${total}`], ['Renta mensual', formatCurrency(rent)], ['Pendientes', pending], ['Atrasadas', late]].map(([label, value]) => (
                                 <div key={label} className="rounded-lg px-1 py-1.5" style={{ background: colors[building.id].soft }}>
                                     <dt className="text-[9px] font-bold uppercase tracking-wide text-gray-500">{label}</dt>
-                                    <dd className={`text-[13px] font-bold leading-tight ${label === 'Atrasadas' && late > 0 ? 'text-red-600' : label === 'Pendientes' && pending > 0 ? 'text-yellow-600' : 'text-ink'}`}>{value}</dd>
+                                    <dd className={`text-[13px] max-md:text-xs font-bold leading-tight ${label === 'Atrasadas' && late > 0 ? 'text-red-600' : label === 'Pendientes' && pending > 0 ? 'text-yellow-600' : 'text-ink'}`}>{value}</dd>
                                 </div>
                             ))}
                         </dl>
