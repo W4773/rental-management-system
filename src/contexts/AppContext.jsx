@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useProperties } from '../hooks/useProperties'
 import { useTenants } from '../hooks/useTenants'
@@ -21,6 +22,7 @@ import RegisterPaymentModal from '../components/Modals/RegisterPaymentModal'
 import RegisterUtilityModal from '../components/Modals/RegisterUtilityModal'
 import PayGasModal from '../components/Modals/PayGasModal'
 import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
+import SendLetterPrompt from '../components/Modals/SendLetterPrompt'
 import ReportModal from '../components/Modals/ReportModal'
 import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
@@ -53,6 +55,7 @@ export function AppProvider({ children }) {
     // Every PDF reads the name to show (header, owner, signature, watermark) from settings.display_name
     const settings = useMemo(() => ({ ...(rawSettings || {}), display_name: resolveDisplayName(rawSettings, user, { ownerEmail: teamOwner?.email, size: members.length }) }), [rawSettings, user, members, teamOwner])
     const toastApi = useToast()
+    const navigate = useNavigate()
 
     const { properties } = propsHook
     const { tenants } = tenantsHook
@@ -86,6 +89,7 @@ export function AppProvider({ children }) {
     const [reportModal, setReportModal] = useState({ open: false, initial: null })
     const [receipt, setReceipt] = useState(null)
     const [alertsOpen, setAlertsOpen] = useState(false)
+    const [letterToSend, setLetterToSend] = useState(null)
 
     // Our own writes already update the shared copy of each table, so by default only the activity log is
     // reloaded; pass { all: true } (or table names) to re-download data that changed on the server side.
@@ -138,9 +142,12 @@ export function AppProvider({ children }) {
             const { generateCollectionLetter, letterFileName } = await import('../lib/letterTemplate')
             const building = buildings.find(b => b.id === property.building_id) || null
             const doc = await generateCollectionLetter({ property, tenant, building, status, payments, userSettings: settings || {}, letter: settings?.letter_settings })
-            doc.save(letterFileName(tenant))
+            const fileName = letterFileName(tenant)
+            doc.save(fileName)
+            const file = new File([doc.output('blob')], fileName, { type: 'application/pdf' })
             logActivity({ action: 'document.letter', entityType: 'document', entityId: tenant.id, meta: { name: tenant.name, property_id: property.id, months: status.monthsOwed } })
             toastApi.success(`Carta de cobro generada para ${tenant.name}`)
+            setLetterToSend({ file, tenant, property, status })
         } catch (err) {
             console.error('Error generating letter:', err)
             toastApi.error('No se pudo generar la carta: ' + err.message)
@@ -206,6 +213,7 @@ export function AppProvider({ children }) {
                     setReceipt(result) // optional receipt: the user decides in the pop-up
                 }}
             />
+            <SendLetterPrompt data={letterToSend} toast={toastApi} onClose={() => setLetterToSend(null)} />
             <PrintReceiptPrompt data={receipt} settings={settings} onClose={() => setReceipt(null)} />
 
             <RegisterPropertyModal
@@ -252,6 +260,10 @@ export function AppProvider({ children }) {
                 onClose={() => setAlertsOpen(false)}
                 overdue={alerts.overdue}
                 upcoming={alerts.upcoming}
+                onOpenProperty={(propertyId) => {
+                    setAlertsOpen(false)
+                    navigate(`/propiedades?p=${propertyId}`)
+                }}
                 onPayClick={(alert) => {
                     setAlertsOpen(false)
                     setPaymentModal({ open: true, initial: { propertyId: alert.propertyId, months: [alert.dueMonth] } })
