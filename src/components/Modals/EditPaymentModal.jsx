@@ -87,7 +87,7 @@ export default function EditPaymentModal({ isOpen, payment, property, onClose })
                     <option value="cash">Efectivo</option>
                     <option value="check">Cheque</option>
                 </FormInput>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FormInput label="Referencia" name="reference" value={form.reference} onChange={handleChange} />
                     <FormInput label="Notas" name="notes" value={form.notes} onChange={handleChange} />
                 </div>

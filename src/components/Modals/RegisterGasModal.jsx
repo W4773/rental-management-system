@@ -169,7 +169,7 @@ export default function RegisterGasModal({ isOpen, onClose, onSuccess }) {
 
                 {error && <div className="p-3 bg-red-100 text-red-700 rounded text-sm border border-red-200">{error}</div>}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Lectura Anterior</label>
                         <div className="px-3 py-2 bg-gray-100 rounded text-gray-600 text-sm">
@@ -224,7 +224,7 @@ export default function RegisterGasModal({ isOpen, onClose, onSuccess }) {
 
                 <FormInput label="Notas" name="notes" value={formData.notes} onChange={handleChange} />
 
-                <div className="flex justify-end gap-2 mt-6">
+                <div className="flex justify-end gap-2 mt-6 sheet-actions">
                     <Button variant="secondary" onClick={onClose} type="button">Cancelar</Button>
                     <Button variant="primary" type="submit" disabled={loading || !!error}>
                         {loading ? 'Registrando...' : 'Registrar Lectura'}

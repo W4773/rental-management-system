@@ -250,7 +250,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title={propertyToEdit ? "Editar Propiedad" : "Registrar Nueva Propiedad"} size="xl">
             <form onSubmit={handleSubmit} className="flex flex-col h-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8 flex-1">
                     {/* Left Column: Identificación y Detalles Físicos */}
                     <div className="space-y-4">
                         <div>
@@ -303,7 +303,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                         <div>
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b pb-2 mb-3 pt-2">Detalles físicos</p>
                             <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <FormInput
                                         label="Tipo de propiedad"
                                         name="property_type"
@@ -525,7 +525,7 @@ export default function RegisterPropertyModal({ isOpen, onClose, onSuccess, prop
                     </div>
                 )}
 
-                <div className="flex gap-3 justify-end pt-6 mt-4 border-t border-gray-100">
+                <div className="flex gap-3 justify-end pt-6 mt-4 border-t border-gray-100 sheet-actions">
                     <Button type="button" variant="secondary" onClick={handleClose}>
                         Cancelar
                     </Button>

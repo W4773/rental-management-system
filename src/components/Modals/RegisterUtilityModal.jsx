@@ -154,7 +154,7 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
                     max={new Date().toISOString().split('T')[0]}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                     <FormInput
                         label={`Lectura Anterior (${config.unit})`}
@@ -223,7 +223,7 @@ export default function RegisterUtilityModal({ isOpen, utilityType, onClose, onS
                     </div>
                 )}
 
-                <div className="flex gap-3 justify-end mt-6">
+                <div className="flex gap-3 justify-end mt-6 sheet-actions">
                     <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>Cancelar</Button>
                     <Button type="submit" variant="primary" disabled={loading}>
                         {loading ? 'Guardando...' : 'Registrar Lectura'}
