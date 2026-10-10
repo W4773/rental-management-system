@@ -62,12 +62,12 @@ export default function Settings() {
                 <h1 className="text-xl font-bold text-ink mb-4">Configuración</h1>
 
                 {/* Tabs */}
-                <div className="flex gap-2 border-b-2 border-gray-200 mb-6">
+                <div className="flex gap-1 md:gap-2 overflow-x-auto scrollbar-none border-b-2 border-gray-200 mb-4 md:mb-6">
                     {TABS.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`px-5 py-3 font-semibold text-[18px] border-b-4 transition ${
+                            className={`px-3 md:px-5 py-3 font-semibold text-base md:text-[18px] whitespace-nowrap shrink-0 border-b-4 transition ${
                                 activeTab === tab.id
                                     ? 'border-brand-500 text-brand-700'
                                     : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -79,7 +79,7 @@ export default function Settings() {
                     ))}
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-8">
+                <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4 md:p-8">
                     {activeTab === 'account' && (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <h3 className="text-[20px] font-bold text-gray-900 mb-2">Datos de la Cuenta</h3>
@@ -136,7 +136,7 @@ export default function Settings() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700 transition disabled:opacity-50 text-[18px]"
+                                    className="bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700 transition disabled:opacity-50 text-[18px] max-md:w-full"
                                     style={{ minHeight: '48px' }}
                                 >
                                     {loading ? 'Guardando...' : 'Guardar Cambios'}

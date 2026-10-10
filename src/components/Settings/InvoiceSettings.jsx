@@ -71,7 +71,7 @@ export default function InvoiceSettings({ showToast }) {
             </p>
 
             <form onSubmit={handleSave} className="space-y-5">
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
                         <label className="accessible-label">Nombre del Arrendador</label>
                         <input
@@ -94,7 +94,7 @@ export default function InvoiceSettings({ showToast }) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
                         <label className="accessible-label">Teléfono</label>
                         <input

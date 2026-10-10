@@ -42,7 +42,7 @@ export default function Login() {
     }
 
     return (
-        <div className="login-page min-h-screen flex items-center justify-center p-4 relative">
+        <div className="login-page min-h-[100dvh] flex items-center justify-center p-4 relative">
             {/* Animated gradient background */}
             <div className="login-background"></div>
 
