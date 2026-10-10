@@ -41,11 +41,12 @@ export default function Header() {
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-brand-200">
             <div className="max-w-[1500px] mx-auto px-3 sm:px-5 h-12 flex items-center gap-3">
                 <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Alquiler Pro - ir al inicio">
-                    <img src="/logo-symbol.svg" alt="" className="h-7 w-7 sm:hidden" />
-                    <img src="/logo.svg" alt="Alquiler Pro" className="hidden sm:block h-8 w-auto" />
+                    <img src="/logo-symbol.svg" alt="" className="h-7 w-7 md:hidden" />
+                    <img src="/logo.svg" alt="Alquiler Pro" className="hidden md:block h-8 w-auto" />
                 </Link>
 
-                <nav className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
+                <div className="flex-1 md:hidden" />
+                <nav className="hidden md:flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
                     {TABS.map(({ to, label, icon: Icon, end }) => (
                         <NavLink
                             key={to}
@@ -75,11 +76,11 @@ export default function Header() {
                     </button>
 
                     <Link to="/settings" aria-label="Configuración"
-                        className="w-8 h-8 rounded-lg border border-gray-200 hidden sm:flex items-center justify-center hover:bg-gray-50">
+                        className="w-8 h-8 rounded-lg border border-gray-200 hidden md:flex items-center justify-center hover:bg-gray-50">
                         <Settings className="w-4 h-4 text-gray-600" />
                     </Link>
 
-                    <div className="relative" ref={menuRef}>
+                    <div className="relative hidden md:block" ref={menuRef}>
                         <button onClick={() => setMenuOpen(o => !o)} aria-label="Cuenta"
                             className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-white text-sm font-bold">
                             {initial}
