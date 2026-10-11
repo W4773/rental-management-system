@@ -9,16 +9,18 @@ function formatDiff(diffDays, isOverdue) {
     return `Vence en ${diffDays} días`
 }
 
-function AlertItem({ alert, isOverdue, onPayClick }) {
+const linkStyle = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', color: 'inherit', textAlign: 'left' }
+
+function AlertItem({ alert, isOverdue, onPayClick, onOpenProperty }) {
     return (
         <div style={{ padding: '10px 16px', borderBottom: '1px solid #f5f0e8', display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--wp-text)' }}>{alert.tenantName}</span>
+                <button type="button" onClick={() => onOpenProperty?.(alert.propertyId)} title="Ver propiedad" style={{ ...linkStyle, fontSize: 12, fontWeight: 700, color: 'var(--wp-text)', textDecoration: 'underline dotted' }}>{alert.tenantName}</button>
                 <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--wp-gold)' }}>
                     RD${Number(alert.amount).toLocaleString('es-DO')}
                 </span>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--wp-text-muted)' }}>{alert.propertyName}</div>
+            <button type="button" onClick={() => onOpenProperty?.(alert.propertyId)} title="Ver propiedad" style={{ ...linkStyle, fontSize: 11, color: 'var(--wp-text-muted)', textDecoration: 'underline dotted' }}>{alert.propertyName}</button>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
                 <span className={isOverdue ? 'wp-badge-red' : 'wp-badge-amber'}>
                     {formatDiff(alert.diffDays, isOverdue)}
@@ -35,7 +37,7 @@ function AlertItem({ alert, isOverdue, onPayClick }) {
     )
 }
 
-export default function AlertDrawer({ isOpen, onClose, overdue = [], upcoming = [], onPayClick }) {
+export default function AlertDrawer({ isOpen, onClose, overdue = [], upcoming = [], onPayClick, onOpenProperty }) {
     const drawerRef = useRef(null)
     const total = overdue.length + upcoming.length
     const isMobile = useIsMobile()
@@ -103,7 +105,7 @@ export default function AlertDrawer({ isOpen, onClose, overdue = [], upcoming = 
                                 <div style={{ padding: '10px 16px 4px', fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--wp-red)' }}>
                                     ● Vencidos ({overdue.length})
                                 </div>
-                                {overdue.map(a => <AlertItem key={a.id} alert={a} isOverdue onPayClick={onPayClick} />)}
+                                {overdue.map(a => <AlertItem key={a.id} alert={a} isOverdue onPayClick={onPayClick} onOpenProperty={onOpenProperty} />)}
                             </>
                         )}
                         {upcoming.length > 0 && (
@@ -111,7 +113,7 @@ export default function AlertDrawer({ isOpen, onClose, overdue = [], upcoming = 
                                 <div style={{ padding: '10px 16px 4px', fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#b45309' }}>
                                     ◌ Próximos 7 días ({upcoming.length})
                                 </div>
-                                {upcoming.map(a => <AlertItem key={a.id} alert={a} isOverdue={false} onPayClick={onPayClick} />)}
+                                {upcoming.map(a => <AlertItem key={a.id} alert={a} isOverdue={false} onPayClick={onPayClick} onOpenProperty={onOpenProperty} />)}
                             </>
                         )}
                     </div>

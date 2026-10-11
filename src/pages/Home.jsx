@@ -76,7 +76,8 @@ export default function Home() {
 
                 <div className="lg:col-span-2">
                     <ActivityLog entries={activity} available={activityAvailable} properties={properties}
-                        tenants={tenants} buildings={buildings} payments={payments} />
+                        tenants={tenants} buildings={buildings} payments={payments}
+                        onSelectProperty={(id) => navigate(`/propiedades?p=${id}`)} />
                 </div>
             </div>
         </div>

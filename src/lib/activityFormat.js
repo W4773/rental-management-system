@@ -15,7 +15,7 @@ const monthsText = (months = []) => {
  * exists and fall back to the snapshot stored in `meta`.
  * Returns { kind: 'payment'|'property'|'tenant'|'building'|'utility'|'team'|'document', tone: 'create'|'update'|'delete', title, subtitle }.
  */
-export function describeActivity(entry, { properties = [], tenants = [], buildings = [] }) {
+function describe(entry, { properties = [], tenants = [], buildings = [] }) {
     const meta = entry.meta || {}
     const property = properties.find(p => p.id === meta.property_id)
     const tenant = tenants.find(t => t.id === meta.tenant_id)
@@ -77,4 +77,13 @@ export function describeActivity(entry, { properties = [], tenants = [], buildin
         default:
             return { kind: 'document', tone: 'update', title: entry.action, subtitle: '' }
     }
+}
+
+/** describe() plus `propertyId` (only when that property still exists) so the log row can link to it. */
+export function describeActivity(entry, context) {
+    const { properties = [], tenants = [] } = context
+    const meta = entry.meta || {}
+    const candidates = [meta.property_id, entry.entity_type === 'property' ? entry.entity_id : null, tenants.find(t => t.id === meta.tenant_id)?.property_id]
+    const propertyId = candidates.find(id => id && properties.some(p => p.id === id)) || null
+    return { ...describe(entry, context), propertyId }
 }

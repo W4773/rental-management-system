@@ -25,7 +25,7 @@ const when = (iso) => {
  * "Registro de actividad": latest actions with who and when.
  * Before migration 004 is applied (`available` false) it falls back to the recent payments.
  */
-export default function ActivityLog({ entries, available, properties, tenants, buildings, payments }) {
+export default function ActivityLog({ entries, available, properties, tenants, buildings, payments, onSelectProperty }) {
     const context = { properties, tenants, buildings }
     const [open, setOpen] = useState(false) // phone: folded by default
 
@@ -34,7 +34,7 @@ export default function ActivityLog({ entries, available, properties, tenants, b
         items = entries.map(e => {
             const d = describeActivity(e, context)
             const Icon = e.meta?.type && UTILITY_ICONS[e.meta.type] && d.kind === 'utility' ? UTILITY_ICONS[e.meta.type] : ICONS[d.kind]
-            return { id: e.id, Icon, tone: d.tone, title: d.title, subtitle: d.subtitle, by: e.actor_email, at: e.created_at }
+            return { id: e.id, Icon, tone: d.tone, title: d.title, subtitle: d.subtitle, propertyId: d.propertyId, by: e.actor_email, at: e.created_at }
         })
     } else {
         items = [...payments]
@@ -44,7 +44,7 @@ export default function ActivityLog({ entries, available, properties, tenants, b
             .map(p => {
                 const t = tenants.find(x => x.id === p.tenant_id)
                 const prop = properties.find(x => x.id === p.property_id)
-                return { id: p.id, Icon: Wallet, tone: 'create', title: 'Pago registrado', subtitle: [t?.name, prop?.name, formatCurrency(p.amount_paid)].filter(Boolean).join(' · '), by: null, at: p.created_at || `${p.payment_date}T12:00:00` }
+                return { id: p.id, Icon: Wallet, tone: 'create', title: 'Pago registrado', subtitle: [t?.name, prop?.name, formatCurrency(p.amount_paid)].filter(Boolean).join(' · '), propertyId: prop?.id, by: null, at: p.created_at || `${p.payment_date}T12:00:00` }
             })
     }
 
@@ -66,14 +66,23 @@ export default function ActivityLog({ entries, available, properties, tenants, b
                 <p className={`p-6 text-center text-sm text-gray-500 ${open ? '' : 'max-md:hidden'}`}>Aún no hay actividad registrada.</p>
             ) : (
                 <ul className={`divide-y divide-gray-100 max-md:max-h-[70dvh] md:max-h-[calc(100vh-330px)] md:min-h-[260px] overflow-y-auto ${open ? '' : 'max-md:hidden'}`}>
-                    {items.map(({ id, Icon, tone, title, subtitle, by, at }) => (
-                        <li key={id} className="flex items-start gap-2 px-3 py-2">
-                            <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${TONE[tone]}`}><Icon className="w-3.5 h-3.5" /></span>
-                            <div className="min-w-0 flex-1 leading-tight">
-                                <p className="text-[13px] font-semibold truncate">{title}</p>
-                                {subtitle && <p className="text-[11px] text-gray-600 truncate">{subtitle}</p>}
-                                <p className="text-[10px] text-gray-400 mt-0.5 truncate">{[by, when(at)].filter(Boolean).join(' · ')}</p>
-                            </div>
+                    {items.map(({ id, Icon, tone, title, subtitle, propertyId, by, at }) => (
+                        <li key={id}>
+                            {(() => {
+                                const body = (
+                                    <>
+                                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${TONE[tone]}`}><Icon className="w-3.5 h-3.5" /></span>
+                                        <div className="min-w-0 flex-1 leading-tight">
+                                            <p className="text-[13px] font-semibold truncate">{title}</p>
+                                            {subtitle && <p className="text-[11px] text-gray-600 truncate">{subtitle}</p>}
+                                            <p className="text-[10px] text-gray-400 mt-0.5 truncate">{[by, when(at)].filter(Boolean).join(' · ')}</p>
+                                        </div>
+                                    </>
+                                )
+                                return propertyId && onSelectProperty
+                                    ? <button type="button" onClick={() => onSelectProperty(propertyId)} title="Ver propiedad" className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-brand-50/60">{body}</button>
+                                    : <div className="flex items-start gap-2 px-3 py-2">{body}</div>
+                            })()}
                         </li>
                     ))}
                 </ul>
