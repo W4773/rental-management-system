@@ -6,8 +6,8 @@ import { canShareFile, letterMessage, openWhatsAppChat, shareLetterFile, whatsap
 /** Shown after a collection letter is generated: offers to send it to the tenant through WhatsApp. */
 export default function SendLetterPrompt({ data, toast, onClose }) {
     if (!data) return null
-    const { file, tenant, property, status } = data
-    const text = letterMessage({ tenant, property, status })
+    const { file, tenant, property, status, increase } = data
+    const text = letterMessage({ tenant, property, status, increase })
     const number = whatsappNumber(tenant?.phone)
     const viaShare = canShareFile(file)
 
