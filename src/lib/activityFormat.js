@@ -74,6 +74,8 @@ function describe(entry, { properties = [], tenants = [], buildings = [] }) {
             return { kind: 'property', tone: 'update', title: 'Precio de propiedad cambiado', subtitle: join(meta.name, meta.from != null && meta.to != null ? `RD$${Number(meta.from).toLocaleString('en-US')} → RD$${Number(meta.to).toLocaleString('en-US')}` : '', meta.effective ? `desde ${meta.effective}` : '') }
         case 'document.letter':
             return { kind: 'document', tone: 'update', title: 'Carta de cobro generada', subtitle: join(meta.name || tenant?.name, propName, meta.months ? `${meta.months} mes(es)` : '') }
+        case 'document.increase_letter':
+            return { kind: 'document', tone: 'update', title: 'Carta de aumento generada', subtitle: join(meta.name || tenant?.name, propName, meta.effective ? `desde ${meta.effective}` : '') }
         default:
             return { kind: 'document', tone: 'update', title: entry.action, subtitle: '' }
     }

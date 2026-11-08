@@ -8,7 +8,11 @@ export function whatsappNumber(phone) {
     return null
 }
 
-export function letterMessage({ tenant, property, status }) {
+export function letterMessage({ tenant, property, status, increase }) {
+    if (increase) {
+        const date = increase.effectiveDate.toLocaleDateString('es-DO', { day: 'numeric', month: 'long', year: 'numeric' })
+        return `Hola ${tenant?.name || ''}, le envío la notificación de aumento del alquiler de ${property?.name || 'su propiedad'}: ${formatCurrency(increase.amount)} más al mes a partir del ${date}. Quedo atento.`
+    }
     return `Hola ${tenant?.name || ''}, le envío la carta de cobro de ${property?.name || 'su propiedad'}: ${status?.monthsOwed ?? 0} mes(es) pendiente(s), total ${formatCurrency(status?.owedAmount || 0)}. Quedo atento.`
 }
 

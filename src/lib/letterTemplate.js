@@ -62,6 +62,67 @@ export const DEFAULT_LETTER = {
 /** Saved settings merged over the defaults (older/partial values never break the letter). */
 export const resolveLetterSettings = (saved) => ({ ...DEFAULT_LETTER, ...(saved || {}) })
 
+// ── Carta de notificación de aumento ─────────────────────────────────────────────────────────
+const SHARED_VARIABLES = ['Nombre del inquilino', 'Cédula', 'Propiedad', 'Edificio', 'Dirección', 'Renta mensual', 'Fecha',
+    'Nombre del propietario', 'Empresa', 'Teléfono', 'Correo']
+
+export const INCREASE_VARIABLES = [
+    ...LETTER_VARIABLES.filter(([n]) => SHARED_VARIABLES.includes(n)),
+    ['Fecha de vigencia', 'Fecha en que entra en vigor el aumento'],
+    ['Monto del aumento', 'Cuánto sube la renta cada mes, en RD$'],
+    ['Nueva renta', 'Renta mensual resultante (renta actual + aumento)']
+]
+
+const INCREASE_FORMAL_BODY = `Estimado(a) <<Nombre del inquilino>>:
+
+Por medio de la presente, le notificamos que, a partir del <<Fecha de vigencia>>, el alquiler de la propiedad <<Propiedad>> (<<Edificio>>), ubicada en <<Dirección>>, tendrá un aumento de <<Monto del aumento>> mensuales.
+
+En consecuencia, la renta mensual pasará de <<Renta mensual>> a <<Nueva renta>>. Los pagos anteriores a dicha fecha se mantienen con la renta actual.
+
+Agradecemos su atención y quedamos a su disposición para cualquier aclaración al <<Teléfono>> o al correo <<Correo>>.
+
+Atentamente,`
+
+const INCREASE_CORDIAL_BODY = `Hola <<Nombre del inquilino>>:
+
+Esperamos que se encuentre muy bien. Le escribimos para avisarle con tiempo que, desde el <<Fecha de vigencia>>, el alquiler de <<Propiedad>> tendrá un ajuste de <<Monto del aumento>> al mes: la renta pasará de <<Renta mensual>> a <<Nueva renta>>.
+
+Si tiene alguna duda, escríbanos al <<Teléfono>> y con gusto conversamos.
+
+Gracias por ser parte de <<Empresa>>.
+
+Cordialmente,`
+
+export const INCREASE_PRESETS = {
+    formal: { label: 'Formal', subject: 'Notificación de aumento de alquiler', body: INCREASE_FORMAL_BODY },
+    cordial: { label: 'Cordial', subject: 'Aviso de ajuste en su alquiler', body: INCREASE_CORDIAL_BODY }
+}
+
+export const DEFAULT_INCREASE_LETTER = {
+    preset: 'formal',
+    subject: INCREASE_PRESETS.formal.subject,
+    body: INCREASE_PRESETS.formal.body,
+    letterhead: true,
+    showTable: false,
+    showSignature: true
+}
+
+export const resolveIncreaseSettings = (saved) => ({ ...DEFAULT_INCREASE_LETTER, ...(saved || {}) })
+
+/** Both kinds of letter share this shape so Ajustes can edit either one with the same screen. */
+export const LETTER_KINDS = {
+    collection: {
+        key: 'collection', column: 'letter_settings', title: 'Carta de cobro',
+        variables: LETTER_VARIABLES, presets: LETTER_PRESETS, defaults: DEFAULT_LETTER, resolve: resolveLetterSettings,
+        hasTable: true, sampleFile: 'Carta-de-cobro-ejemplo.pdf', migration: '008_letter_template.sql'
+    },
+    increase: {
+        key: 'increase', column: 'increase_letter_settings', title: 'Carta de aumento',
+        variables: INCREASE_VARIABLES, presets: INCREASE_PRESETS, defaults: DEFAULT_INCREASE_LETTER, resolve: resolveIncreaseSettings,
+        hasTable: false, sampleFile: 'Carta-de-aumento-ejemplo.pdf', migration: '013_increase_letter_template.sql'
+    }
+}
+
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 /** ['2026-07','2026-08','2026-09'] -> 'julio, agosto y septiembre de 2026' */
@@ -77,7 +138,7 @@ export function describeMonths(keys = []) {
 const longDate = (d) => format(d, "d 'de' MMMM 'de' yyyy", { locale: es })
 
 /** Values for every variable, from one tenant's current situation. */
-export function buildLetterValues({ property, tenant, building, status, settings = {}, today = new Date() }) {
+export function buildLetterValues({ property, tenant, building, status, settings = {}, today = new Date(), increase = null }) {
     const ownerName = settings.display_name || settings.landlord_name || 'Alquiler Pro'
     return {
         'Nombre del inquilino': tenant?.name || '',
@@ -94,7 +155,12 @@ export function buildLetterValues({ property, tenant, building, status, settings
         'Nombre del propietario': ownerName,
         'Empresa': settings.business_name || ownerName,
         'Teléfono': settings.phone || '',
-        'Correo': settings.email || ''
+        'Correo': settings.email || '',
+        ...(increase ? {
+            'Fecha de vigencia': longDate(increase.effectiveDate),
+            'Monto del aumento': money(increase.amount),
+            'Nueva renta': money((parseFloat(property?.monthly_rent) || 0) + increase.amount)
+        } : {})
     }
 }
 
@@ -116,6 +182,12 @@ export const SAMPLE_LETTER_INPUT = () => ({
     status: { monthsOwed: 3, overdueMonths: ['2026-07', '2026-08', '2026-09'], owedAmount: 48000 }
 })
 
+/** Sample data for the live preview of the increase letter. */
+export const SAMPLE_INCREASE_INPUT = () => ({
+    ...SAMPLE_LETTER_INPUT(),
+    increase: { effectiveDate: addDays(new Date(), 60), amount: 1500 }
+})
+
 /** Per-month breakdown (rent minus what was paid) for the small table in the letter. */
 export function owedRows({ property, tenant, payments = [], status }) {
     return (status?.overdueMonths || []).map(key => {
@@ -127,10 +199,24 @@ export function owedRows({ property, tenant, payments = [], status }) {
     })
 }
 
-/** Builds the letter PDF. Returns the jsPDF document (caller saves or previews). */
-export async function generateCollectionLetter({ property, tenant, building, status, payments = [], userSettings = {}, letter, today = new Date() }) {
+/** Builds the collection letter PDF. Returns the jsPDF document (caller saves or previews). */
+export function generateCollectionLetter({ property, tenant, building, status, payments = [], userSettings = {}, letter, today = new Date() }) {
     const cfg = resolveLetterSettings(letter)
     const values = buildLetterValues({ property, tenant, building, status, settings: userSettings, today })
+    const table = cfg.showTable && (status?.overdueMonths || []).length > 0
+        ? { body: owedRows({ property, tenant, payments, status }), total: values['Monto adeudado'] } : null
+    return renderLetterPdf({ cfg, values, table, userSettings, today })
+}
+
+/** Builds the rent-increase notification PDF. `increase` = { effectiveDate: Date, amount: number }. */
+export function generateIncreaseLetter({ property, tenant, building, userSettings = {}, letter, increase, today = new Date() }) {
+    const cfg = resolveIncreaseSettings(letter)
+    const values = buildLetterValues({ property, tenant, building, settings: userSettings, today, increase })
+    return renderLetterPdf({ cfg, values, table: null, userSettings, today })
+}
+
+/** Shared PDF layout: letterhead, addressee, subject, body, optional table, closing and signature. */
+async function renderLetterPdf({ cfg, values, table, userSettings, today }) {
     // jsPDF is heavy: it is downloaded only when a document is actually generated
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
     const doc = new jsPDF()
@@ -201,14 +287,14 @@ export async function generateCollectionLetter({ property, tenant, building, sta
     }
     paragraphs.forEach(writeParagraph)
 
-    if (cfg.showTable && (status?.overdueMonths || []).length > 0) {
+    if (table) {
         y += 2
         if (y > 215) { doc.addPage(); y = 24 }
         autoTable(doc, {
             startY: y,
             head: [['Mes', 'Renta', 'Pagado', 'Pendiente']],
-            body: owedRows({ property, tenant, payments, status }),
-            foot: [['Total adeudado', '', '', values['Monto adeudado']]],
+            body: table.body,
+            foot: [['Total adeudado', '', '', table.total]],
             theme: 'grid',
             styles: { fontSize: 9.5, cellPadding: 2.4, textColor: PDF_COLORS.ink, lineColor: [225, 220, 205] },
             headStyles: { fillColor: PDF_COLORS.brand, textColor: 255 },
@@ -246,4 +332,6 @@ export async function generateCollectionLetter({ property, tenant, building, sta
     return doc
 }
 
-export const letterFileName = (tenant) => `Carta-cobro-${(tenant?.name || 'inquilino').replace(/[^\p{L}\p{N}]+/gu, '-')}.pdf`
+const safeName = (tenant) => (tenant?.name || 'inquilino').replace(/[^\p{L}\p{N}]+/gu, '-')
+export const letterFileName = (tenant) => `Carta-cobro-${safeName(tenant)}.pdf`
+export const increaseLetterFileName = (tenant) => `Carta-aumento-${safeName(tenant)}.pdf`

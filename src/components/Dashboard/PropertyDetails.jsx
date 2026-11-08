@@ -50,13 +50,14 @@ const Section = ({ title, icon: Icon, right, children }) => (
 export default function PropertyDetails({ property, onDeleted }) {
     const {
         payments: allPayments, tenants, utilityReadings, buildings, settings,
-        openPayment, openProperty, openTenant, openReport, openPayGas, generateLetter,
+        openPayment, openProperty, openTenant, openReport, openPayGas, generateLetter, openIncreaseLetter,
         deletePayment, deleteProperty, closeTenant, setMonthsState, clearMonthMarks, onDataChanged, refreshAll, toast
     } = useApp()
 
     const buildingColors = useBuildingColors(buildings)
     const [year, setYear] = useState(new Date().getFullYear())
     const [showAll, setShowAll] = useState(false)
+    const [letterMenu, setLetterMenu] = useState(false)
     const [selectedPayments, setSelectedPayments] = useState([])
     const [selectedMonths, setSelectedMonths] = useState([])
     const [confirmDeleteProperty, setConfirmDeleteProperty] = useState(false)
@@ -242,6 +243,27 @@ export default function PropertyDetails({ property, onDeleted }) {
                                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">
                                 <Wallet className="w-3.5 h-3.5" /> Pagar
                             </button>
+                        )}
+                        {activeTenant && (
+                            <div className="relative">
+                                <button type="button" onClick={() => setLetterMenu(o => !o)} aria-haspopup="menu" aria-expanded={letterMenu}
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white text-brand-700 border border-brand-300 hover:bg-brand-50 text-xs font-semibold">
+                                    <Mail className="w-3.5 h-3.5" /> Generar carta <ChevronDown className="w-3 h-3" />
+                                </button>
+                                {letterMenu && (
+                                    <>
+                                        <div className="fixed inset-0 z-30" onClick={() => setLetterMenu(false)} aria-hidden="true" />
+                                        <ul role="menu" className="absolute z-40 mt-1 right-0 max-md:right-auto max-md:left-0 w-64 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+                                            <li role="none">
+                                                <button type="button" role="menuitem" onClick={() => { setLetterMenu(false); openIncreaseLetter(property, activeTenant) }}
+                                                    className="w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-50">
+                                                    Carta de notificación de aumento
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </>
+                                )}
+                            </div>
                         )}
                         <IconBtn label="Reporte PDF" onClick={() => openReport({ propertyId: property.id })}><FileText className="w-4 h-4" /></IconBtn>
                         <IconBtn label="Editar propiedad" onClick={() => openProperty(property)}><Pencil className="w-4 h-4" /></IconBtn>

@@ -23,6 +23,7 @@ import RegisterUtilityModal from '../components/Modals/RegisterUtilityModal'
 import PayGasModal from '../components/Modals/PayGasModal'
 import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
 import SendLetterPrompt from '../components/Modals/SendLetterPrompt'
+import IncreaseLetterModal from '../components/Modals/IncreaseLetterModal'
 import ReportModal from '../components/Modals/ReportModal'
 import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
@@ -90,6 +91,7 @@ export function AppProvider({ children }) {
     const [receipt, setReceipt] = useState(null)
     const [alertsOpen, setAlertsOpen] = useState(false)
     const [letterToSend, setLetterToSend] = useState(null)
+    const [increaseLetter, setIncreaseLetter] = useState(null)
 
     // Our own writes already update the shared copy of each table, so by default only the activity log is
     // reloaded; pass { all: true } (or table names) to re-download data that changed on the server side.
@@ -154,6 +156,26 @@ export function AppProvider({ children }) {
         }
     }
 
+    /** Downloads the rent-increase notification (Ajustes -> Carta de aumento) for the date and amount typed in the modal. */
+    const generateIncreaseLetterFor = async ({ property, tenant, effectiveDate, amount }) => {
+        try {
+            const { generateIncreaseLetter, increaseLetterFileName } = await import('../lib/letterTemplate')
+            const building = buildings.find(b => b.id === property.building_id) || null
+            const doc = await generateIncreaseLetter({ property, tenant, building, userSettings: settings || {}, letter: settings?.increase_letter_settings, increase: { effectiveDate, amount } })
+            const fileName = increaseLetterFileName(tenant)
+            doc.save(fileName)
+            const file = new File([doc.output('blob')], fileName, { type: 'application/pdf' })
+            const effective = `${effectiveDate.getFullYear()}-${String(effectiveDate.getMonth() + 1).padStart(2, '0')}-${String(effectiveDate.getDate()).padStart(2, '0')}`
+            logActivity({ action: 'document.increase_letter', entityType: 'document', entityId: tenant.id, meta: { name: tenant.name, property_id: property.id, amount, effective } })
+            toastApi.success(`Carta de aumento generada para ${tenant.name}`)
+            setIncreaseLetter(null)
+            setLetterToSend({ file, tenant, property, increase: { effectiveDate, amount } })
+        } catch (err) {
+            console.error('Error generating increase letter:', err)
+            toastApi.error('No se pudo generar la carta: ' + err.message)
+        }
+    }
+
     // The server removes the dependants of a deleted property / building: reload just those tables
     const deleteProperty = async (...args) => {
         const res = await propsHook.deleteProperty(...args)
@@ -170,6 +192,7 @@ export function AppProvider({ children }) {
     // Functions inside read the latest data through the same dependencies.
     const value = useMemo(() => ({
         generateLetter,
+        openIncreaseLetter: (property, tenant) => property && tenant && setIncreaseLetter({ property, tenant }),
         properties, tenants, payments, utilityReadings, buildings, settings, loading, metrics, alerts,
         activity: activityHook.entries,
         activityAvailable: activityHook.available,
@@ -213,6 +236,7 @@ export function AppProvider({ children }) {
                     setReceipt(result) // optional receipt: the user decides in the pop-up
                 }}
             />
+            <IncreaseLetterModal data={increaseLetter} onClose={() => setIncreaseLetter(null)} onSubmit={generateIncreaseLetterFor} />
             <SendLetterPrompt data={letterToSend} toast={toastApi} onClose={() => setLetterToSend(null)} />
             <PrintReceiptPrompt data={receipt} settings={settings} onClose={() => setReceipt(null)} />
 

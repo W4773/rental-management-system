@@ -3,8 +3,8 @@ import { FileDown, RotateCcw, AlertTriangle, Upload, Trash2 } from 'lucide-react
 import { useUserSettings } from '../../hooks/useUserSettings'
 import Button from '../Common/Button'
 import {
-    LETTER_VARIABLES, LETTER_PRESETS, DEFAULT_LETTER, resolveLetterSettings,
-    buildLetterValues, renderTemplate, SAMPLE_LETTER_INPUT, generateCollectionLetter
+    LETTER_KINDS, buildLetterValues, renderTemplate, SAMPLE_LETTER_INPUT, SAMPLE_INCREASE_INPUT,
+    generateCollectionLetter, generateIncreaseLetter
 } from '../../lib/letterTemplate'
 import { normalizeText } from '../../lib/paymentStatus'
 import { useApp } from '../../contexts/AppContext'
@@ -16,11 +16,13 @@ const Toggle = ({ label, checked, onChange }) => (
     </label>
 )
 
-export default function LetterSettings({ showToast }) {
+export default function LetterSettings({ showToast, kind = 'collection' }) {
+    const K = LETTER_KINDS[kind]
+    const isIncrease = kind === 'increase'
     const { settings: rawSettings, loading, updateSettings, uploadSignature } = useUserSettings()
     const { settings: appSettings } = useApp()
     const settings = useMemo(() => ({ ...(rawSettings || {}), display_name: appSettings?.display_name }), [rawSettings, appSettings?.display_name])
-    const [form, setForm] = useState(DEFAULT_LETTER)
+    const [form, setForm] = useState(K.defaults)
     const [saving, setSaving] = useState(false)
     const bodyRef = useRef(null)
     const fileInputRef = useRef(null)
@@ -48,18 +50,18 @@ export default function LetterSettings({ showToast }) {
     }
 
     useEffect(() => {
-        if (settings) setForm(resolveLetterSettings(settings.letter_settings))
-    }, [settings])
+        if (settings) setForm(K.resolve(settings[K.column]))
+    }, [settings, K])
 
-    const sample = useMemo(() => SAMPLE_LETTER_INPUT(), [])
+    const sample = useMemo(() => (isIncrease ? SAMPLE_INCREASE_INPUT() : SAMPLE_LETTER_INPUT()), [isIncrease])
     const values = useMemo(() => buildLetterValues({ ...sample, settings: settings || {} }), [sample, settings])
     const set = (patch) => setForm(prev => ({ ...prev, ...patch }))
 
     const unknown = useMemo(() => {
-        const known = new Set(LETTER_VARIABLES.map(([n]) => normalizeText(n)))
+        const known = new Set(K.variables.map(([n]) => normalizeText(n)))
         const found = [...`${form.subject}\n${form.body}`.matchAll(/<<\s*([^<>]+?)\s*>>/g)].map(m => m[1])
         return [...new Set(found.filter(n => !known.has(normalizeText(n))))]
-    }, [form.subject, form.body])
+    }, [form.subject, form.body, K])
 
     const insertVariable = (name) => {
         const el = bodyRef.current
@@ -72,26 +74,28 @@ export default function LetterSettings({ showToast }) {
     }
 
     const applyPreset = (key) => {
-        const p = LETTER_PRESETS[key]
+        const p = K.presets[key]
         setForm(prev => ({ ...prev, preset: key, subject: p.subject, body: p.body }))
     }
 
     const handleSave = async (e) => {
         e.preventDefault()
         setSaving(true)
-        const { error } = await updateSettings({ letter_settings: form })
+        const { error } = await updateSettings({ [K.column]: form })
         setSaving(false)
         if (error) {
-            const missing = /letter_settings/i.test(error)
-            showToast(missing ? 'Falta ejecutar supabase/migrations/008_letter_template.sql en Supabase (esquema rental) para guardar la plantilla.' : 'Error al guardar la plantilla: ' + error, 'error')
+            const missing = new RegExp(K.column, 'i').test(error)
+            showToast(missing ? `Falta ejecutar supabase/migrations/${K.migration} en Supabase (esquema rental) para guardar la plantilla.` : 'Error al guardar la plantilla: ' + error, 'error')
         } else {
-            showToast('Plantilla de carta guardada', 'success')
+            showToast(`Plantilla de ${K.title.toLowerCase()} guardada`, 'success')
         }
     }
 
     const handleTestPdf = async () => {
-        const doc = await generateCollectionLetter({ ...sample, payments: [], userSettings: settings || {}, letter: form })
-        doc.save('Carta-de-cobro-ejemplo.pdf')
+        const doc = isIncrease
+            ? await generateIncreaseLetter({ ...sample, userSettings: settings || {}, letter: form })
+            : await generateCollectionLetter({ ...sample, payments: [], userSettings: settings || {}, letter: form })
+        doc.save(K.sampleFile)
     }
 
     if (loading) return <p className="text-gray-500">Cargando...</p>
@@ -99,8 +103,8 @@ export default function LetterSettings({ showToast }) {
     return (
         <form onSubmit={handleSave} className="space-y-6">
             <div>
-                <h3 className="text-[20px] font-bold text-gray-900 mb-1">Carta de cobro</h3>
-                <p className="text-sm text-gray-500">Plantilla para solicitar al inquilino los meses pendientes. Escribe el texto y usa variables como <code className="bg-gray-100 px-1 rounded">&lt;&lt;Nombre del inquilino&gt;&gt;</code>: se reemplazan solas con los datos de cada inquilino. Genérala desde el detalle de la propiedad, Inquilinos o Finanzas.</p>
+                <h3 className="text-[20px] font-bold text-gray-900 mb-1">{K.title}</h3>
+                <p className="text-sm text-gray-500">{isIncrease ? 'Plantilla para notificar al inquilino un aumento de alquiler.' : 'Plantilla para solicitar al inquilino los meses pendientes.'} Escribe el texto y usa variables como <code className="bg-gray-100 px-1 rounded">&lt;&lt;Nombre del inquilino&gt;&gt;</code>: se reemplazan solas con los datos de cada inquilino. {isIncrease ? 'Genérala con el botón "Generar carta" en el detalle de la propiedad.' : 'Genérala desde el detalle de la propiedad, Inquilinos o Finanzas.'}</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -108,13 +112,13 @@ export default function LetterSettings({ showToast }) {
                     <div>
                         <label className="accessible-label">Diseño base</label>
                         <div className="flex gap-2">
-                            {Object.entries(LETTER_PRESETS).map(([key, p]) => (
+                            {Object.entries(K.presets).map(([key, p]) => (
                                 <button key={key} type="button" onClick={() => applyPreset(key)} aria-pressed={form.preset === key}
                                     className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition ${form.preset === key ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-600 hover:border-brand-300'}`}>
                                     {p.label}
                                 </button>
                             ))}
-                            <button type="button" onClick={() => setForm(DEFAULT_LETTER)} className="ml-auto flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                            <button type="button" onClick={() => setForm(K.defaults)} className="ml-auto flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50">
                                 <RotateCcw className="w-3.5 h-3.5" /> Restaurar
                             </button>
                         </div>
@@ -132,7 +136,7 @@ export default function LetterSettings({ showToast }) {
                             className="accessible-input font-mono text-[14px] leading-relaxed" />
                         <p className="text-xs text-gray-500 mt-1 mb-2">Haz clic en una variable para insertarla donde está el cursor:</p>
                         <div className="flex flex-wrap gap-1.5">
-                            {LETTER_VARIABLES.map(([name, desc]) => (
+                            {K.variables.map(([name, desc]) => (
                                 <button key={name} type="button" title={desc} onClick={() => insertVariable(name)}
                                     className="px-2 py-1 rounded-md bg-brand-50 border border-brand-200 text-xs font-medium text-brand-700 hover:bg-brand-100">
                                     {`<<${name}>>`}
@@ -149,7 +153,7 @@ export default function LetterSettings({ showToast }) {
 
                     <div className="flex flex-wrap gap-x-6 gap-y-2">
                         <Toggle label="Membrete con el nombre del negocio" checked={form.letterhead} onChange={(v) => set({ letterhead: v })} />
-                        <Toggle label="Tabla de meses adeudados" checked={form.showTable} onChange={(v) => set({ showTable: v })} />
+                        {K.hasTable && <Toggle label="Tabla de meses adeudados" checked={form.showTable} onChange={(v) => set({ showTable: v })} />}
                         <Toggle label="Firma" checked={form.showSignature} onChange={(v) => set({ showSignature: v })} />
                     </div>
 
@@ -200,7 +204,7 @@ export default function LetterSettings({ showToast }) {
                             </div>
                             <p className="font-bold pt-1" style={{ color: '#9a7d24' }}>Asunto: {renderTemplate(form.subject, values)}</p>
                             <div className="whitespace-pre-line">{renderTemplate(form.body, values)}</div>
-                            {form.showTable && (
+                            {K.hasTable && form.showTable && (
                                 <table className="w-full border border-gray-200 mt-2 text-[11px]">
                                     <thead><tr className="text-white" style={{ background: '#9a7d24' }}><th className="text-left px-2 py-1">Mes</th><th className="text-right px-2">Renta</th><th className="text-right px-2">Pendiente</th></tr></thead>
                                     <tbody>

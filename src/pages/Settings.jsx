@@ -11,6 +11,7 @@ const TABS = [
     { id: 'account', label: 'Cuenta' },
     { id: 'invoice', label: 'Factura' },
     { id: 'letter', label: 'Carta de cobro' },
+    { id: 'increase', label: 'Carta de aumento' },
     { id: 'team', label: 'Equipo' },
     { id: 'errors', label: 'Registro de errores' },
 ]
@@ -58,7 +59,7 @@ export default function Settings() {
 
     return (
         <div>
-            <main className={`${activeTab === 'letter' ? 'max-w-6xl' : 'max-w-4xl'} mx-auto w-full`}>
+            <main className={`${activeTab === 'letter' || activeTab === 'increase' ? 'max-w-6xl' : 'max-w-4xl'} mx-auto w-full`}>
                 <h1 className="text-xl font-bold text-ink mb-4">Configuración</h1>
 
                 {/* Tabs */}
@@ -149,7 +150,8 @@ export default function Settings() {
                         <InvoiceSettings showToast={showToast} />
                     )}
 
-                    {activeTab === 'letter' && <LetterSettings showToast={showToast} />}
+                    {activeTab === 'letter' && <LetterSettings kind="collection" showToast={showToast} />}
+                    {activeTab === 'increase' && <LetterSettings kind="increase" showToast={showToast} />}
 
                     {activeTab === 'team' && <TeamSection />}
 
