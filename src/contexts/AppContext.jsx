@@ -25,7 +25,7 @@ import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
 import SendLetterPrompt from '../components/Modals/SendLetterPrompt'
 import IncreaseLetterModal from '../components/Modals/IncreaseLetterModal'
 import LateFeePrompt from '../components/Modals/LateFeePrompt'
-import { lateFeeForLetter, resolveLateFeeSettings } from '../lib/lateFee'
+import { lateFeeForLetter, resolveLateFeeSettings, statusForLetter } from '../lib/lateFee'
 import ReportModal from '../components/Modals/ReportModal'
 import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
@@ -138,13 +138,14 @@ export function AppProvider({ children }) {
     /** Downloads the collection letter (Ajustes -> Carta de cobro) for a tenant with overdue months. */
     const generateLetter = async (property, tenant) => {
         if (!property || !tenant) return
-        const status = getPaymentStatus(property, tenant, payments)
+        const lateCfg = resolveLateFeeSettings(settings?.late_fee_settings)
+        const status = statusForLetter({ property, tenant, payments, status: getPaymentStatus(property, tenant, payments), cfg: lateCfg })
         if (status.monthsOwed === 0) {
             toastApi.warning(`${tenant.name} no tiene meses pendientes: no hace falta una carta de cobro.`)
             return
         }
         // Late months: the user decides whether this letter charges the late fee (the payment may just be unrecorded)
-        const fee = lateFeeForLetter({ property, tenant, payments, status, cfg: resolveLateFeeSettings(settings?.late_fee_settings) })
+        const fee = lateFeeForLetter({ property, tenant, payments, status, cfg: lateCfg })
         if (fee.total > 0) { setFeePrompt({ property, tenant, status, fee }); return }
         await buildLetter(property, tenant, status, null)
     }
