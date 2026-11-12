@@ -68,3 +68,20 @@ export function describeLateFee(cfg) {
     const day = (parseInt(c.graceDay, 10) || 1) + 1
     return `${amount} por cada mes atrasado, a partir del día ${day} ${c.graceMonth === 'same' ? 'del mismo mes' : 'del mes siguiente'}`
 }
+
+/**
+ * Status used for a collection letter. The month in progress is not "overdue" yet, but once it is past its
+ * fee cut-off (cut-off in the same month) it is owed with a fee, so the letter must list it too.
+ */
+export function statusForLetter({ property, tenant, payments, status, cfg, today = new Date() }) {
+    const current = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+    if (!isActive(cfg) || (status.overdueMonths || []).includes(current) || !(status.unpaidMonths || []).includes(current) || !isMonthLate(current, cfg, today)) return status
+    const bill = getPendingBills(property, tenant, payments, current, today).find(b => b.key === current)
+    if (!bill) return status
+    return {
+        ...status,
+        overdueMonths: [...status.overdueMonths, current],
+        monthsOwed: status.monthsOwed + 1,
+        owedAmount: status.owedAmount + bill.remaining
+    }
+}
