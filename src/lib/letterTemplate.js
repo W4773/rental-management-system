@@ -13,7 +13,10 @@ export const LETTER_VARIABLES = [
     ['Dirección', 'Dirección de la propiedad'],
     ['Meses pendientes', 'Cantidad de meses vencidos sin pagar'],
     ['Detalle de meses', 'Los meses adeudados, p. ej. "julio, agosto y septiembre de 2026"'],
-    ['Monto adeudado', 'Total vencido en RD$'],
+    ['Monto adeudado', 'Total vencido en RD$ (incluye la mora si la aplicas al generar la carta)'],
+    ['Renta pendiente', 'Total vencido sin contar la mora'],
+    ['Monto de mora', 'Mora aplicada en RD$ (vacío si no se aplica)'],
+    ['Detalle de mora', 'Frase "Este monto incluye RD$ X por concepto de mora." (vacío si no se aplica)'],
     ['Renta mensual', 'Renta mensual de la propiedad'],
     ['Fecha', 'Fecha de hoy'],
     ['Fecha límite', 'Fecha de hoy + 5 días para ponerse al día'],
@@ -29,6 +32,8 @@ Por medio de la presente, nos dirigimos a usted en relación con el alquiler de 
 
 Según nuestros registros, a la fecha usted presenta <<Meses pendientes>> mes(es) pendiente(s) de pago: <<Detalle de meses>>, por un monto total de <<Monto adeudado>>.
 
+<<Detalle de mora>>
+
 Le solicitamos regularizar su situación a más tardar el <<Fecha límite>>. Si ya realizó el pago, le agradecemos hacernos llegar el comprobante para actualizar nuestros registros.
 
 Quedamos a su disposición para cualquier aclaración al <<Teléfono>> o al correo <<Correo>>.
@@ -38,6 +43,8 @@ Atentamente,`
 const CORDIAL_BODY = `Hola <<Nombre del inquilino>>:
 
 Esperamos que se encuentre muy bien. Le escribimos para recordarle amablemente que, en nuestros registros, el alquiler de <<Propiedad>> tiene <<Meses pendientes>> mes(es) pendiente(s): <<Detalle de meses>>, que suman <<Monto adeudado>>.
+
+<<Detalle de mora>>
 
 Le agradeceríamos ponerse al día antes del <<Fecha límite>>. Si hay alguna situación que debamos conocer o ya realizó el pago, escríbanos al <<Teléfono>> y con gusto lo resolvemos.
 
@@ -138,7 +145,8 @@ export function describeMonths(keys = []) {
 const longDate = (d) => format(d, "d 'de' MMMM 'de' yyyy", { locale: es })
 
 /** Values for every variable, from one tenant's current situation. */
-export function buildLetterValues({ property, tenant, building, status, settings = {}, today = new Date(), increase = null }) {
+export function buildLetterValues({ property, tenant, building, status, settings = {}, today = new Date(), increase = null, lateFee = null }) {
+    const mora = lateFee?.total || 0
     const ownerName = settings.display_name || settings.landlord_name || 'Alquiler Pro'
     return {
         'Nombre del inquilino': tenant?.name || '',
@@ -148,7 +156,10 @@ export function buildLetterValues({ property, tenant, building, status, settings
         'Dirección': building?.address || property?.address || '',
         'Meses pendientes': String(status?.monthsOwed ?? 0),
         'Detalle de meses': describeMonths(status?.overdueMonths),
-        'Monto adeudado': money(status?.owedAmount),
+        'Monto adeudado': money((status?.owedAmount || 0) + mora),
+        'Renta pendiente': money(status?.owedAmount),
+        'Monto de mora': mora > 0 ? money(mora) : '',
+        'Detalle de mora': mora > 0 ? `Este monto incluye ${money(mora)} por concepto de mora.` : '',
         'Renta mensual': money(property?.monthly_rent),
         'Fecha': longDate(today),
         'Fecha límite': longDate(addDays(today, 5)),
@@ -174,6 +185,9 @@ export function renderTemplate(text = '', values = {}) {
     })
 }
 
+/** Same as renderTemplate, but an empty variable on its own line (e.g. no late fee) leaves no extra blank paragraph. */
+export const renderBody = (text, values) => renderTemplate(text, values).replace(/\n{3,}/g, '\n\n')
+
 /** Sample data for the live preview in Ajustes. */
 export const SAMPLE_LETTER_INPUT = () => ({
     property: { name: 'APARTAMENTO 3-B', monthly_rent: 16000, address: 'Av. Duarte #112, Santo Domingo' },
@@ -189,23 +203,29 @@ export const SAMPLE_INCREASE_INPUT = () => ({
 })
 
 /** Per-month breakdown (rent minus what was paid) for the small table in the letter. */
-export function owedRows({ property, tenant, payments = [], status }) {
+export function owedRows({ property, tenant, payments = [], status, lateFee = null }) {
+    const feeOf = Object.fromEntries((lateFee?.items || []).map(i => [i.key, i.amount]))
     return (status?.overdueMonths || []).map(key => {
         const rows = payments.filter(p => p.tenant_id === tenant?.id && monthKeyOf(p) === key && hasMoney(p))
         const rent = parseFloat(rows[0]?.rent_amount) || parseFloat(property?.monthly_rent) || 0
         const paid = rows.reduce((s, p) => s + (parseFloat(p.amount_paid) || 0), 0)
         const [y, m] = key.split('-').map(Number)
-        return [`${MONTHS[m - 1]} ${y}`, money(rent), money(paid), money(Math.max(0, rent - paid))]
+        const row = [`${MONTHS[m - 1]} ${y}`, money(rent), money(paid), money(Math.max(0, rent - paid))]
+        return lateFee?.total > 0 ? [...row, money(feeOf[key] || 0)] : row
     })
 }
 
 /** Builds the collection letter PDF. Returns the jsPDF document (caller saves or previews). */
-export function generateCollectionLetter({ property, tenant, building, status, payments = [], userSettings = {}, letter, today = new Date() }) {
+export function generateCollectionLetter({ property, tenant, building, status, payments = [], userSettings = {}, letter, today = new Date(), lateFee = null }) {
     const cfg = resolveLetterSettings(letter)
-    const values = buildLetterValues({ property, tenant, building, status, settings: userSettings, today })
+    const values = buildLetterValues({ property, tenant, building, status, settings: userSettings, today, lateFee })
+    const withFee = lateFee?.total > 0
     const table = cfg.showTable && (status?.overdueMonths || []).length > 0
-        ? { body: owedRows({ property, tenant, payments, status }), total: values['Monto adeudado'] } : null
-    return renderLetterPdf({ cfg, values, table, userSettings, today })
+        ? { body: owedRows({ property, tenant, payments, status, lateFee }), total: values['Monto adeudado'], withFee } : null
+    // Letters saved before late fees existed have no <<Detalle de mora>>: add the sentence so the total is never unexplained
+    const mentionsFee = /<<\s*(detalle de mora|monto de mora)\s*>>/i.test(cfg.body)
+    const extraNote = withFee && !mentionsFee ? values['Detalle de mora'] : ''
+    return renderLetterPdf({ cfg, values, table, userSettings, today, extraNote })
 }
 
 /** Builds the rent-increase notification PDF. `increase` = { effectiveDate: Date, amount: number }. */
@@ -216,7 +236,7 @@ export function generateIncreaseLetter({ property, tenant, building, userSetting
 }
 
 /** Shared PDF layout: letterhead, addressee, subject, body, optional table, closing and signature. */
-async function renderLetterPdf({ cfg, values, table, userSettings, today }) {
+async function renderLetterPdf({ cfg, values, table, userSettings, today, extraNote = '' }) {
     // jsPDF is heavy: it is downloaded only when a document is actually generated
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
     const doc = new jsPDF()
@@ -273,7 +293,7 @@ async function renderLetterPdf({ cfg, values, table, userSettings, today }) {
     doc.setTextColor(...PDF_COLORS.ink)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10.5)
-    const paragraphs = renderTemplate(cfg.body, values).split('\n')
+    const paragraphs = renderBody(cfg.body, values).split('\n')
     // A short last line ("Atentamente,") is the closing: it goes after the table, right above the signature
     let closing = ''
     while (paragraphs.length && paragraphs[paragraphs.length - 1].trim() === '') paragraphs.pop()
@@ -286,20 +306,21 @@ async function renderLetterPdf({ cfg, values, table, userSettings, today }) {
         y += lines.length * 5.2 + 2.5
     }
     paragraphs.forEach(writeParagraph)
+    if (extraNote) writeParagraph(extraNote)
 
     if (table) {
         y += 2
         if (y > 215) { doc.addPage(); y = 24 }
         autoTable(doc, {
             startY: y,
-            head: [['Mes', 'Renta', 'Pagado', 'Pendiente']],
+            head: [table.withFee ? ['Mes', 'Renta', 'Pagado', 'Pendiente', 'Mora'] : ['Mes', 'Renta', 'Pagado', 'Pendiente']],
             body: table.body,
-            foot: [['Total adeudado', '', '', table.total]],
+            foot: [table.withFee ? ['Total adeudado', '', '', '', table.total] : ['Total adeudado', '', '', table.total]],
             theme: 'grid',
             styles: { fontSize: 9.5, cellPadding: 2.4, textColor: PDF_COLORS.ink, lineColor: [225, 220, 205] },
             headStyles: { fillColor: PDF_COLORS.brand, textColor: 255 },
             footStyles: { fillColor: PDF_COLORS.brandLight, textColor: PDF_COLORS.ink, fontStyle: 'bold' },
-            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } },
+            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: table.withFee ? 'normal' : 'bold' }, 4: { halign: 'right', fontStyle: 'bold' } },
             margin: { left: margin, right: margin }
         })
         y = doc.lastAutoTable.finalY + 8

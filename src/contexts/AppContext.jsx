@@ -24,6 +24,8 @@ import PayGasModal from '../components/Modals/PayGasModal'
 import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
 import SendLetterPrompt from '../components/Modals/SendLetterPrompt'
 import IncreaseLetterModal from '../components/Modals/IncreaseLetterModal'
+import LateFeePrompt from '../components/Modals/LateFeePrompt'
+import { lateFeeForLetter, resolveLateFeeSettings } from '../lib/lateFee'
 import ReportModal from '../components/Modals/ReportModal'
 import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
@@ -92,6 +94,7 @@ export function AppProvider({ children }) {
     const [alertsOpen, setAlertsOpen] = useState(false)
     const [letterToSend, setLetterToSend] = useState(null)
     const [increaseLetter, setIncreaseLetter] = useState(null)
+    const [feePrompt, setFeePrompt] = useState(null)
 
     // Our own writes already update the shared copy of each table, so by default only the activity log is
     // reloaded; pass { all: true } (or table names) to re-download data that changed on the server side.
@@ -140,16 +143,30 @@ export function AppProvider({ children }) {
             toastApi.warning(`${tenant.name} no tiene meses pendientes: no hace falta una carta de cobro.`)
             return
         }
+        // Late months: the user decides whether this letter charges the late fee (the payment may just be unrecorded)
+        const fee = lateFeeForLetter({ property, tenant, payments, status, cfg: resolveLateFeeSettings(settings?.late_fee_settings) })
+        if (fee.total > 0) { setFeePrompt({ property, tenant, status, fee }); return }
+        await buildLetter(property, tenant, status, null)
+    }
+
+    const chooseLateFee = async (apply) => {
+        const { property, tenant, status, fee } = feePrompt
+        setFeePrompt(null)
+        await buildLetter(property, tenant, status, apply ? fee : null)
+    }
+
+    const buildLetter = async (property, tenant, status, lateFee) => {
         try {
             const { generateCollectionLetter, letterFileName } = await import('../lib/letterTemplate')
             const building = buildings.find(b => b.id === property.building_id) || null
-            const doc = await generateCollectionLetter({ property, tenant, building, status, payments, userSettings: settings || {}, letter: settings?.letter_settings })
+            const doc = await generateCollectionLetter({ property, tenant, building, status, payments, userSettings: settings || {}, letter: settings?.letter_settings, lateFee })
             const fileName = letterFileName(tenant)
             doc.save(fileName)
             const file = new File([doc.output('blob')], fileName, { type: 'application/pdf' })
-            logActivity({ action: 'document.letter', entityType: 'document', entityId: tenant.id, meta: { name: tenant.name, property_id: property.id, months: status.monthsOwed } })
-            toastApi.success(`Carta de cobro generada para ${tenant.name}`)
-            setLetterToSend({ file, tenant, property, status })
+            logActivity({ action: 'document.letter', entityType: 'document', entityId: tenant.id, meta: { name: tenant.name, property_id: property.id, months: status.monthsOwed, ...(lateFee ? { late_fee: lateFee.total } : {}) } })
+            toastApi.success(`Carta de cobro generada para ${tenant.name}${lateFee ? ' (con mora)' : ''}`)
+            // The WhatsApp message quotes the total: it must include the late fee when it was applied
+            setLetterToSend({ file, tenant, property, status: lateFee ? { ...status, owedAmount: status.owedAmount + lateFee.total } : status })
         } catch (err) {
             console.error('Error generating letter:', err)
             toastApi.error('No se pudo generar la carta: ' + err.message)
@@ -237,6 +254,7 @@ export function AppProvider({ children }) {
                 }}
             />
             <IncreaseLetterModal data={increaseLetter} onClose={() => setIncreaseLetter(null)} onSubmit={generateIncreaseLetterFor} />
+            <LateFeePrompt data={feePrompt} onChoose={chooseLateFee} onClose={() => setFeePrompt(null)} />
             <SendLetterPrompt data={letterToSend} toast={toastApi} onClose={() => setLetterToSend(null)} />
             <PrintReceiptPrompt data={receipt} settings={settings} onClose={() => setReceipt(null)} />
 

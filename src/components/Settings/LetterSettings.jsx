@@ -3,7 +3,7 @@ import { FileDown, RotateCcw, AlertTriangle, Upload, Trash2 } from 'lucide-react
 import { useUserSettings } from '../../hooks/useUserSettings'
 import Button from '../Common/Button'
 import {
-    LETTER_KINDS, buildLetterValues, renderTemplate, SAMPLE_LETTER_INPUT, SAMPLE_INCREASE_INPUT,
+    LETTER_KINDS, buildLetterValues, renderTemplate, renderBody, SAMPLE_LETTER_INPUT, SAMPLE_INCREASE_INPUT,
     generateCollectionLetter, generateIncreaseLetter
 } from '../../lib/letterTemplate'
 import { normalizeText } from '../../lib/paymentStatus'
@@ -203,7 +203,7 @@ export default function LetterSettings({ showToast, kind = 'collection' }) {
                                 <p className="text-gray-500">{values['Propiedad']} · {values['Dirección']}</p>
                             </div>
                             <p className="font-bold pt-1" style={{ color: '#9a7d24' }}>Asunto: {renderTemplate(form.subject, values)}</p>
-                            <div className="whitespace-pre-line">{renderTemplate(form.body, values)}</div>
+                            <div className="whitespace-pre-line">{renderBody(form.body, values)}</div>
                             {K.hasTable && form.showTable && (
                                 <table className="w-full border border-gray-200 mt-2 text-[11px]">
                                     <thead><tr className="text-white" style={{ background: '#9a7d24' }}><th className="text-left px-2 py-1">Mes</th><th className="text-right px-2">Renta</th><th className="text-right px-2">Pendiente</th></tr></thead>
