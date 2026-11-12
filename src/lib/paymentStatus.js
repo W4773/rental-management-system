@@ -148,7 +148,11 @@ function computePaymentStatus(property, tenant, payments, today) {
         if (m > 11) { m = 0; y += 1 }
     }
 
-    const base = { overdueMonths: overdue, monthsOwed: overdue.length, owedAmount, paidThrough }
+    // `unpaidMonths` also includes the month in progress when it is still unpaid (late fees can start inside it)
+    const base = {
+        overdueMonths: overdue, monthsOwed: overdue.length, owedAmount, paidThrough,
+        unpaidMonths: currentUnpaid ? [...overdue, keyOf(cy, cm)] : overdue
+    }
 
     const n = overdue.length
 
