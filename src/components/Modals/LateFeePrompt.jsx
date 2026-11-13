@@ -8,6 +8,23 @@ import { formatMonthKey } from '../../lib/paymentStatus'
 export default function LateFeePrompt({ data, onChoose, onClose }) {
     if (!data) return null
     const { tenant, status, fee } = data
+    if (fee.total <= 0) {
+        // No late fee by the rule (or the rule is off): offer to add one by hand
+        return (
+            <Modal isOpen onClose={onClose} title="Esta carta no tiene mora" size="sm">
+                <div className="space-y-3 py-1">
+                    <p className="text-sm text-gray-700">
+                        {tenant?.name} no tiene mora calculada. ¿Quieres agregar una mora manualmente (por porcentaje o monto, mes por mes)?
+                    </p>
+                    <p className="text-xs text-gray-500">Útil, por ejemplo, para un inquilino nuevo que ya traía atrasos antes de entrar a la app.</p>
+                </div>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-3">
+                    <Button variant="secondary" size="sm" onClick={() => onChoose('none')}>No, generar sin mora</Button>
+                    <Button size="sm" onClick={() => onChoose('manual')} autoFocus>Sí, agregar mora</Button>
+                </div>
+            </Modal>
+        )
+    }
     return (
         <Modal isOpen onClose={onClose} title="Este pago presenta mora" size="sm">
             <div className="space-y-3 py-1">
@@ -27,8 +44,9 @@ export default function LateFeePrompt({ data, onChoose, onClose }) {
                 <p className="text-xs text-gray-500">Si el pago ya se hizo y solo falta registrarlo, genera la carta sin mora.</p>
             </div>
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-3">
-                <Button variant="secondary" size="sm" onClick={() => onChoose(false)}>Sin mora</Button>
-                <Button size="sm" onClick={() => onChoose(true)} autoFocus>Aplicar mora</Button>
+                <Button variant="secondary" size="sm" onClick={() => onChoose('none')}>Sin mora</Button>
+                <Button variant="secondary" size="sm" onClick={() => onChoose('manual')}>Ajustar manualmente</Button>
+                <Button size="sm" onClick={() => onChoose('apply')} autoFocus>Aplicar mora</Button>
             </div>
         </Modal>
     )

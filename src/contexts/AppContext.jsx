@@ -25,7 +25,8 @@ import PrintReceiptPrompt from '../components/Modals/PrintReceiptPrompt'
 import SendLetterPrompt from '../components/Modals/SendLetterPrompt'
 import IncreaseLetterModal from '../components/Modals/IncreaseLetterModal'
 import LateFeePrompt from '../components/Modals/LateFeePrompt'
-import { lateFeeForLetter, resolveLateFeeSettings, statusForLetter } from '../lib/lateFee'
+import ManualLateFeeModal from '../components/Modals/ManualLateFeeModal'
+import { billsForLetter, lateFeeForLetter, resolveLateFeeSettings, statusForLetter } from '../lib/lateFee'
 import ReportModal from '../components/Modals/ReportModal'
 import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
@@ -95,6 +96,7 @@ export function AppProvider({ children }) {
     const [letterToSend, setLetterToSend] = useState(null)
     const [increaseLetter, setIncreaseLetter] = useState(null)
     const [feePrompt, setFeePrompt] = useState(null)
+    const [manualFee, setManualFee] = useState(null)
 
     // Our own writes already update the shared copy of each table, so by default only the activity log is
     // reloaded; pass { all: true } (or table names) to re-download data that changed on the server side.
@@ -146,14 +148,26 @@ export function AppProvider({ children }) {
         }
         // Late months: the user decides whether this letter charges the late fee (the payment may just be unrecorded)
         const fee = lateFeeForLetter({ property, tenant, payments, status, cfg: lateCfg })
-        if (fee.total > 0) { setFeePrompt({ property, tenant, status, fee }); return }
-        await buildLetter(property, tenant, status, null)
+        // With or without an automatic fee the user is asked: apply it, leave it out, or enter one by hand
+        setFeePrompt({ property, tenant, status, fee })
     }
 
-    const chooseLateFee = async (apply) => {
+    const chooseLateFee = async (choice) => {
         const { property, tenant, status, fee } = feePrompt
         setFeePrompt(null)
-        await buildLetter(property, tenant, status, apply ? fee : null)
+        if (choice === 'manual') {
+            const bills = billsForLetter({ property, tenant, payments, status })
+            if (bills.length === 0) { toastApi.warning('No hay meses con saldo pendiente para agregar mora.'); return }
+            setManualFee({ property, tenant, status, bills })
+            return
+        }
+        await buildLetter(property, tenant, status, choice === 'apply' ? fee : null)
+    }
+
+    const applyManualFee = async (fee) => {
+        const { property, tenant, status } = manualFee
+        setManualFee(null)
+        await buildLetter(property, tenant, status, fee)
     }
 
     const buildLetter = async (property, tenant, status, lateFee) => {
@@ -257,6 +271,7 @@ export function AppProvider({ children }) {
             />
             <IncreaseLetterModal data={increaseLetter} onClose={() => setIncreaseLetter(null)} onSubmit={generateIncreaseLetterFor} />
             <LateFeePrompt data={feePrompt} onChoose={chooseLateFee} onClose={() => setFeePrompt(null)} />
+            <ManualLateFeeModal data={manualFee} onApply={applyManualFee} onClose={() => setManualFee(null)} />
             <SendLetterPrompt data={letterToSend} toast={toastApi} onClose={() => setLetterToSend(null)} />
             <PrintReceiptPrompt data={receipt} settings={settings} onClose={() => setReceipt(null)} />
 
