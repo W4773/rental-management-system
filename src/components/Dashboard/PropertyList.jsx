@@ -30,7 +30,7 @@ function Row({ item, selected, onSelect, onPay, dense, color }) {
                 </div>
                 <div className="text-right shrink-0">
                     <p className="text-xs font-bold text-brand-700 leading-tight">{formatCurrency(property.monthly_rent)}</p>
-                    <StatusPill status={status} />
+                    <StatusPill status={status} tenant={tenant} />
                 </div>
                 {onPay && tenant && (
                     <button

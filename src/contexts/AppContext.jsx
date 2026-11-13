@@ -26,7 +26,7 @@ import SendLetterPrompt from '../components/Modals/SendLetterPrompt'
 import IncreaseLetterModal from '../components/Modals/IncreaseLetterModal'
 import LateFeePrompt from '../components/Modals/LateFeePrompt'
 import ManualLateFeeModal from '../components/Modals/ManualLateFeeModal'
-import { billsForLetter, lateFeeForLetter, resolveLateFeeSettings, statusForLetter } from '../lib/lateFee'
+import { billsForLetter, lateFeeForLetter, manualFeesOf, resolveLateFeeSettings, statusForLetter } from '../lib/lateFee'
 import ReportModal from '../components/Modals/ReportModal'
 import AlertDrawer from '../components/AlertDrawer/AlertDrawer'
 import Toast from '../components/Common/Toast'
@@ -164,10 +164,33 @@ export function AppProvider({ children }) {
         await buildLetter(property, tenant, status, choice === 'apply' ? fee : null)
     }
 
-    const applyManualFee = async (fee) => {
+    // Saves the manual fees on the tenant (unchecked months are stored as value 0 = "no fee") and builds the letter
+    const saveManualFees = async (tenant, rows) => {
+        const next = { ...manualFeesOf(tenant) }
+        for (const [key, r] of Object.entries(rows)) {
+            const value = r.checked ? parseFloat(r.value) || 0 : 0
+            next[key] = { type: r.type, value }
+        }
+        const { error } = await tenantsHook.updateTenant(tenant.id, { manual_late_fees: next }, 'tenant.late_fee')
+        if (error) toastApi.error(/manual_late_fees/i.test(String(error)) ? 'Falta ejecutar la migración 015 para guardar la mora.' : 'No se pudo guardar la mora en el inquilino.')
+        return next
+    }
+
+    const applyManualFee = async (fee, rows) => {
         const { property, tenant, status } = manualFee
         setManualFee(null)
+        await saveManualFees(tenant, rows)
         await buildLetter(property, tenant, status, fee)
+    }
+
+    const clearManualFees = async () => {
+        const { tenant, bills } = manualFee
+        setManualFee(null)
+        const next = { ...manualFeesOf(tenant) }
+        for (const b of bills) delete next[b.key]
+        const { error } = await tenantsHook.updateTenant(tenant.id, { manual_late_fees: Object.keys(next).length ? next : null }, 'tenant.late_fee')
+        if (error) { toastApi.error('No se pudo quitar la mora manual.'); return }
+        toastApi.success('Mora manual quitada. Vuelve a pedir la carta para generarla.')
     }
 
     const buildLetter = async (property, tenant, status, lateFee) => {
@@ -271,7 +294,7 @@ export function AppProvider({ children }) {
             />
             <IncreaseLetterModal data={increaseLetter} onClose={() => setIncreaseLetter(null)} onSubmit={generateIncreaseLetterFor} />
             <LateFeePrompt data={feePrompt} onChoose={chooseLateFee} onClose={() => setFeePrompt(null)} />
-            <ManualLateFeeModal data={manualFee} onApply={applyManualFee} onClose={() => setManualFee(null)} />
+            <ManualLateFeeModal data={manualFee} onApply={applyManualFee} onClear={clearManualFees} onClose={() => setManualFee(null)} />
             <SendLetterPrompt data={letterToSend} toast={toastApi} onClose={() => setLetterToSend(null)} />
             <PrintReceiptPrompt data={receipt} settings={settings} onClose={() => setReceipt(null)} />
 

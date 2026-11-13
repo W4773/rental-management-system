@@ -35,7 +35,7 @@ function TenantCard({ tenant, property, building, status, onPay, onLetter, onRep
                     {open ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                 </button>
             </div>
-            <div className="mt-1.5"><StatusPill showDetail align="left" status={status} /></div>
+            <div className="mt-1.5"><StatusPill showDetail align="left" status={status} tenant={tenant} /></div>
             {open && (
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 text-[13px]">
                     <div><dt className="text-[10px] font-bold uppercase text-gray-400">Cédula</dt><dd>{tenant.identity_number || '-'}</dd></div>
@@ -154,7 +154,7 @@ export default function Tenants() {
                                         <td className="px-3 py-1.5">{property?.name}{building && <span className="text-[11px] text-gray-500 block leading-tight">{building.name}</span>}</td>
                                         <td className="px-3 py-1.5 hidden lg:table-cell">{formatDate(tenant.start_date)}</td>
                                         <td className="px-3 py-1.5 hidden xl:table-cell">{tenant.deposit_amount > 0 ? formatCurrency(tenant.deposit_amount) : '-'}</td>
-                                        <td className="px-3 py-1.5"><StatusPill showDetail align="left" status={status} /></td>
+                                        <td className="px-3 py-1.5"><StatusPill showDetail align="left" status={status} tenant={tenant} /></td>
                                         <td className="px-3 py-1.5">
                                             <div className="flex items-center justify-end gap-0.5">
                                                 {property && status.monthsOwed > 0 && (

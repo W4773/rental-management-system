@@ -3,7 +3,7 @@ import Modal from '../Common/Modal'
 import Button from '../Common/Button'
 import { formatCurrency } from '../../lib/calculations'
 import { formatMonthKey } from '../../lib/paymentStatus'
-import { computeManualFee } from '../../lib/lateFee'
+import { computeManualFee, manualFeesOf } from '../../lib/lateFee'
 
 const TYPES = [{ id: 'percent', label: '%' }, { id: 'fixed', label: 'RD$' }]
 
@@ -25,14 +25,21 @@ function TypeToggle({ value, onChange, label }) {
  * still owed or a fixed amount. "Aplicar a todas" fills every checked month at once.
  * `data` = { tenant, bills: [{ key, remaining }] }; `onApply(fee)` receives { total, items }.
  */
-export default function ManualLateFeeModal({ data, onApply, onClose }) {
+export default function ManualLateFeeModal({ data, onApply, onClear, onClose }) {
     if (!data) return null
-    return <ManualForm key={data.tenant?.id} data={data} onApply={onApply} onClose={onClose} />
+    return <ManualForm key={data.tenant?.id} data={data} onApply={onApply} onClear={onClear} onClose={onClose} />
 }
 
-function ManualForm({ data, onApply, onClose }) {
+function ManualForm({ data, onApply, onClear, onClose }) {
     const { tenant, bills } = data
-    const [rows, setRows] = useState(() => Object.fromEntries(bills.map(b => [b.key, { checked: true, type: 'percent', value: '' }])))
+    const saved = manualFeesOf(tenant)
+    // Start from what is already saved on the tenant (value 0 = month left without fee -> unchecked)
+    const [rows, setRows] = useState(() => Object.fromEntries(bills.map(b => {
+        const e = saved[b.key]
+        const v = parseFloat(e?.value) || 0
+        return [b.key, e ? { checked: v > 0, type: e.type === 'fixed' ? 'fixed' : 'percent', value: v > 0 ? String(v) : '' } : { checked: true, type: 'percent', value: '' }]
+    })))
+    const hasSaved = bills.some(b => saved[b.key])
     const [bulk, setBulk] = useState({ type: 'percent', value: '' })
 
     const patch = (key, p) => setRows(r => ({ ...r, [key]: { ...r[key], ...p } }))
@@ -102,10 +109,12 @@ function ManualForm({ data, onApply, onClose }) {
                 <p className="flex justify-between text-sm font-semibold border-t border-gray-200 pt-2">
                     <span>Total de mora</span><span>{formatCurrency(fee.total)}</span>
                 </p>
+                <p className="text-xs text-gray-500">Se guarda en el inquilino: las próximas cartas y la etiqueta MORA la usan. Un mes sin marcar queda sin mora.</p>
             </div>
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-3">
                 <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-                <Button size="sm" onClick={() => onApply(fee)} disabled={!canApply}>Generar carta con mora</Button>
+                {hasSaved && <Button variant="secondary" size="sm" onClick={onClear}>Quitar mora manual</Button>}
+                <Button size="sm" onClick={() => onApply(fee, rows)} disabled={!canApply}>Guardar y generar carta</Button>
             </div>
         </Modal>
     )
