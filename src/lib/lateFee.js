@@ -34,9 +34,16 @@ export function isMonthLate(monthKey, cfg, today = new Date()) {
 }
 
 /** Does this tenant currently have a month past its cut-off? (for the "Mora" tag; status comes from getPaymentStatus) */
-export function hasLateFee(status, cfg, today = new Date()) {
-    return isActive(cfg) && (status?.unpaidMonths || []).some(k => isMonthLate(k, cfg, today))
+export function hasLateFee(status, cfg, today = new Date(), tenant = null) {
+    const manual = manualFeesOf(tenant)
+    const manualMonth = (status?.overdueMonths || []).some(k => (parseFloat(manual[k]?.value) || 0) > 0)
+    return manualMonth || (isActive(cfg) && (status?.unpaidMonths || []).some(k => isMonthLate(k, cfg, today) && !hasManualEntry(manual, k)))
 }
+
+/** Manual late fees saved on the tenant: { 'YYYY-MM': { type, value } }. */
+export const manualFeesOf = (tenant) => (tenant?.manual_late_fees && typeof tenant.manual_late_fees === 'object' ? tenant.manual_late_fees : {})
+// An entry (even with value 0 = "no fee this month") replaces the automatic rule for that month
+const hasManualEntry = (manual, key) => !!manual[key]
 
 /**
  * Fee for the given months. `bills` = [{ key, remaining }]; only late months are charged.
@@ -51,12 +58,18 @@ export function computeLateFee(bills, cfg, today = new Date()) {
     return { total: round2(items.reduce((s, i) => s + i.amount, 0)), items }
 }
 
-/** Fee for the months listed in a collection letter (the tenant's overdue months). */
+/**
+ * Fee for the months listed in a collection letter. Per month: the tenant's manual entry if there is one
+ * (it replaces the rule, and value 0 means "no fee"), otherwise the automatic rule from Ajustes -> Cargos.
+ * Items carry `manual: true` when they come from a manual entry.
+ */
 export function lateFeeForLetter({ property, tenant, payments, status, cfg, today = new Date() }) {
-    const keys = status?.overdueMonths || []
-    if (!isActive(cfg) || keys.length === 0) return { total: 0, items: [] }
-    const bills = getPendingBills(property, tenant, payments, keys[keys.length - 1], today).filter(b => keys.includes(b.key))
-    return computeLateFee(bills, cfg, today)
+    const bills = billsForLetter({ property, tenant, payments, status, today })
+    const manual = manualFeesOf(tenant)
+    const auto = computeLateFee(bills.filter(b => !hasManualEntry(manual, b.key)), cfg, today).items
+    const own = computeManualFee(bills.filter(b => hasManualEntry(manual, b.key)), manual).items.map(i => ({ ...i, manual: true }))
+    const items = [...auto, ...own].sort((a, b) => a.key.localeCompare(b.key))
+    return { total: round2(items.reduce((s, i) => s + i.amount, 0)), items }
 }
 
 const round2 = (n) => Math.round(n * 100) / 100

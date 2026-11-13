@@ -128,7 +128,7 @@ export default function BuildingDetail() {
                                     <p className="text-xs text-gray-500 truncate" style={tenant ? { color: color.text } : undefined}>{tenant ? tenant.name : 'Vacante'}{property.unit_number ? ` · ${property.unit_number}` : ''}</p>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-700 w-28 max-md:w-auto text-right">{formatCurrency(property.monthly_rent)}</span>
-                                <div className="w-44 max-md:w-auto"><StatusPill status={status} showDetail align="left" /></div>
+                                <div className="w-44 max-md:w-auto"><StatusPill status={status} tenant={tenant} showDetail align="left" /></div>
                                 <div className="flex gap-1.5">
                                     {tenant ? (
                                         <button onClick={() => openPayment({ propertyId: property.id })} className="flex items-center gap-1 px-2 py-1 rounded-md border border-brand-200 text-brand-700 text-xs font-semibold hover:bg-brand-50">

@@ -292,7 +292,7 @@ export default function Finances() {
                                     <td className="px-3 py-1.5">{r.rate === null ? '—' : `${r.rate}%`}</td>
                                     <td className="px-3 py-1.5">{r.active ? r.monthsOwed : '—'}</td>
                                     <td className={`px-3 py-1.5 ${r.owed > 0 ? 'font-bold text-red-600' : 'text-gray-400'}`}>{r.active ? formatCurrency(r.owed) : '—'}</td>
-                                    <td className="px-3 py-1.5 text-left">{r.status && <StatusPill status={r.status} align="left" />}</td>
+                                    <td className="px-3 py-1.5 text-left">{r.status && <StatusPill status={r.status} tenant={r.tenant} align="left" />}</td>
                                     <td className="px-3 py-1.5">
                                         {r.active && r.monthsOwed > 0 && (
                                             <button onClick={() => generateLetter(r.property, r.tenant)} title="Carta de cobro (PDF)" aria-label={`Carta de cobro ${r.tenant.name}`}
@@ -333,7 +333,7 @@ export default function Finances() {
                                 <span className={r.owed > 0 ? 'font-bold text-red-600' : 'text-gray-400'}>
                                     {r.active ? `Pendiente ${formatCurrency(r.owed)} · ${r.monthsOwed} mes(es)` : 'Sin pendiente'}
                                 </span>
-                                {r.status && <StatusPill status={r.status} align="right" />}
+                                {r.status && <StatusPill status={r.status} tenant={r.tenant} align="right" />}
                             </div>
                         </li>
                     ))}

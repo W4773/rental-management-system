@@ -34,7 +34,7 @@ export default function LateFeePrompt({ data, onChoose, onClose }) {
                 </div>
                 <ul className="text-sm text-gray-700 space-y-0.5">
                     {fee.items.map(i => (
-                        <li key={i.key} className="flex justify-between"><span className="capitalize">{formatMonthKey(i.key)}</span><span>{formatCurrency(i.amount)}</span></li>
+                        <li key={i.key} className="flex justify-between"><span className="capitalize">{formatMonthKey(i.key)}{i.manual && <em className="not-italic text-[11px] text-gray-500"> · manual</em>}</span><span>{formatCurrency(i.amount)}</span></li>
                     ))}
                 </ul>
                 <div className="text-sm text-gray-600 border-t border-gray-200 pt-2 space-y-0.5">

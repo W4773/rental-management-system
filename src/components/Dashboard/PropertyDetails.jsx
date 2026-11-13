@@ -231,7 +231,7 @@ export default function PropertyDetails({ property, onDeleted }) {
                         </p>
                     )}
                     {activeTenant && (
-                        <div className="mt-1.5"><StatusPill status={rentStatus} showDetail align="left" /></div>
+                        <div className="mt-1.5"><StatusPill status={rentStatus} tenant={activeTenant} showDetail align="left" /></div>
                     )}
                 </div>
                 <div className="text-right max-md:w-full max-md:text-left">
