@@ -61,6 +61,30 @@ export function lateFeeForLetter({ property, tenant, payments, status, cfg, toda
 
 const round2 = (n) => Math.round(n * 100) / 100
 
+/** Months a collection letter lists, with what is still owed on each: [{ key, remaining }]. Basis for a manual fee. */
+export function billsForLetter({ property, tenant, payments, status, today = new Date() }) {
+    const keys = status?.overdueMonths || []
+    if (keys.length === 0) return []
+    return getPendingBills(property, tenant, payments, keys[keys.length - 1], today).filter(b => keys.includes(b.key))
+}
+
+/**
+ * Manual fee chosen by the user, independent of the Ajustes rule.
+ * `entries` = { [monthKey]: { type: 'fixed' | 'percent', value } }; months without an entry (or with 0) are not charged.
+ * Returns the same shape as computeLateFee: { total, items: [{ key, amount }] }.
+ */
+export function computeManualFee(bills, entries) {
+    const items = []
+    for (const b of bills) {
+        const e = entries?.[b.key]
+        const value = parseFloat(e?.value) || 0
+        if (!e || value <= 0) continue
+        const amount = round2(e.type === 'percent' ? (b.remaining * Math.min(value, 100)) / 100 : value)
+        if (amount > 0) items.push({ key: b.key, amount })
+    }
+    return { total: round2(items.reduce((s, i) => s + i.amount, 0)), items }
+}
+
 /** Human sentence of the rule, e.g. "RD$ 500 por cada mes atrasado, a partir del día 16 del mes siguiente". */
 export function describeLateFee(cfg) {
     const c = resolveLateFeeSettings(cfg)
