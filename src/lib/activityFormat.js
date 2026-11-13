@@ -50,6 +50,8 @@ function describe(entry, { properties = [], tenants = [], buildings = [] }) {
             return { kind: 'tenant', tone: 'update', title: 'Inquilino editado', subtitle: join(meta.name || tenant?.name, propName) }
         case 'tenant.unassign':
             return { kind: 'tenant', tone: 'delete', title: 'Inquilino desasignado', subtitle: join(meta.name || tenant?.name, propName) }
+        case 'tenant.reassign':
+            return { kind: 'tenant', tone: 'create', title: 'Inquilino revinculado', subtitle: join(meta.name || tenant?.name, propName) }
         case 'utility.create':
             return { kind: 'utility', tone: 'create', title: `Lectura de ${UTILITY_LABEL[meta.type] || 'servicio'} registrada`, subtitle: join(propName, meta.amount != null && formatCurrency(meta.amount)) }
         case 'utility.paid':

@@ -216,6 +216,7 @@ export function AppProvider({ children }) {
         activityAvailable: activityHook.available,
         buildingsAvailable: buildingsHook.available,
         closeTenant: tenantsHook.closeTenant,
+        reopenTenant: tenantsHook.reopenTenant,
         deletePayment: paymentsHook.deletePayment,
         updatePayment: paymentsHook.updatePayment,
         setMonthsState: paymentsHook.setMonthsState,

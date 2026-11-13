@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus, Mail, ChevronDown, ChevronRight, History, Phone } from 'lucide-react'
+import { UserPlus, Search, Pencil, FileText, Wallet, UserMinus, Mail, ChevronDown, ChevronRight, History, Phone, Undo2 } from 'lucide-react'
 import { differenceInCalendarMonths } from 'date-fns'
 import { useApp } from '../contexts/AppContext'
 import { formatDate } from '../lib/dateUtils'
@@ -62,12 +62,13 @@ function TenantCard({ tenant, property, building, status, onPay, onLetter, onRep
 }
 
 export default function Tenants() {
-    const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, generateLetter, closeTenant, onDataChanged, toast, loading } = useApp()
+    const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, generateLetter, closeTenant, reopenTenant, onDataChanged, toast, loading } = useApp()
     const [params] = useSearchParams()
     // Deep links (e.g. from Finanzas): /inquilinos?v=former&q=name
     const [query, setQuery] = useState(params.get('q') || '')
     const [view, setView] = useState(params.get('v') === 'former' ? 'former' : 'active') // 'active' | 'former'
     const [toUnassign, setToUnassign] = useState(null)
+    const [toReopen, setToReopen] = useState(null)
     const [expanded, setExpanded] = useState(null)
 
     const { active, former } = useMemo(() => {
@@ -85,6 +86,9 @@ export default function Tenants() {
     const paymentsOf = (tenantId) => payments
         .filter(p => p.tenant_id === tenantId && hasMoney(p) && !p.auto_generated)
         .sort((a, b) => monthKeyOf(b).localeCompare(monthKeyOf(a)))
+
+    // Properties that currently have an active tenant: a former tenant can only be relinked to a vacant one
+    const occupied = new Set(tenants.filter(t => !t.end_date).map(t => t.property_id))
 
     const totalActive = tenants.filter(t => !t.end_date).length
     const totalFormer = tenants.length - totalActive
@@ -232,6 +236,12 @@ export default function Tenants() {
                                         <p className="text-[13px] font-semibold text-green-700">{formatCurrency(total)}</p>
                                         <p className="text-[11px] text-gray-500">{list.length} {list.length === 1 ? 'pago' : 'pagos'}</p>
                                     </div>
+                                    {property && !occupied.has(property.id) && (
+                                        <button onClick={() => setToReopen(tenant)}
+                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-brand-300 text-xs font-medium text-brand-700 hover:bg-brand-50">
+                                            <Undo2 className="w-3.5 h-3.5" /> Revincular
+                                        </button>
+                                    )}
                                     {property && list.length > 0 && (
                                         <button onClick={() => openReport({ propertyId: property.id, tenantId: tenant.id })}
                                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
@@ -280,6 +290,24 @@ export default function Tenants() {
                 message={`¿Desvincular a ${toUnassign?.name || ''}? Pasa a "Antiguos" y se conserva todo su historial de pagos.`}
                 confirmText="Sí, desvincular"
                 isDanger
+            />
+
+            <ConfirmModal
+                isOpen={toReopen !== null}
+                onClose={() => setToReopen(null)}
+                onConfirm={async () => {
+                    // Re-check at click time: someone may have assigned another tenant meanwhile
+                    if (tenants.some(t => !t.end_date && t.property_id === toReopen.property_id)) {
+                        toast.error('Esa propiedad ya tiene otro inquilino activo')
+                        throw new Error('property occupied')
+                    }
+                    const { error } = await reopenTenant(toReopen.id)
+                    if (error) { toast.error('Error al revincular inquilino'); throw new Error(error) }
+                    onDataChanged('Inquilino revinculado. Vuelve a estar activo en su propiedad.')
+                }}
+                title="Revincular inquilino"
+                message={`¿Revincular a ${toReopen?.name || ''}? Vuelve a "Activos" en su propiedad anterior y conserva todo su historial de pagos.`}
+                confirmText="Sí, revincular"
             />
         </div>
     )

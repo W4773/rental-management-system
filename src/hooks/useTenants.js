@@ -28,7 +28,7 @@ export function useTenants() {
         }
     }
 
-    async function updateTenant(id, updates) {
+    async function updateTenant(id, updates, action) {
         try {
             const { data, error: updateError } = await supabase
                 .from('tenants')
@@ -40,7 +40,7 @@ export function useTenants() {
             patchTable('tenants', { upsert: data || [] })
             const known = tenants.find(t => t.id === id) || data?.[0]
             logActivity({
-                action: updates.end_date ? 'tenant.unassign' : 'tenant.update',
+                action: action || (updates.end_date ? 'tenant.unassign' : 'tenant.update'),
                 entityType: 'tenant',
                 entityId: id,
                 meta: { name: updates.name || known?.name, property_id: known?.property_id }
@@ -70,6 +70,11 @@ export function useTenants() {
 
     async function closeTenant(id, endDate = new Date()) {
         return updateTenant(id, { end_date: endDate.toISOString().split('T')[0] })
+    }
+
+    // Undo an unassign: the tenant is active again. The caller must check the property is vacant.
+    async function reopenTenant(id) {
+        return updateTenant(id, { end_date: null }, 'tenant.reassign')
     }
 
     async function getActiveTenantForProperty(propertyId) {
@@ -119,6 +124,7 @@ export function useTenants() {
         updateTenant,
         deleteTenant,
         closeTenant,
+        reopenTenant,
         getActiveTenantForProperty,
         getTenantsByProperty,
         refresh: fetchTenants
