@@ -9,6 +9,7 @@ import { normalizeText, getPaymentStatus, hasMoney, monthKeyOf, formatMonthKey }
 import ConfirmModal from '../components/Common/ConfirmModal'
 import StatusPill from '../components/Dashboard/StatusPill'
 import RowMenu from '../components/Common/RowMenu'
+import { generateTenantsReport } from '../lib/reportGenerator'
 
 const METHOD = { transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque', historical: 'Histórico', pending: 'Pendiente' }
 
@@ -62,7 +63,7 @@ function TenantCard({ tenant, property, building, status, onPay, onLetter, onRep
 }
 
 export default function Tenants() {
-    const { tenants, properties, buildings, payments, openTenant, openReport, openPayment, generateLetter, closeTenant, reopenTenant, onDataChanged, toast, loading } = useApp()
+    const { tenants, properties, buildings, payments, settings, openTenant, openReport, openPayment, generateLetter, closeTenant, reopenTenant, onDataChanged, toast, loading } = useApp()
     const [params] = useSearchParams()
     // Deep links (e.g. from Finanzas): /inquilinos?v=former&q=name
     const [query, setQuery] = useState(params.get('q') || '')
@@ -102,9 +103,19 @@ export default function Tenants() {
         <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-xl font-bold">Inquilinos</h1>
-                <button onClick={() => openTenant()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105 max-md:w-full max-md:justify-center">
-                    <UserPlus className="w-3.5 h-3.5" /> Nuevo inquilino
-                </button>
+                <div className="flex gap-2 max-md:w-full">
+                    <button onClick={async () => {
+                        const rows = view === 'former' ? former : active
+                        if (rows.length === 0) return toast.error('No hay inquilinos para el reporte')
+                        try { await generateTenantsReport({ former: view === 'former', rows, buildings, settings: settings || {} }) }
+                        catch { toast.error('Error al generar el reporte') }
+                    }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-brand-300 bg-white text-brand-700 text-xs font-semibold shadow-sm hover:bg-brand-50 max-md:flex-1 max-md:justify-center">
+                        <FileText className="w-3.5 h-3.5" /> Reporte PDF
+                    </button>
+                    <button onClick={() => openTenant()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105 max-md:flex-1 max-md:justify-center">
+                        <UserPlus className="w-3.5 h-3.5" /> Nuevo inquilino
+                    </button>
+                </div>
             </div>
 
             <div className="flex gap-1 border-b border-brand-200" role="tablist">
