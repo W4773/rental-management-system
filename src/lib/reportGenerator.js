@@ -102,12 +102,12 @@ export async function generatePaymentsReport({ property, tenant, building, payme
  * Tenant list PDF (no payment status) for the "Activos" or "Antiguos" tab.
  * @param {{former: boolean, rows: {tenant, property}[], buildings, settings}} opts
  */
-export async function generateTenantsReport({ former, rows, buildings = [], settings = {} }) {
+export async function generateTenantsReport({ former, rows, buildings = [], settings = {}, orderLabel = '' }) {
     const brand = settings.display_name || settings.landlord_name || 'Alquiler Pro'
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
     const doc = new jsPDF()
     const title = former ? 'INQUILINOS ANTIGUOS' : 'INQUILINOS ACTIVOS'
-    const y = drawHeader(doc, title, `${rows.length} inquilino(s)`, brand)
+    const y = drawHeader(doc, title, `${rows.length} inquilino(s)${orderLabel ? ' - ' + orderLabel : ''}`, brand)
 
     const place = (property) => {
         if (!property) return 'Sin propiedad'
