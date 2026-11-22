@@ -1,19 +1,16 @@
 import { useMemo, useState } from 'react'
-import { Flame, Zap, Droplets, Plus, Search } from 'lucide-react'
+import { Plus, Search, Gauge } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { formatCurrency } from '../lib/calculations'
 import { formatDate } from '../lib/dateUtils'
 import { normalizeText } from '../lib/paymentStatus'
-
-const TABS = [
-    { id: 'gas', label: 'Gas', unit: 'GL', icon: Flame },
-    { id: 'electricity', label: 'Luz', unit: 'kWh', icon: Zap },
-    { id: 'water', label: 'Agua', unit: 'm³', icon: Droplets }
-]
+import { EXPENSE_TYPES as TABS } from '../lib/expenseTypes'
+import RegisterExpenseModal from '../components/Modals/RegisterExpenseModal'
 
 export default function Expenses() {
-    const { utilityReadings, properties, openUtility, openPayGas, loading } = useApp()
-    const [tab, setTab] = useState('gas')
+    const { utilityReadings, properties, openUtility, openPayGas, loading, toast } = useApp()
+    const [tab, setTab] = useState('electricity')
+    const [expenseOpen, setExpenseOpen] = useState(false)
     const [query, setQuery] = useState('')
     const [filter, setFilter] = useState('pending')
 
@@ -43,17 +40,26 @@ export default function Expenses() {
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <h1 className="text-xl font-bold leading-tight">Gastos</h1>
-                    <p className="text-xs text-gray-500">Servicios por propiedad</p>
+                    <p className="text-xs text-gray-500">Servicios y gastos por propiedad</p>
                 </div>
-                <button onClick={() => openUtility(tab)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105 max-md:w-full max-md:justify-center">
-                    <Plus className="w-3.5 h-3.5" /> Registrar lectura de {current.label.toLowerCase()}
-                </button>
+                <div className="flex flex-wrap gap-2 max-md:w-full">
+                    {current.unit && (
+                        <button onClick={() => openUtility(tab)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-brand-300 text-brand-700 text-xs font-semibold hover:bg-brand-50 max-md:flex-1 max-md:justify-center">
+                            <Gauge className="w-3.5 h-3.5" /> Lectura de {current.label.toLowerCase()}
+                        </button>
+                    )}
+                    <button onClick={() => setExpenseOpen(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 text-white text-xs font-semibold shadow-sm hover:brightness-105 max-md:flex-1 max-md:justify-center">
+                        <Plus className="w-3.5 h-3.5" /> Registrar gasto de {current.label.toLowerCase()}
+                    </button>
+                </div>
             </div>
+            <RegisterExpenseModal isOpen={expenseOpen} initialType={tab} onClose={() => setExpenseOpen(false)}
+                onSuccess={() => toast.success('Gasto registrado')} />
 
-            <div className="flex gap-1 border-b border-brand-200">
+            <div className="flex gap-1 border-b border-brand-200 overflow-x-auto">
                 {TABS.map(({ id, label, icon: Icon }) => (
                     <button key={id} onClick={() => setTab(id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 text-[13px] font-semibold border-b-2 -mb-px transition max-md:flex-1 max-md:justify-center ${
+                        className={`flex shrink-0 items-center gap-1.5 px-3 py-2 text-[13px] font-semibold border-b-2 -mb-px transition whitespace-nowrap ${
                             tab === id ? 'border-brand-500 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
                         <Icon className="w-4 h-4" />{label}
                     </button>
@@ -89,19 +95,19 @@ export default function Expenses() {
                         <tr>
                             <th className="text-left px-3 py-2">Propiedad</th>
                             <th className="text-left px-3 py-2">Fecha</th>
-                            <th className="text-right px-3 py-2 hidden sm:table-cell">Consumo</th>
+                            <th className="text-right px-3 py-2 hidden sm:table-cell">Consumo / nota</th>
                             <th className="text-right px-3 py-2">Costo</th>
                             <th className="text-left px-3 py-2">Estado</th>
                             <th className="px-3 py-2" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {rows.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-gray-500">No hay lecturas.</td></tr>}
+                        {rows.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-gray-500">No hay gastos.</td></tr>}
                         {rows.map(({ reading, property }) => (
                             <tr key={reading.id} className="hover:bg-brand-50/50">
                                 <td className="px-3 py-1.5 font-medium">{property?.name || '-'}</td>
                                 <td className="px-3 py-1.5">{formatDate(reading.reading_date)}</td>
-                                <td className="px-3 py-1.5 text-right hidden sm:table-cell">{reading.consumption_volume} {current.unit}</td>
+                                <td className="px-3 py-1.5 text-right hidden sm:table-cell">{reading.consumption_volume > 0 ? `${reading.consumption_volume} ${current.unit}` : (reading.notes || '-')}</td>
                                 <td className="px-3 py-1.5 text-right font-semibold">{formatCurrency(reading.total_cost)}</td>
                                 <td className="px-3 py-1.5">
                                     <span className={reading.paid ? 'wp-badge-green' : 'wp-badge-amber'} style={{ fontSize: 9 }}>
@@ -119,14 +125,14 @@ export default function Expenses() {
 
             <ul className="md:hidden space-y-2">
                 {rows.length === 0 && (
-                    <li className="bg-white rounded-xl border border-dashed border-brand-200 p-6 text-center text-sm text-gray-500">No hay lecturas.</li>
+                    <li className="bg-white rounded-xl border border-dashed border-brand-200 p-6 text-center text-sm text-gray-500">No hay gastos.</li>
                 )}
                 {rows.map(({ reading, property }) => (
                     <li key={reading.id} className="bg-white rounded-xl border border-brand-200 shadow-sm p-3">
                         <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <p className="font-semibold leading-tight break-words">{property?.name || '-'}</p>
-                                <p className="text-xs text-gray-500">{formatDate(reading.reading_date)} · {reading.consumption_volume} {current.unit}</p>
+                                <p className="text-xs text-gray-500">{formatDate(reading.reading_date)} · {reading.consumption_volume > 0 ? `${reading.consumption_volume} ${current.unit}` : (reading.notes || 'Gasto')}</p>
                             </div>
                             <div className="text-right shrink-0">
                                 <p className="font-bold">{formatCurrency(reading.total_cost)}</p>
