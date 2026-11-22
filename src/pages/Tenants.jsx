@@ -10,6 +10,7 @@ import ConfirmModal from '../components/Common/ConfirmModal'
 import StatusPill from '../components/Dashboard/StatusPill'
 import RowMenu from '../components/Common/RowMenu'
 import { generateTenantsReport } from '../lib/reportGenerator'
+import { compareUnits } from '../lib/buildingStats'
 
 const METHOD = { transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque', historical: 'Histórico', pending: 'Pendiente' }
 
@@ -71,6 +72,7 @@ export default function Tenants() {
     const [toUnassign, setToUnassign] = useState(null)
     const [toReopen, setToReopen] = useState(null)
     const [expanded, setExpanded] = useState(null)
+    const [reportOrder, setReportOrder] = useState('name') // 'name' | 'property'
 
     const { active, former } = useMemo(() => {
         const q = normalizeText(query)
@@ -104,10 +106,23 @@ export default function Tenants() {
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-xl font-bold">Inquilinos</h1>
                 <div className="flex gap-2 max-md:w-full">
+                    <select value={reportOrder} onChange={(e) => setReportOrder(e.target.value)} aria-label="Orden del reporte"
+                        className="px-2 py-1.5 rounded-lg border border-brand-300 bg-white text-brand-700 text-xs font-semibold max-md:flex-1">
+                        <option value="name">Alfabético</option>
+                        <option value="property">Por propiedad</option>
+                    </select>
                     <button onClick={async () => {
-                        const rows = view === 'former' ? former : active
-                        if (rows.length === 0) return toast.error('No hay inquilinos para el reporte')
-                        try { await generateTenantsReport({ former: view === 'former', rows, buildings, settings: settings || {} }) }
+                        const base = view === 'former' ? former : active
+                        if (base.length === 0) return toast.error('No hay inquilinos para el reporte')
+                        const byName = (a, b) => a.tenant.name.localeCompare(b.tenant.name, 'es', { sensitivity: 'base' })
+                        const bName = (p) => buildings.find(b => b.id === p.building_id)?.name || ''
+                        // By property: building, then unit (numeric-aware); tenants without property go last
+                        const byProperty = (a, b) => (!a.property - !b.property)
+                            || (a.property && (bName(a.property).localeCompare(bName(b.property), 'es', { numeric: true, sensitivity: 'base' }) || compareUnits(a.property, b.property)))
+                            || byName(a, b)
+                        const rows = [...base].sort(reportOrder === 'property' ? byProperty : byName)
+                        const orderLabel = reportOrder === 'property' ? 'Ordenado por propiedad' : 'Orden alfabético'
+                        try { await generateTenantsReport({ former: view === 'former', rows, buildings, settings: settings || {}, orderLabel }) }
                         catch { toast.error('Error al generar el reporte') }
                     }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-brand-300 bg-white text-brand-700 text-xs font-semibold shadow-sm hover:bg-brand-50 max-md:flex-1 max-md:justify-center">
                         <FileText className="w-3.5 h-3.5" /> Reporte PDF
