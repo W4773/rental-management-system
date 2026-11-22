@@ -9,7 +9,9 @@ import { normalizeText, getPaymentStatus, hasMoney, monthKeyOf, formatMonthKey }
 import ConfirmModal from '../components/Common/ConfirmModal'
 import StatusPill from '../components/Dashboard/StatusPill'
 import RowMenu from '../components/Common/RowMenu'
-import { generateTenantsReport } from '../lib/reportGenerator'
+import { generateTenantsReport, TENANT_REPORT_COLUMNS, tenantReportColumns } from '../lib/reportGenerator'
+import Modal from '../components/Common/Modal'
+import Button from '../components/Common/Button'
 import { compareUnits } from '../lib/buildingStats'
 
 const METHOD = { transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque', historical: 'Histórico', pending: 'Pendiente' }
@@ -72,7 +74,30 @@ export default function Tenants() {
     const [toUnassign, setToUnassign] = useState(null)
     const [toReopen, setToReopen] = useState(null)
     const [expanded, setExpanded] = useState(null)
+    const [reportOpen, setReportOpen] = useState(false)
     const [reportOrder, setReportOrder] = useState('name') // 'name' | 'property'
+    const [reportCols, setReportCols] = useState(() => TENANT_REPORT_COLUMNS.filter(c => c.def).map(c => c.key))
+
+    const downloadReport = async () => {
+        const isFormer = view === 'former'
+        const byName = (a, b) => a.tenant.name.localeCompare(b.tenant.name, 'es', { sensitivity: 'base' })
+        const bName = (p) => buildings.find(b => b.id === p.building_id)?.name || ''
+        // By property: building, then unit (numeric-aware); tenants without property go last
+        const byProperty = (a, b) => (!a.property - !b.property)
+            || (a.property && (bName(a.property).localeCompare(bName(b.property), 'es', { numeric: true, sensitivity: 'base' }) || compareUnits(a.property, b.property)))
+            || byName(a, b)
+        const byPlace = reportOrder === 'property'
+        const rows = [...(isFormer ? former : active)].sort(byPlace ? byProperty : byName)
+        try {
+            await generateTenantsReport({
+                former: isFormer, rows, buildings, settings: settings || {}, columns: reportCols,
+                // Active: one table per building; former: one table per unit (several tenants passed through it)
+                groupBy: byPlace ? (isFormer ? 'property' : 'building') : undefined,
+                orderLabel: byPlace ? (isFormer ? 'Por propiedad' : 'Por edificio') : 'Orden alfabético'
+            })
+            setReportOpen(false)
+        } catch { toast.error('Error al generar el reporte') }
+    }
 
     const { active, former } = useMemo(() => {
         const q = normalizeText(query)
@@ -106,24 +131,9 @@ export default function Tenants() {
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-xl font-bold">Inquilinos</h1>
                 <div className="flex gap-2 max-md:w-full">
-                    <select value={reportOrder} onChange={(e) => setReportOrder(e.target.value)} aria-label="Orden del reporte"
-                        className="px-2 py-1.5 rounded-lg border border-brand-300 bg-white text-brand-700 text-xs font-semibold max-md:flex-1">
-                        <option value="name">Alfabético</option>
-                        <option value="property">Por propiedad</option>
-                    </select>
-                    <button onClick={async () => {
-                        const base = view === 'former' ? former : active
-                        if (base.length === 0) return toast.error('No hay inquilinos para el reporte')
-                        const byName = (a, b) => a.tenant.name.localeCompare(b.tenant.name, 'es', { sensitivity: 'base' })
-                        const bName = (p) => buildings.find(b => b.id === p.building_id)?.name || ''
-                        // By property: building, then unit (numeric-aware); tenants without property go last
-                        const byProperty = (a, b) => (!a.property - !b.property)
-                            || (a.property && (bName(a.property).localeCompare(bName(b.property), 'es', { numeric: true, sensitivity: 'base' }) || compareUnits(a.property, b.property)))
-                            || byName(a, b)
-                        const rows = [...base].sort(reportOrder === 'property' ? byProperty : byName)
-                        const orderLabel = reportOrder === 'property' ? 'Ordenado por propiedad' : 'Orden alfabético'
-                        try { await generateTenantsReport({ former: view === 'former', rows, buildings, settings: settings || {}, orderLabel }) }
-                        catch { toast.error('Error al generar el reporte') }
+                    <button onClick={() => {
+                        if ((view === 'former' ? former : active).length === 0) return toast.error('No hay inquilinos para el reporte')
+                        setReportOpen(true)
                     }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-brand-300 bg-white text-brand-700 text-xs font-semibold shadow-sm hover:bg-brand-50 max-md:flex-1 max-md:justify-center">
                         <FileText className="w-3.5 h-3.5" /> Reporte PDF
                     </button>
@@ -303,6 +313,43 @@ export default function Tenants() {
                     })}
                 </div>
             )}
+
+            {reportOpen && (() => {
+                const available = tenantReportColumns(view === 'former')
+                const chosen = available.filter(c => reportCols.includes(c.key))
+                return (
+                    <Modal isOpen onClose={() => setReportOpen(false)} size="sm"
+                        title={`Reporte de inquilinos ${view === 'former' ? 'antiguos' : 'activos'}`}>
+                        <fieldset className="mb-4">
+                            <legend className="text-xs font-bold uppercase text-gray-500 mb-1.5">Orden</legend>
+                            {[['name', 'Alfabético'], ['property', view === 'former' ? 'Por propiedad (una tabla por propiedad)' : 'Por edificio (una tabla por edificio)']].map(([v, label]) => (
+                                <label key={v} className="flex items-center gap-2 py-1 text-sm">
+                                    <input type="radio" name="report-order" value={v} checked={reportOrder === v} onChange={() => setReportOrder(v)} />{label}
+                                </label>
+                            ))}
+                        </fieldset>
+                        <fieldset className="mb-4">
+                            <legend className="text-xs font-bold uppercase text-gray-500 mb-1.5">Columnas</legend>
+                            <div className="grid grid-cols-2 gap-x-3">
+                                {available.map(c => (
+                                    <label key={c.key} className="flex items-center gap-2 py-1 text-sm">
+                                        <input type="checkbox" checked={reportCols.includes(c.key)}
+                                            onChange={(e) => setReportCols(cols => e.target.checked ? [...cols, c.key] : cols.filter(k => k !== c.key))} />
+                                        {c.label}
+                                    </label>
+                                ))}
+                            </div>
+                            {chosen.length === 0 && <p className="text-sm text-red-600 mt-1">Elija al menos una columna</p>}
+                        </fieldset>
+                        <div className="flex justify-end gap-2">
+                            <Button variant="secondary" size="sm" onClick={() => setReportOpen(false)}>Cancelar</Button>
+                            <Button size="sm" onClick={downloadReport} disabled={chosen.length === 0} className="inline-flex items-center gap-1.5">
+                                <FileText className="w-4 h-4" /> Descargar PDF
+                            </Button>
+                        </div>
+                    </Modal>
+                )
+            })()}
 
             <ConfirmModal
                 isOpen={toUnassign !== null}

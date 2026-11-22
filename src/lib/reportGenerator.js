@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { PDF_COLORS, drawHeader, drawFooter, drawField, money, monthLabel, dateLabel } from './pdfHelpers'
+import { rentForMonth } from './rentHistory'
 
 const methodLabel = (m) => ({ transfer: 'Transferencia', cash: 'Efectivo', check: 'Cheque' }[m] || m || '-')
 
@@ -98,44 +99,92 @@ export async function generatePaymentsReport({ property, tenant, building, payme
     return doc
 }
 
+/** Columns of the tenants report. `former` limits a column to one tab; `def` = shown by default. */
+export const TENANT_REPORT_COLUMNS = [
+    { key: 'name', label: 'Inquilino', def: true },
+    { key: 'identity', label: 'Cédula', def: false },
+    { key: 'phone', label: 'Teléfono', def: true },
+    { key: 'property', label: 'Propiedad', def: true },
+    { key: 'start', label: 'Entrada', def: true },
+    { key: 'end', label: 'Salida', def: true, former: true },
+    { key: 'rent', label: 'Renta mensual', def: true, right: true },
+    { key: 'deposit', label: 'Depósito', def: false, right: true }
+]
+export const tenantReportColumns = (former) => TENANT_REPORT_COLUMNS.filter(c => c.former === undefined || c.former === former)
+
 /**
  * Tenant list PDF (no payment status) for the "Activos" or "Antiguos" tab.
- * @param {{former: boolean, rows: {tenant, property}[], buildings, settings}} opts
+ * groupBy 'building' / 'property' prints one table per group (rows must already be sorted by it).
+ * @param {{former: boolean, rows: {tenant, property}[], buildings, settings, columns: string[], groupBy?: 'building'|'property', orderLabel?: string}} opts
  */
-export async function generateTenantsReport({ former, rows, buildings = [], settings = {}, orderLabel = '' }) {
+export async function generateTenantsReport({ former, rows, buildings = [], settings = {}, columns, groupBy, orderLabel = '' }) {
     const brand = settings.display_name || settings.landlord_name || 'Alquiler Pro'
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
     const doc = new jsPDF()
     const title = former ? 'INQUILINOS ANTIGUOS' : 'INQUILINOS ACTIVOS'
-    const y = drawHeader(doc, title, `${rows.length} inquilino(s)${orderLabel ? ' - ' + orderLabel : ''}`, brand)
+    let y = drawHeader(doc, title, `${rows.length} inquilino(s)${orderLabel ? ' - ' + orderLabel : ''}`, brand)
 
-    const place = (property) => {
-        if (!property) return 'Sin propiedad'
-        const b = buildings.find(x => x.id === property.building_id)
-        return b ? `${property.name}\n${b.name}` : property.name
+    const buildingOf = (property) => buildings.find(x => x.id === property?.building_id)
+    // Active: rent of the current month; former: rent of the month they left
+    const rentOf = (tenant, property) => {
+        if (!property) return '-'
+        const key = former ? tenant.end_date.slice(0, 7) : format(new Date(), 'yyyy-MM')
+        const rent = rentForMonth(property, key)
+        return rent > 0 ? money(rent) : '-'
     }
-    const head = former
-        ? ['Inquilino', 'Cédula', 'Teléfono', 'Propiedad', 'Entrada', 'Salida']
-        : ['Inquilino', 'Cédula', 'Teléfono', 'Propiedad', 'Entrada', 'Depósito']
-    const body = rows.map(({ tenant, property }) => [
-        (tenant.name || '').toUpperCase(),
-        tenant.identity_number || '-',
-        tenant.phone || '-',
-        place(property),
-        dateLabel(tenant.start_date),
-        former ? dateLabel(tenant.end_date) : (tenant.deposit_amount > 0 ? money(tenant.deposit_amount) : '-')
-    ])
+    const cell = {
+        name: ({ tenant }) => (tenant.name || '').toUpperCase(),
+        identity: ({ tenant }) => tenant.identity_number || '-',
+        phone: ({ tenant }) => tenant.phone || '-',
+        // Grouped by building: the building is already in the table title
+        property: ({ property }) => !property ? 'Sin propiedad'
+            : (groupBy !== 'building' && buildingOf(property) ? `${property.name}\n${buildingOf(property).name}` : property.name),
+        start: ({ tenant }) => dateLabel(tenant.start_date),
+        end: ({ tenant }) => dateLabel(tenant.end_date),
+        rent: ({ tenant, property }) => rentOf(tenant, property),
+        deposit: ({ tenant }) => tenant.deposit_amount > 0 ? money(tenant.deposit_amount) : '-'
+    }
+    const cols = tenantReportColumns(former).filter(c => columns.includes(c.key))
+    const columnStyles = {}
+    cols.forEach((c, i) => {
+        if (c.key === 'name') columnStyles[i] = { fontStyle: 'bold' }
+        if (c.right) columnStyles[i] = { halign: 'right' }
+    })
 
-    autoTable(doc, {
-        startY: y,
-        head: [head],
-        body,
-        theme: 'striped',
-        headStyles: { fillColor: PDF_COLORS.brand, textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: PDF_COLORS.cream },
-        styles: { fontSize: 8.5, cellPadding: 2.5, textColor: PDF_COLORS.ink },
-        columnStyles: { 0: { fontStyle: 'bold' }, 5: { halign: former ? 'left' : 'right' } },
-        margin: { left: 14, right: 14, bottom: 22 }
+    const groupLabel = ({ property }) => {
+        if (groupBy === 'building') return buildingOf(property)?.name || 'Sin edificio'
+        if (!property) return 'Sin propiedad'
+        return buildingOf(property) ? `${property.name} - ${buildingOf(property).name}` : property.name
+    }
+    const groups = []
+    rows.forEach(r => {
+        const label = groupBy ? groupLabel(r) : ''
+        if (groups.length && groups[groups.length - 1].label === label) groups[groups.length - 1].rows.push(r)
+        else groups.push({ label, rows: [r] })
+    })
+
+    const pageH = doc.internal.pageSize.getHeight()
+    groups.forEach(({ label, rows: list }) => {
+        if (label) {
+            if (y > pageH - 50) { doc.addPage(); y = 20 } // keep the title with its table
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(10.5)
+            doc.setTextColor(...PDF_COLORS.brand)
+            doc.text(`${label}  (${list.length})`, 14, y + 4)
+            y += 7
+        }
+        autoTable(doc, {
+            startY: y,
+            head: [cols.map(c => c.label)],
+            body: list.map(r => cols.map(c => cell[c.key](r))),
+            theme: 'striped',
+            headStyles: { fillColor: PDF_COLORS.brand, textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: PDF_COLORS.cream },
+            styles: { fontSize: 8.5, cellPadding: 2.5, textColor: PDF_COLORS.ink },
+            columnStyles,
+            margin: { left: 14, right: 14, bottom: 22 }
+        })
+        y = doc.lastAutoTable.finalY + 8
     })
 
     drawFooter(doc, `Generado el ${format(new Date(), 'dd/MM/yyyy')} - Alquiler Pro${settings.phone ? ' - ' + settings.phone : ''}`)
