@@ -97,3 +97,48 @@ export async function generatePaymentsReport({ property, tenant, building, payme
     doc.save(`Reporte_${safe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`)
     return doc
 }
+
+/**
+ * Tenant list PDF (no payment status) for the "Activos" or "Antiguos" tab.
+ * @param {{former: boolean, rows: {tenant, property}[], buildings, settings}} opts
+ */
+export async function generateTenantsReport({ former, rows, buildings = [], settings = {} }) {
+    const brand = settings.display_name || settings.landlord_name || 'Alquiler Pro'
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
+    const doc = new jsPDF()
+    const title = former ? 'INQUILINOS ANTIGUOS' : 'INQUILINOS ACTIVOS'
+    const y = drawHeader(doc, title, `${rows.length} inquilino(s)`, brand)
+
+    const place = (property) => {
+        if (!property) return 'Sin propiedad'
+        const b = buildings.find(x => x.id === property.building_id)
+        return b ? `${property.name}\n${b.name}` : property.name
+    }
+    const head = former
+        ? ['Inquilino', 'Cédula', 'Teléfono', 'Propiedad', 'Entrada', 'Salida']
+        : ['Inquilino', 'Cédula', 'Teléfono', 'Propiedad', 'Entrada', 'Depósito']
+    const body = rows.map(({ tenant, property }) => [
+        (tenant.name || '').toUpperCase(),
+        tenant.identity_number || '-',
+        tenant.phone || '-',
+        place(property),
+        dateLabel(tenant.start_date),
+        former ? dateLabel(tenant.end_date) : (tenant.deposit_amount > 0 ? money(tenant.deposit_amount) : '-')
+    ])
+
+    autoTable(doc, {
+        startY: y,
+        head: [head],
+        body,
+        theme: 'striped',
+        headStyles: { fillColor: PDF_COLORS.brand, textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: PDF_COLORS.cream },
+        styles: { fontSize: 8.5, cellPadding: 2.5, textColor: PDF_COLORS.ink },
+        columnStyles: { 0: { fontStyle: 'bold' }, 5: { halign: former ? 'left' : 'right' } },
+        margin: { left: 14, right: 14, bottom: 22 }
+    })
+
+    drawFooter(doc, `Generado el ${format(new Date(), 'dd/MM/yyyy')} - Alquiler Pro${settings.phone ? ' - ' + settings.phone : ''}`)
+    doc.save(`Inquilinos_${former ? 'antiguos' : 'activos'}_${format(new Date(), 'yyyy-MM-dd')}.pdf`)
+    return doc
+}
