@@ -1,7 +1,7 @@
 import { formatCurrency } from './calculations'
 import { formatMonthKey } from './paymentStatus'
 
-const UTILITY_LABEL = { gas: 'gas', electricity: 'luz', water: 'agua' }
+const UTILITY_LABEL = { gas: 'gas', electricity: 'luz', water: 'agua', garbage: 'basura', cleaning: 'limpieza', maintenance: 'mantenimiento' }
 
 const monthsText = (months = []) => {
     const keys = months.filter(Boolean).sort()
@@ -55,7 +55,7 @@ function describe(entry, { properties = [], tenants = [], buildings = [] }) {
         case 'tenant.late_fee':
             return { kind: 'tenant', tone: 'update', title: 'Mora manual actualizada', subtitle: join(meta.name || tenant?.name, propName) }
         case 'utility.create':
-            return { kind: 'utility', tone: 'create', title: `Lectura de ${UTILITY_LABEL[meta.type] || 'servicio'} registrada`, subtitle: join(propName, meta.amount != null && formatCurrency(meta.amount)) }
+            return { kind: 'utility', tone: 'create', title: `Gasto de ${UTILITY_LABEL[meta.type] || 'servicio'} registrado`, subtitle: join(propName, meta.amount != null && formatCurrency(meta.amount)) }
         case 'utility.paid':
             return { kind: 'utility', tone: 'create', title: `${(UTILITY_LABEL[meta.type] || 'Servicio').replace(/^./, c => c.toUpperCase())} pagado`, subtitle: join(propName, meta.amount != null && formatCurrency(meta.amount)) }
         case 'utility.update':

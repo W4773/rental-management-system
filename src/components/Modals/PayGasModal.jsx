@@ -5,6 +5,7 @@ import ConfirmModal from '../Common/ConfirmModal'
 import { useUtilityReadings } from '../../hooks/useUtilityReadings'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
+import { expenseType } from '../../lib/expenseTypes'
 
 export default function PayGasModal({ isOpen, onClose, onSuccess, gasReading }) {
     const { updateGasReading } = useUtilityReadings()
@@ -30,17 +31,17 @@ export default function PayGasModal({ isOpen, onClose, onSuccess, gasReading }) 
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Pagar Consumo de Gas">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Pagar gasto de ${expenseType(gasReading.utility_type).label.toLowerCase()}`}>
             <div className="space-y-4">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                            <span className="text-gray-600">Fecha Lectura:</span>
+                            <span className="text-gray-600">Fecha:</span>
                             <p className="font-semibold">{formatDate(gasReading.reading_date)}</p>
                         </div>
                         <div>
-                            <span className="text-gray-600">Consumo:</span>
-                            <p className="font-semibold">{gasReading.consumption_volume} unidades</p>
+                            <span className="text-gray-600">{gasReading.consumption_volume > 0 ? 'Consumo:' : 'Nota:'}</span>
+                            <p className="font-semibold">{gasReading.consumption_volume > 0 ? `${gasReading.consumption_volume} unidades` : (gasReading.notes || '-')}</p>
                         </div>
                         <div className="col-span-2 pt-2 border-t border-blue-200">
                             <span className="text-gray-600">Monto a Pagar:</span>
@@ -61,7 +62,7 @@ export default function PayGasModal({ isOpen, onClose, onSuccess, gasReading }) 
                 </div>
 
                 <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm text-yellow-800">
-                    ⚠️ Al confirmar, este consumo se marcará como pagado y se actualizarán los pendientes.
+                    ⚠️ Al confirmar, este gasto se marcará como pagado y se actualizarán los pendientes.
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">

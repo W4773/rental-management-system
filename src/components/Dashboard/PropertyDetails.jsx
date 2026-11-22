@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Zap, Droplets, ChevronDown, ChevronUp, X, Building2, UserPlus, UserMinus, CheckSquare, ListChecks, Ban, Eraser, Mail } from 'lucide-react'
+import { Wallet, FileText, Pencil, Trash2, Printer, BedDouble, ShowerHead, User, Flame, Plus, ChevronDown, ChevronUp, X, Building2, UserPlus, UserMinus, CheckSquare, ListChecks, Ban, Eraser, Mail } from 'lucide-react'
 import { formatCurrency } from '../../lib/calculations'
 import { formatDate } from '../../lib/dateUtils'
 import { generateReceiptPDF } from '../../lib/pdfGenerator'
@@ -14,13 +14,10 @@ import RowMenu from '../Common/RowMenu'
 import YearlyPaymentGrid from './YearlyPaymentGrid'
 import EditPaymentModal from '../Modals/EditPaymentModal'
 import VoidMonthsModal from '../Modals/VoidMonthsModal'
+import RegisterExpenseModal from '../Modals/RegisterExpenseModal'
+import { expenseType } from '../../lib/expenseTypes'
 
 const VISIBLE_PAYMENTS = 4
-const UTILITY_META = {
-    gas: { label: 'Gas', unit: 'GL', icon: Flame },
-    electricity: { label: 'Luz', unit: 'kWh', icon: Zap },
-    water: { label: 'Agua', unit: 'm³', icon: Droplets }
-}
 
 const IconBtn = ({ label, onClick, danger, children }) => (
     <button
@@ -58,6 +55,7 @@ export default function PropertyDetails({ property, onDeleted }) {
     const [year, setYear] = useState(new Date().getFullYear())
     const [showAll, setShowAll] = useState(false)
     const [letterMenu, setLetterMenu] = useState(false)
+    const [expenseOpen, setExpenseOpen] = useState(false)
     const [selectedPayments, setSelectedPayments] = useState([])
     const [selectedMonths, setSelectedMonths] = useState([])
     const [confirmDeleteProperty, setConfirmDeleteProperty] = useState(false)
@@ -425,21 +423,28 @@ export default function PropertyDetails({ property, onDeleted }) {
                 />
             </div>
 
-            {/* Utilities: gas / luz / agua */}
-            <Section title="Servicios (gas, luz, agua)" icon={Flame}
-                right={pendingUtilities > 0 && <span className="text-xs font-semibold text-amber-700">Pendiente: {formatCurrency(pendingUtilities)}</span>}>
+            {/* Expenses: luz, agua, basura, gas, limpieza, mantenimiento */}
+            <Section title="Gastos y servicios" icon={Flame}
+                right={<div className="flex items-center gap-2">
+                    {pendingUtilities > 0 && <span className="text-xs font-semibold text-amber-700">Pendiente: {formatCurrency(pendingUtilities)}</span>}
+                    <button onClick={() => setExpenseOpen(true)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">
+                        <Plus className="w-3.5 h-3.5" /> Registrar gasto
+                    </button>
+                </div>}>
                 {utilities.length === 0 ? (
-                    <p className="text-sm italic text-gray-500 py-1.5 text-center bg-gray-50 rounded-lg">No hay lecturas registradas</p>
+                    <p className="text-sm italic text-gray-500 py-1.5 text-center bg-gray-50 rounded-lg">No hay gastos registrados</p>
                 ) : (
                     <ul className="space-y-1">
                         {utilities.map(reading => {
-                            const meta = UTILITY_META[reading.utility_type] || UTILITY_META.gas
+                            const meta = expenseType(reading.utility_type)
                             return (
                                 <li key={reading.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[13px] ${reading.paid ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
                                     <meta.icon className="w-3.5 h-3.5 text-gray-500 shrink-0" />
                                     <div className="flex-1 min-w-0 leading-tight">
                                         <span className="font-medium">{meta.label} · {formatDate(reading.reading_date)}</span>
-                                        <span className="text-[11px] text-gray-600 ml-2">Lectura {reading.current_reading} · {reading.consumption_volume} {meta.unit}</span>
+                                        {reading.consumption_volume > 0 && <span className="text-[11px] text-gray-600 ml-2">Lectura {reading.current_reading} · {reading.consumption_volume} {meta.unit}</span>}
+                                        {reading.notes && <span className="text-[11px] text-gray-600 ml-2">{reading.notes}</span>}
                                         {reading.paid && <span className="text-[11px] text-green-700 ml-2">Pagado {formatDate(reading.payment_date)}</span>}
                                     </div>
                                     <span className="font-bold">{formatCurrency(reading.total_cost)}</span>
@@ -516,6 +521,8 @@ export default function PropertyDetails({ property, onDeleted }) {
                 </div>
             )}
 
+            <RegisterExpenseModal isOpen={expenseOpen} property={property} onClose={() => setExpenseOpen(false)}
+                onSuccess={() => toast.success('Gasto registrado')} />
             <EditPaymentModal isOpen={editingPayment !== null} payment={editingPayment} property={property} onClose={() => setEditingPayment(null)} />
             <VoidMonthsModal isOpen={voidModal} months={editMonths} onClose={() => setVoidModal(false)} onConfirm={markVoid} />
             <ConfirmModal
